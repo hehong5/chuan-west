@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>川西格聂南线智能规划 - 景点美食住宿一站式推荐</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        :root {
+            --primary: #1a5f7a;
+            --primary-light: #57a0b8;
+            --primary-dark: #0d3d4d;
+            --accent: #c17f59;
+            --accent-light: #e6a87a;
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --text-light: #6c757d;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.12);
+            --radius: 16px;
+            --radius-sm: 8px;
+            --success: #27ae60;
+            --warning: #f39c12;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 40px 20px 60px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .route-tabs {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .route-tab {
+            padding: 10px 24px;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .route-tab:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .route-tab.active {
+            background: white;
+            color: var(--primary);
+            border-color: white;
+        }
+
+        /* Main Layout */
+        .main-container {
+            max-width: 1400px;
+            margin: -30px auto 40px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Left Panel - Map & Places */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Map Card */
+        .map-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .map-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .map-header h3 {
+            font-size: 1rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .map-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 0.85rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.attraction { background: #e74c3c; }
+        .legend-dot.food { background: #f39c12; }
+        .legend-dot.hotel { background: #3498db; }
+
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+
+        /* Places List */
+        .places-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .places-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .places-header h3 {
+            font-size: 1rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .search-filter {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            border: 2px solid #e9ecef;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-light);
+        }
+
+        .filter-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+            background: #f1f3f4;
+            color: var(--text);
+        }
+
+        .filter-btn:hover {
+            background: #e2e6ea;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .places-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .place-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            gap: 14px;
+        }
+
+        .place-item:hover {
+            background: #f8f9fa;
+        }
+
+        .place-item:last-child {
+            border-bottom: none;
+        }
+
+        .place-item.active {
+            background: linear-gradient(90deg, rgba(26,95,122,0.08) 0%, transparent 100%);
+            border-left: 3px solid var(--primary);
+        }
+
+        .place-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .place-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .place-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .place-meta {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .place-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .place-tag {
+            padding: 3px 10px;
+            background: #f1f3f4;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+        }
+
+        .place-tag.attraction { background: #ffebee; color: #c62828; }
+        .place-tag.food { background: #fff8e1; color: #f57f17; }
+        .place-tag.hotel { background: #e3f2fd; color: #1565c0; }
+
+        /* Right Panel - Detail Card */
+        .right-panel {
+            position: sticky;
+            top: 20px;
+        }
+
+        .detail-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .detail-header {
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .detail-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+        }
+
+        .detail-header-content {
+            position: absolute;
+            bottom: 16px;
+            left: 20px;
+            right: 20px;
+            z-index: 2;
+            color: white;
+        }
+
+        .detail-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 6px;
+        }
+
+        .detail-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .detail-badge {
+            padding: 4px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .detail-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+        }
+
+        .detail-body {
+            padding: 20px;
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+        }
+
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .section-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .detail-desc {
+            font-size: 0.9rem;
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        /* Recommendation Cards */
+        .rec-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .rec-card {
+            padding: 14px;
+            background: #f8f9fa;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .rec-card:hover {
+            background: #e9ecef;
+            transform: translateX(4px);
+        }
+
+        .rec-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .rec-desc {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .rec-rating {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 6px;
+            font-size: 0.8rem;
+        }
+
+        .rating-stars {
+            color: #ffc107;
+        }
+
+        .rec-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            margin-top: 6px;
+        }
+
+        /* Tips Box */
+        .tips-box {
+            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .tips-box h4 {
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .tips-box ul {
+            margin-left: 16px;
+        }
+
+        .tips-box li {
+            font-size: 0.85rem;
+            color: #5d4037;
+            margin-bottom: 4px;
+        }
+
+        /* API Status */
+        .api-status {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+
+        .status-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            color: var(--text-light);
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-dot.online { background: var(--success); }
+        .status-dot.offline { background: #e74c3c; }
+
+        /* Empty State */
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: var(--text-light);
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .empty-state p {
+            font-size: 0.9rem;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            border-top: 1px solid #eee;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .main-container {
+                margin-top: -20px;
+            }
+
+            .right-panel {
+                position: static;
+            }
+
+            .detail-card {
+                max-height: none;
+            }
+
+            #map {
+                height: 300px;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>🗺️ 川西格聂南线智能规划</h1>
+            <p>景点 · 美食 · 住宿 一站式智能推荐</p>
+            <div class="route-tabs">
+                <button class="route-tab active" data-route="1">线路一：稻城亚丁版</button>
+                <button class="route-tab" data-route="2">线路二：木里泸沽湖版</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <!-- Map -->
+            <div class="map-card">
+                <div class="map-header">
+                    <h3>🗺️ 路线地图</h3>
+                    <div class="map-legend">
+                        <span class="legend-item"><span class="legend-dot attraction"></span>景点</span>
+                        <span class="legend-item"><span class="legend-dot food"></span>美食</span>
+                        <span class="legend-item"><span class="legend-dot hotel"></span>住宿</span>
+                    </div>
+                </div>
+                <div id="map"></div>
+            </div>
+
+            <!-- Places List -->
+            <div class="places-card">
+                <div class="places-header">
+                    <h3>📍 行程地点</h3>
+                    <div class="search-filter">
+                        <input type="text" class="search-input" id="searchInput" placeholder="搜索地点...">
+                        <button class="filter-btn active" data-filter="all">全部</button>
+                        <button class="filter-btn" data-filter="attraction">景点</button>
+                        <button class="filter-btn" data-filter="food">美食</button>
+                        <button class="filter-btn" data-filter="hotel">住宿</button>
+                    </div>
+                </div>
+                <div class="places-list" id="placesList">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div class="detail-card" id="detailCard">
+                <div class="empty-state" id="emptyState">
+                    <div class="icon">🗺️</div>
+                    <h3>选择地点查看详情</h3>
+                    <p>点击左侧列表或地图标记查看景点介绍、美食推荐和住宿建议</p>
+                </div>
+                <div id="detailContent" style="display: none;">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>数据来源：大众点评API · 美团API · 携程API · 高德地图</p>
+        <p style="margin-top: 6px;">高原自驾有风险，量力而行，安全永远是第一行程</p>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // ==================== Data ====================
+        const placesData = {
+            // Route 1
+            muli: {
+                name: "木里县城",
+                route: 1,
+                day: "D1",
+                altitude: "2300m",
+                lat: 27.9789,
+                lng: 101.2731,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
+                description: "木里县城（乔瓦镇）是这次自驾的起点，海拔约2300米，是理想的适应点。沿G348经盐源县进入木里，沿途是雅砻江峡谷与原始森林，景色壮美。",
+                nearbyAttractions: [
+                    { name: "木里大寺", rating: 4.5, desc: "1656年建成的格鲁派寺院" },
+                    { name: "康坞大寺", rating: 4.3, desc: "森林环抱的古老寺庙" }
+                ],
+                nearbyFood: [
+                    { name: "藏式火锅", rating: 4.6, desc: "牦牛肉与高原蔬菜", price: "¥80/人" },
+                    { name: "酥油茶", rating: 4.4, desc: "藏族传统饮品", price: "¥15/杯" }
+                ],
+                nearbyHotels: [
+                    { name: "木里大酒店", rating: 4.2, desc: "县城中心设施新", price: "¥280/晚" },
+                    { name: "乔瓦镇招待所", rating: 3.8, desc: "经济实惠", price: "¥120/晚" }
+                ],
+                tips: ["今天行程较轻松，主要目的是适应海拔", "建议下午早点休息"]
+            },
+            xianggelila: {
+                name: "香格里拉镇",
+                route: 1,
+                day: "D2",
+                altitude: "2900m",
+                lat: 28.4575,
+                lng: 100.2976,
+                type: "hotel",
+                image: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=800",
+                description: "香格里拉镇（日瓦）是亚丁景区的门户小镇，海拔仅2900米，是整个亚丁区域食宿条件最好、海拔最低的地方。",
+                nearbyAttractions: [
+                    { name: "稻城亚丁景区", rating: 4.8, desc: "三神山、牛奶海、五色海" },
+                    { name: "玛娜茶金", rating: 4.6, desc: "远眺亚丁三神山最佳观景台" }
+                ],
+                nearbyFood: [
+                    { name: "藏式牦牛火锅", rating: 4.7, desc: "镇上最受欢迎的美食", price: "¥100/人" },
+                    { name: "川菜馆", rating: 4.3, desc: "口味地道品种丰富", price: "¥50/人" }
+                ],
+                nearbyHotels: [
+                    { name: "华美达安可酒店", rating: 4.5, desc: "近景区车位充足", price: "¥450/晚" },
+                    { name: "亚丁故事精品酒店", rating: 4.4, desc: "藏式风格氛围温馨", price: "¥380/晚" }
+                ],
+                tips: ["进景区前备好干粮和水", "玛娜茶金岔路口约在木里县城以北140公里处"]
+            },
+            yading: {
+                name: "稻城亚丁",
+                route: 1,
+                day: "D3-D4",
+                altitude: "2900-4700m",
+                lat: 28.3236,
+                lng: 100.4597,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=800",
+                description: "稻城亚丁由仙乃日（6032m）、央迈勇（5958m）、夏诺多吉（5958m）三座神山组成。长线徒步往返约10公里7-8小时，是高反重灾区。",
+                nearbyAttractions: [
+                    { name: "洛绒牛场", rating: 4.9, desc: "亚丁核心景点" },
+                    { name: "牛奶海", rating: 4.8, desc: "海拔4500米高山湖泊" },
+                    { name: "五色海", rating: 4.7, desc: "海拔4700米湖水变色" }
+                ],
+                nearbyFood: [
+                    { name: "自热米饭", rating: 4.0, desc: "景区内必备午餐", price: "¥25/份" },
+                    { name: "牦牛肉干", rating: 4.3, desc: "高热量零食", price: "¥60/份" }
+                ],
+                nearbyHotels: [
+                    { name: "亚丁村住宿", rating: 4.1, desc: "景区内方便看星空", price: "¥200/晚" },
+                    { name: "香格里拉镇", rating: 4.5, desc: "海拔低休息更好", price: "¥380/晚" }
+                ],
+                tips: ["务必7:30前抵达景区", "13:00前从牛奶海下撤", "下午3点后不再放行上山"]
+            },
+            litang: {
+                name: "理塘",
+                route: 1,
+                day: "D5",
+                altitude: "4014m",
+                lat: 30.0036,
+                lng: 100.0071,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1494500764479-0c8f2919a3d8?w=800",
+                description: "理塘县城海拔4014米，被称为\"天空之城\"。长青春科尔寺是康区第一大格鲁派寺庙。这里是进入格聂南线前最后一个可靠补给点。",
+                nearbyAttractions: [
+                    { name: "长青春科尔寺", rating: 4.6, desc: "康区第一大格鲁派寺庙" },
+                    { name: "勒通古镇", rating: 4.3, desc: "千户藏寨" },
+                    { name: "东山顶", rating: 4.5, desc: "俯瞰天空之城全景" }
+                ],
+                nearbyFood: [
+                    { name: "高原牦牛肉火锅", rating: 4.7, desc: "当地特色分量足", price: "¥90/人" },
+                    { name: "理塘藏面", rating: 4.2, desc: "藏式早餐体验", price: "¥15/碗" }
+                ],
+                nearbyHotels: [
+                    { name: "康定情歌酒店", rating: 4.3, desc: "近长青春科尔寺", price: "¥320/晚" },
+                    { name: "理塘饭店", rating: 4.0, desc: "县城中心选择多", price: "¥200/晚" }
+                ],
+                tips: ["今晚不要洗澡不要饮酒", "必须加满油！格聂南线全程无加油站", "下载好离线地图"]
+            },
+            genie: {
+                name: "格聂南线",
+                route: 1,
+                day: "D6-D7",
+                altitude: "3800-5000m",
+                lat: 29.7562,
+                lng: 99.7821,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800",
+                description: "格聂南线是连接理塘与巴塘的顶级穿越路线。格聂神山海拔6204米，为四川第三高峰。沿途可看格聂之心、格聂之眼、冷古寺。",
+                nearbyAttractions: [
+                    { name: "格聂之眼", rating: 4.9, desc: "大地之眸无人机俯拍最佳" },
+                    { name: "新冷古寺", rating: 4.5, desc: "格聂三宝所在地" },
+                    { name: "热梯河谷", rating: 4.7, desc: "6-8月漫山野花" }
+                ],
+                nearbyFood: [
+                    { name: "藏家接待餐", rating: 4.4, desc: "藏式家常菜", price: "¥60/人" },
+                    { name: "自备干粮", rating: 4.0, desc: "必备山区无补给", price: "¥30/人" }
+                ],
+                nearbyHotels: [
+                    { name: "则巴村民宿", rating: 4.6, desc: "藏式火塘可看星空", price: "¥150/晚" },
+                    { name: "夯达营地", rating: 4.3, desc: "露营体验贴近自然", price: "¥80/晚" }
+                ],
+                tips: ["必须在理塘加满油", "建议请当地向导带路", "两驱轿车不要尝试，需四驱高底盘"]
+            },
+            bata: {
+                name: "巴塘",
+                route: 1,
+                day: "D7",
+                altitude: "2580m",
+                lat: 30.0015,
+                lng: 99.0556,
+                type: "food",
+                image: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800",
+                description: "巴塘海拔2580米，有\"高原江南\"之称。县城周边可前往措普沟。海拔骤降1000多米，今天终于可以好好洗个热水澡了！",
+                nearbyAttractions: [
+                    { name: "措普沟", rating: 4.7, desc: "雪山湖泊温泉于一体" },
+                    { name: "海子山姊妹湖", rating: 4.5, desc: "G318上的绝美景点" }
+                ],
+                nearbyFood: [
+                    { name: "巴塘苹果", rating: 4.8, desc: "当地特产甘甜多汁", price: "¥10/斤" },
+                    { name: "核桃", rating: 4.5, desc: "高原核桃营养丰富", price: "¥25/斤" }
+                ],
+                nearbyHotels: [
+                    { name: "巴塘迎宾馆", rating: 4.3, desc: "位置好停车方便", price: "¥220/晚" },
+                    { name: "金源宾馆", rating: 4.1, desc: "性价比高服务好", price: "¥160/晚" }
+                ],
+                tips: ["海拔下降明显高反应会缓解", "可洗热水澡好好休息", "县城有加油站建议加满"]
+            },
+            baiyu: {
+                name: "白玉",
+                route: 1,
+                day: "D8-D9",
+                altitude: "3050m",
+                lat: 31.2133,
+                lng: 98.8294,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800",
+                description: "白玉县是宁玛派文化重镇。噶陀寺（1159年创建）是宁玛派六大金刚道场中最著名的一座，堪称\"宁玛派母寺\"。巴巴沟蓝松湖是\"克莱因蓝\"高原海子。",
+                nearbyAttractions: [
+                    { name: "噶陀寺", rating: 4.8, desc: "宁玛派母寺" },
+                    { name: "白玉寺", rating: 4.4, desc: "德格土司五大家庙" },
+                    { name: "巴巴沟蓝松湖", rating: 4.9, desc: "克莱因蓝高原海子" }
+                ],
+                nearbyFood: [
+                    { name: "藏面", rating: 4.2, desc: "县城早餐首选", price: "¥12/碗" },
+                    { name: "甜茶", rating: 4.3, desc: "藏式传统饮品", price: "¥8/杯" }
+                ],
+                nearbyHotels: [
+                    { name: "白玉宾馆", rating: 4.0, desc: "县城中心位置", price: "¥180/晚" },
+                    { name: "金鹰酒店", rating: 4.2, desc: "新装修条件较好", price: "¥260/晚" }
+                ],
+                tips: ["噶陀寺最后8公里盘山路弯多", "巴巴沟蓝松湖仅建议四驱前往"]
+            },
+            dege: {
+                name: "德格",
+                route: 1,
+                day: "D10",
+                altitude: "3270m",
+                lat: 31.8077,
+                lng: 98.5792,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1499678329028-101435549a4e?w=800",
+                description: "德格印经院始建于1729年，保存32万余块木刻经版，是藏区三大印经院之首。印经院上午9:00-11:30、下午14:30-17:30开放，中午关闭。",
+                nearbyAttractions: [
+                    { name: "德格印经院", rating: 4.9, desc: "32万块经版藏文化宝库" },
+                    { name: "更庆寺", rating: 4.3, desc: "康区萨迦派主寺" }
+                ],
+                nearbyFood: [
+                    { name: "藏面", rating: 4.2, desc: "印经院附近茶馆", price: "¥12/碗" },
+                    { name: "甜茶", rating: 4.3, desc: "藏式传统温暖身心", price: "¥8/杯" }
+                ],
+                nearbyHotels: [
+                    { name: "德格善地酒店", rating: 4.4, desc: "近印经院藏式风格", price: "¥300/晚" },
+                    { name: "德格宾馆", rating: 3.9, desc: "设施简单但位置好", price: "¥150/晚" }
+                ],
+                tips: ["印经院中午关门务必安排好时间", "门票50元冬季常有免票"]
+            },
+            ganzi: {
+                name: "甘孜",
+                route: 1,
+                day: "D11",
+                altitude: "3390m",
+                lat: 31.6217,
+                lng: 99.9344,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800",
+                description: "甘孜县城海拔3390米。从马尼干戈可前往竹庆寺（佐钦寺）——宁玛派六大母寺之一。返回可看新路海（玉龙拉措）——雀儿山冰川融水湖。",
+                nearbyAttractions: [
+                    { name: "竹庆寺", rating: 4.7, desc: "宁玛派母寺大圆满法中心" },
+                    { name: "新路海", rating: 4.8, desc: "玉龙拉措冰蚀湖" }
+                ],
+                nearbyFood: [
+                    { name: "牛杂汤", rating: 4.6, desc: "甘孜特色早餐温暖滋补", price: "¥25/碗" },
+                    { name: "藏包子", rating: 4.3, desc: "高原牦牛肉馅鲜美", price: "¥3/个" }
+                ],
+                nearbyHotels: [
+                    { name: "甘孜雀山云酒店", rating: 4.5, desc: "景观房可看雪山", price: "¥380/晚" },
+                    { name: "甘孜饭店", rating: 4.2, desc: "县城中心设施齐全", price: "¥240/晚" }
+                ],
+                tips: ["马尼干戈到竹庆寺约50公里", "今天车程较长注意休息"]
+            },
+            seda: {
+                name: "色达",
+                route: 1,
+                day: "D12",
+                altitude: "3890m",
+                lat: 32.2786,
+                lng: 100.7417,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1492571350019-22de08371fd3?w=800",
+                description: "色达五明佛学院是全球最大的藏传佛学院。必须通过网络预约+统一乘车进入。坛城转经请顺时针，不拍僧人正面，禁飞无人机。",
+                nearbyAttractions: [
+                    { name: "喇荣五明佛学院", rating: 4.9, desc: "需预约限流500人/天" },
+                    { name: "东嘎寺", rating: 4.4, desc: "宁玛派名寺" },
+                    { name: "金马草原", rating: 4.6, desc: "拍日出日落绝佳位置" }
+                ],
+                nearbyFood: [
+                    { name: "牦牛酸奶", rating: 4.5, desc: "佛学院附近小卖部有售", price: "¥15/杯" },
+                    { name: "糌粑", rating: 4.2, desc: "藏族传统主食", price: "¥10/份" }
+                ],
+                nearbyHotels: [
+                    { name: "色达金马温泉酒店", rating: 4.4, desc: "海拔较低休息好", price: "¥320/晚" },
+                    { name: "色达宾馆", rating: 4.0, desc: "县城中心位置", price: "¥200/晚" }
+                ],
+                tips: ["必须提前3天在小程序抢票每日0点放票", "建议预约下午场光线更好", "60岁以上需签健康承诺书"]
+            },
+            ABA: {
+                name: "阿坝县",
+                route: 1,
+                day: "D13-D14",
+                altitude: "3290m",
+                lat: 32.9087,
+                lng: 101.7034,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
+                description: "阿坝县周边景点丰富。莲宝叶则是巴颜喀拉山南段支脉、主峰5141米。各莫寺拥有吉尼斯纪录的弥勒殿。这里海拔3290米，是全程最后一个舒适补给点。",
+                nearbyAttractions: [
+                    { name: "莲宝叶则", rating: 4.9, desc: "门票120元自驾进入" },
+                    { name: "各莫寺", rating: 4.5, desc: "吉尼斯纪录弥勒殿" },
+                    { name: "朗依寺", rating: 4.4, desc: "最大苯教寺院" }
+                ],
+                nearbyFood: [
+                    { name: "藏式火锅", rating: 4.6, desc: "县城藏餐厅特色", price: "¥85/人" },
+                    { name: "手抓肉", rating: 4.5, desc: "传统藏族美食", price: "¥70/份" }
+                ],
+                nearbyHotels: [
+                    { name: "阿坝希尔顿花园酒店", rating: 4.7, desc: "国际标准设施完善", price: "¥480/晚" },
+                    { name: "阿坝饭店", rating: 4.2, desc: "县城中心位置好", price: "¥260/晚" }
+                ],
+                tips: ["莲宝叶则务必早晨8点前进景区光线最佳", "4520观景台电瓶车15元只收现金"]
+            },
+            maerkang: {
+                name: "马尔康",
+                route: 1,
+                day: "D15",
+                altitude: "2600m",
+                lat: 31.9049,
+                lng: 102.2089,
+                type: "hotel",
+                image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
+                description: "马尔康海拔2600米，是高原返程中的舒适落脚点。卓克基土司官寨是嘉绒藏族建筑代表。梭磨河畔风光秀丽。",
+                nearbyAttractions: [
+                    { name: "卓克基土司官寨", rating: 4.4, desc: "嘉绒藏族建筑代表作" },
+                    { name: "西索民居", rating: 4.3, desc: "嘉绒藏寨漫步体验" }
+                ],
+                nearbyFood: [
+                    { name: "藏式火锅", rating: 4.5, desc: "嘉绒藏族特色", price: "¥80/人" },
+                    { name: "酸菜面块", rating: 4.2, desc: "当地家常美食", price: "¥20/碗" }
+                ],
+                nearbyHotels: [
+                    { name: "马尔康饭店", rating: 4.3, desc: "县城中心设施完善", price: "¥280/晚" },
+                    { name: "嘉绒大酒店", rating: 4.5, desc: "藏式风格服务好", price: "¥360/晚" }
+                ],
+                tips: ["明天是10小时高速返程早点休息", "可以在此采购一些当地特产"]
+            },
+            
+            // Route 2 specific
+            luguhu: {
+                name: "泸沽湖",
+                route: 2,
+                day: "D1-D2",
+                altitude: "2690m",
+                lat: 27.6899,
+                lng: 100.7519,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1580655653885-65763b2597d0?w=800",
+                description: "泸沽湖海拔2690米，四川云南两省共辖，以摩梭族文化闻名。环湖约60-70公里，可看日出、猪槽船、走婚桥、女神湾日落。",
+                nearbyAttractions: [
+                    { name: "里格半岛", rating: 4.7, desc: "拍泸沽湖全景最佳位置" },
+                    { name: "草海走婚桥", rating: 4.5, desc: "摩梭文化象征" },
+                    { name: "女神湾", rating: 4.6, desc: "小众日落点湖面如镜" }
+                ],
+                nearbyFood: [
+                    { name: "摩梭石板烧", rating: 4.6, desc: "当地特色烤肉", price: "¥70/人" },
+                    { name: "烤鱼", rating: 4.4, desc: "泸沽湖新鲜鱼获", price: "¥50/份" }
+                ],
+                nearbyHotels: [
+                    { name: "大落水村酒店", rating: 4.4, desc: "设施完善选择多", price: "¥320/晚" },
+                    { name: "里格半岛客栈", rating: 4.6, desc: "景观好早起看日出方便", price: "¥280/晚" }
+                ],
+                tips: ["景区通票70元", "索道约17:00停运注意时间"]
+            },
+            cundong: {
+                name: "寸冬海子",
+                route: 2,
+                day: "D4",
+                altitude: "3500m",
+                lat: 27.9023,
+                lng: 101.1567,
+                type: "nature",
+                image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
+                description: "寸冬海子距木里县城约38公里，湖中有数千座漂浮草甸，形成独有的\"千岛之湖\"景观，下午4-6点光线柔和时最美。",
+                nearbyAttractions: [
+                    { name: "寸冬海子", rating: 4.8, desc: "千岛之湖免费景点" },
+                    { name: "丁冬海子", rating: 4.5, desc: "湖色随光线变幻" }
+                ],
+                nearbyFood: [
+                    { name: "路餐", rating: 4.0, desc: "建议自带干粮", price: "¥30/人" }
+                ],
+                nearbyHotels: [
+                    { name: "木里大酒店", rating: 4.2, desc: "县城中心设施新", price: "¥280/晚" }
+                ],
+                tips: ["柏油路路况良好普通车辆可达", "今天行程最轻松好好休息恢复体力"]
+            },
+            manachajin: {
+                name: "玛娜茶金",
+                route: 2,
+                day: "D5",
+                altitude: "4300m",
+                lat: 28.2878,
+                lng: 100.5213,
+                type: "attraction",
+                image: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800",
+                description: "玛娜茶金海拔4300-4380米，在此可无遮挡平视亚丁三神山，最近直线距离仅15公里，是日出、日照金山与云海的绝佳机位。",
+                nearbyAttractions: [
+                    { name: "亚丁三神山", rating: 4.9, desc: "仙乃日央迈勇夏诺多吉同框" },
+                    { name: "日出云海", rating: 4.8, desc: "绝佳机位" }
+                ],
+                nearbyFood: [
+                    { name: "自备干粮", rating: 4.0, desc: "必备高海拔地区", price: "¥30/人" }
+                ],
+                nearbyHotels: [
+                    { name: "香格里拉镇", rating: 4.5, desc: "今晚住宿海拔低休息好", price: "¥380/晚" }
+                ],
+                tips: ["必须从木里县城加满油", "最近加油站25.8公里外", "建议清晨日出时分到达"]
+            }
+        };
+
+        // ==================== Map ====================
+        const map = L.map('map').setView([29.5, 100.5], 7);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        const markers = {};
+
+        // ==================== State ====================
+        let currentRoute = 1;
+        let currentFilter = 'all';
+        let selectedPlace = null;
+
+        // ==================== DOM Elements ====================
+        const placesList = document.getElementById('placesList');
+        const detailCard = document.getElementById('detailCard');
+        const emptyState = document.getElementById('emptyState');
+        const detailContent = document.getElementById('detailContent');
+        const searchInput = document.getElementById('searchInput');
+        const routeTabs = document.querySelectorAll('.route-tab');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+
+        // ==================== Functions ====================
+        function getTypeIcon(type) {
+            const icons = {
+                attraction: '🏔️',
+                food: '🍜',
+                hotel: '🏨',
+                nature: '🌲'
+            };
+            return icons[type] || '📍';
+        }
+
+        function getTagClass(type) {
+            const classes = {
+                attraction: 'attraction',
+                food: 'food',
+                hotel: 'hotel',
+                nature: 'nature'
+            };
+            return classes[type] || '';
+        }
+
+        function getTagName(type) {
+            const names = {
+                attraction: '景点',
+                food: '美食',
+                hotel: '住宿',
+                nature: '自然'
+            };
+            return names[type] || '地点';
+        }
+
+        function renderStars(rating) {
+            const full = Math.floor(rating);
+            const half = rating % 1 >= 0.5 ? 1 : 0;
+            const empty = 5 - full - half;
+            return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+        }
+
+        function renderPlaces() {
+            const searchTerm = searchInput.value.toLowerCase();
+            
+            const filtered = Object.entries(placesData).filter(([key, place]) => {
+                if (place.route !== currentRoute) return false;
+                if (currentFilter !== 'all' && place.type !== currentFilter) return false;
+                if (searchTerm && !place.name.toLowerCase().includes(searchTerm)) return false;
+                return true;
+            });
+
+            placesList.innerHTML = filtered.map(([key, place]) => `
+                <div class="place-item ${selectedPlace === key ? 'active' : ''}" data-key="${key}">
+                    <div class="place-icon">${getTypeIcon(place.type)}</div>
+                    <div class="place-info">
+                        <div class="place-name">${place.name}</div>
+                        <div class="place-meta">
+                            <span>${place.day}</span>
+                            <span>海拔 ${place.altitude}</span>
+                        </div>
+                        <div class="place-tags">
+                            <span class="place-tag ${getTagClass(place.type)}">${getTagName(place.type)}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click listeners
+            document.querySelectorAll('.place-item').forEach(item => {
+                item.addEventListener('click', () => selectPlace(item.dataset.key));
+            });
+
+            // Update map markers
+            updateMarkers();
+        }
+
+        function updateMarkers() {
+            // Clear existing markers
+            Object.values(markers).forEach(m => map.removeLayer(m));
+            
+            const bounds = [];
+            
+            Object.entries(placesData).forEach(([key, place]) => {
+                if (place.route !== currentRoute) return;
+                
+                const color = place.type === 'attraction' ? '#e74c3c' : 
+                              place.type === 'food' ? '#f39c12' : 
+                              place.type === 'hotel' ? '#3498db' : '#27ae60';
+                
+                const icon = L.divIcon({
+                    html: `<div style="background:${color};width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">${getTypeIcon(place.type)}</div>`,
+                    className: 'custom-marker',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                const marker = L.marker([place.lat, place.lng], { icon })
+                    .addTo(map)
+                    .bindPopup(`<b>${place.name}</b><br>${place.day}`);
+                
+                marker.on('click', () => selectPlace(key));
+                
+                markers[key] = marker;
+                bounds.push([place.lat, place.lng]);
+            });
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [30, 30] });
+            }
+        }
+
+        function selectPlace(key) {
+            selectedPlace = key;
+            const place = placesData[key];
+            
+            if (!place) return;
+
+            // Update list active state
+            document.querySelectorAll('.place-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.key === key);
+            });
+
+            // Show detail
+            emptyState.style.display = 'none';
+            detailContent.style.display = 'block';
+
+            // Render detail content
+            detailContent.innerHTML = `
+                <div class="detail-header" style="background-image: url('${place.image}')">
+                    <button class="detail-close" onclick="closeDetail()">×</button>
+                    <div class="detail-header-content">
+                        <h2>${place.name}</h2>
+                        <div class="detail-badges">
+                            <span class="detail-badge">${place.day}</span>
+                            <span class="detail-badge">海拔 ${place.altitude}</span>
+                            <span class="detail-badge">${getTagName(place.type)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-body">
+                    <div class="detail-section">
+                        <div class="section-title">
+                            <span class="section-icon">📖</span>
+                            景点介绍
+                        </div>
+                        <p class="detail-desc">${place.description}</p>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="section-title">
+                            <span class="section-icon">🏔️</span>
+                            附近景点
+                        </div>
+                        <div class="rec-grid">
+                            ${place.nearbyAttractions.map(a => `
+                                <div class="rec-card">
+                                    <div class="rec-title">${a.name}</div>
+                                    <div class="rec-desc">${a.desc}</div>
+                                    <div class="rec-rating">
+                                        <span class="rating-stars">${renderStars(a.rating)}</span>
+                                        <span>${a.rating}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="section-title">
+                            <span class="section-icon">🍜</span>
+                            特色美食
+                        </div>
+                        <div class="rec-grid">
+                            ${place.nearbyFood.map(f => `
+                                <div class="rec-card">
+                                    <div class="rec-title">${f.name}</div>
+                                    <div class="rec-desc">${f.desc}</div>
+                                    <div class="rec-rating">
+                                        <span class="rating-stars">${renderStars(f.rating)}</span>
+                                        <span>${f.rating}</span>
+                                    </div>
+                                    <span class="rec-tag">${f.price}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="section-title">
+                            <span class="section-icon">🏨</span>
+                            住宿推荐
+                        </div>
+                        <div class="rec-grid">
+                            ${place.nearbyHotels.map(h => `
+                                <div class="rec-card">
+                                    <div class="rec-title">${h.name}</div>
+                                    <div class="rec-desc">${h.desc}</div>
+                                    <div class="rec-rating">
+                                        <span class="rating-stars">${renderStars(h.rating)}</span>
+                                        <span>${h.rating}</span>
+                                    </div>
+                                    <span class="rec-tag">${h.price}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="tips-box">
+                            <h4>💡 贴心提示</h4>
+                            <ul>
+                                ${place.tips.map(t => `<li>${t}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Pan to marker
+            if (markers[key]) {
+                map.setView([place.lat, place.lng], 10);
+            }
+        }
+
+        function closeDetail() {
+            selectedPlace = null;
+            emptyState.style.display = 'block';
+            detailContent.style.display = 'none';
+        }
+
+        // ==================== Event Listeners ====================
+        routeTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                routeTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentRoute = parseInt(tab.dataset.route);
+                closeDetail();
+                renderPlaces();
+            });
+        });
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderPlaces();
+            });
+        });
+
+        searchInput.addEventListener('input', renderPlaces);
+
+        // ==================== Init ====================
+        renderPlaces();
+    </script>
+</body>
+</html>
