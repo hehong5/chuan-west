@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.2</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.3</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-21.2');
+        console.log('🗺️ 川西旅行规划 v20260719-21.3');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -918,41 +918,43 @@
             <button onclick="closeCloudPanel()" style="border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer;">✕</button>
         </div>
 
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12px;color:#1e40af;margin-bottom:14px;line-height:1.6;">
-            💡 数据保存在 <b>你自己的 GitHub Gist</b> 里（私密），跨设备、跨浏览器、换版本都不丢。
+        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#065f46;margin-bottom:14px;line-height:1.6;">
+            💚 数据保存在 <b>云端数据库</b>，跨设备、跨浏览器、换版本都不丢。<br>
+            无需注册、无需 token、无需配置——你本机的匿名 ID 已被自动记录。
         </div>
 
-        <div style="margin-bottom:14px;">
-            <div style="font-size:13px;color:#475569;margin-bottom:6px;font-weight:600;">GitHub Personal Access Token (PAT)</div>
-            <input type="password" id="cloudToken" class="input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                style="font-family:monospace;font-size:13px;">
-            <div style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.5;">
-                ① 打开 <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:#3b82f6;">github.com/settings/tokens</a> → ② Generate new token (Fine-grained) → ③ 只勾选 <b>Gists: Read and write</b> → ④ 复制粘贴进来
-                <br>Token 只存本机 localStorage, 不上传服务器。
-            </div>
-        </div>
-
-        <div style="margin-bottom:14px;">
-            <div style="font-size:13px;color:#475569;margin-bottom:6px;font-weight:600;">Gist ID <span style="color:#94a3b8;font-weight:400;">(留空 = 创建新 gist)</span></div>
-            <input type="text" id="cloudGistId" class="input" placeholder="例如 8a3b1f7e..." style="font-family:monospace;font-size:13px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:11px;color:#475569;margin-bottom:14px;line-height:1.6;">
+            <b>你的云端 ID：</b>
+            <code id="cloudDbUid" style="font-family:monospace;color:#1e40af;background:white;padding:2px 6px;border-radius:4px;font-size:11px;"></code>
+            <button onclick="navigator.clipboard.writeText(_dbGetUserId());showToast('ID 已复制', 'success')" style="margin-left:6px;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">📋 复制</button>
+            <div style="margin-top:4px;color:#94a3b8;">在新设备上点"📥 用 ID 恢复"即可拉回数据</div>
         </div>
 
         <div id="cloudStatus" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px;background:#f8fafc;border-radius:6px;min-height:20px;"></div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);min-width:120px;">⬆️ 上传</button>
-            <button class="btn btn-primary" onclick="cloudDownload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">⬇️ 下载</button>
+            <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">☁️ 上传</button>
+            <button class="btn btn-primary" onclick="cloudDownload()" style="flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);min-width:120px;">⬇️ 下载</button>
             <button class="btn btn-secondary" onclick="cloudAutoSync()" style="flex:1;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;min-width:120px;" title="下载 → 合并 → 上传">🔄 自动同步</button>
         </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
             <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-                ⛔ 上传一直 403？试试 <b>手动备份</b>（零依赖，复制 JSON 到任何地方）
+                🆔 跨设备恢复：在新设备点这个，输入之前的 ID
+            </div>
+            <div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary" onclick="cloudRestoreById()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">📥 用 ID 恢复</button>
+            </div>
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
+                ⛔ 数据库连不上？试试 <b>手动备份</b>（零依赖）
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="cloudExport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📋 导出</button>
                 <button class="btn btn-secondary" onclick="cloudImport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📥 导入</button>
-                <button class="btn btn-secondary" onclick="cloudTest()" style="flex:1;background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8;min-width:90px;" title="测试网络/CORS">🔧 测网络</button>
+                <button class="btn btn-secondary" onclick="cloudTest()" style="flex:1;background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8;min-width:90px;" title="测试数据库连通性">🔧 测网络</button>
             </div>
         </div>
 
@@ -3171,48 +3173,12 @@ function escapeHtml(s) {
     }[c]));
 }
 
-// ====== LocalStorage ======
+// ====== LocalStorage + 自动同步 ======
 let _saveTimer = null;
 function _triggerAutoSync() {
     if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
-    if (!localStorage.getItem(CLOUD_KEY_TOKEN) || !localStorage.getItem(CLOUD_KEY_GISTID)) return;
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => cloudSilentSync(), 5000);
-}
-// 多代理兜底 (按优先级尝试)
-function _fetchViaProxy(url, options) {
-    const PROXIES = [
-        u => 'https://corsproxy.io/?' + encodeURIComponent(u) + '&enable=true',
-        u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-        u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
-    ];
-    // 顺序尝试, 第一个返回 ok 的用
-    return (async () => {
-        for (const wrap of PROXIES) {
-            try {
-                const res = await fetch(wrap(url), options);
-                if (res.ok) return res;
-                if (res.status < 500) return res;  // 4xx 立即返回 (凭据问题, 别试别的代理)
-                // 5xx 继续尝试下一个代理
-            } catch (e) { continue; }
-        }
-        throw new Error('所有代理都不可用');
-    })();
-}
-
-async function cloudSilentSync() {
-    const token = localStorage.getItem(CLOUD_KEY_TOKEN);
-    const gistId = localStorage.getItem(CLOUD_KEY_GISTID);
-    if (!token || !gistId) return;
-    try {
-        const data = _cloudGetAllData();
-        const url = `https://api.github.com/gists/${gistId}`;
-        await _fetchViaProxy(url, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: { [CLOUD_FILENAME]: { content: JSON.stringify(data, null, 2) } } }),
-        });
-    } catch (e) { console.warn('[cloud sync]', e.message); }
 }
 
 function saveToLocal() {
@@ -3521,18 +3487,161 @@ function renderGear() {
 
 function initGear() { renderGear(); }
 
-// ====== V21.1: 云同步 (GitHub Gist) ======
+// ====== V21.3: 云数据库 (Supabase) ======
+// 公共 anon key (前端安全, 后端 RLS 保护)
+const SUPABASE_URL = 'https://hbdvkuoqmgycwjcamwtr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZHZrdW9xbWd5Y3dqY2Ftd3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjAzNzEsImV4cCI6MjEwMDAzNjM3MX0.er-Lj8Karn_fO1a--hN2Dxf9uXgVG9YN_aBxv6HgFy0';
+const DB_KEY_USERID = 'travelmind_db_userid';
+
+// 用 crypto.randomUUID 分配一个匿名用户 ID (本机永久)
+function _dbGetUserId() {
+    let id = localStorage.getItem(DB_KEY_USERID);
+    if (!id) {
+        id = (crypto.randomUUID && crypto.randomUUID()) ||
+             'uid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem(DB_KEY_USERID, id);
+    }
+    return id;
+}
+
+async function _dbFetch(path, options = {}) {
+    const url = SUPABASE_URL + '/rest/v1/' + path;
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+            ...(options.headers || {}),
+        },
+    });
+    if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200)}`);
+    }
+    return res.status === 204 ? null : res.json();
+}
+
+async function dbPush() {
+    const uid = _dbGetUserId();
+    const data = _cloudGetAllData();
+    try {
+        // upsert: 用户已存在则覆盖, 不存在则创建
+        await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid), {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify([{
+                user_id: uid,
+                data: data,
+                updated_at: new Date().toISOString(),
+            }]),
+        });
+        return { ok: true, msg: '✓ 已保存到云端数据库' };
+    } catch (e) {
+        return { ok: false, msg: '保存失败: ' + e.message };
+    }
+}
+
+async function dbPull() {
+    const uid = _dbGetUserId();
+    try {
+        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid) + '&select=data,updated_at');
+        if (!rows || rows.length === 0) {
+            return { ok: false, msg: '云端还没有备份, 先点"☁️ 上传"' };
+        }
+        if (_cloudApplyData(rows[0].data)) {
+            return { ok: true, msg: `✓ 已恢复 (备份时间: ${new Date(rows[0].updated_at).toLocaleString('zh-CN')})` };
+        }
+        return { ok: false, msg: '数据格式不对' };
+    } catch (e) {
+        return { ok: false, msg: '读取失败: ' + e.message };
+    }
+}
+
+async function dbAuto() {
+    // 下载 → 合并 → 上传
+    const uid = _dbGetUserId();
+    try {
+        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid) + '&select=data,updated_at');
+        const local = _cloudGetAllData();
+        let merged = local;
+        if (rows && rows.length > 0) {
+            const remote = rows[0].data;
+            merged = {
+                version: 'v21-merged',
+                timestamp: Date.now(),
+                currentRoute: local.currentRoute.timestamp > (remote.currentRoute.timestamp || 0) ? local.currentRoute : remote.currentRoute,
+                savedRoutes: _mergeById(local.savedRoutes, remote.savedRoutes, 'id', 'timestamp'),
+                gear: _mergeById(local.gear, remote.gear, 'id'),
+            };
+        }
+        if (!_cloudApplyData(merged)) return { ok: false, msg: '数据应用失败' };
+        await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid), {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify([{
+                user_id: uid,
+                data: merged,
+                updated_at: new Date().toISOString(),
+            }]),
+        });
+        return { ok: true, msg: `✓ 同步完成 (${merged.savedRoutes?.length || 0} 条路线, ${merged.gear?.length || 0} 件装备)` };
+    } catch (e) {
+        return { ok: false, msg: '同步失败: ' + e.message };
+    }
+}
+
+// V21.3: 自动静默同步 (替换 cloudSilentSync)
+let _dbAutoTimer = null;
+async function _triggerAutoSync() {
+    if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
+    clearTimeout(_dbAutoTimer);
+    _dbAutoTimer = setTimeout(async () => {
+        const r = await dbPush();
+        if (!r.ok) console.warn('[db sync]', r.msg);
+    }, 5000);
+}
+
+// V21.3: 重写旧函数 - 用数据库
+async function cloudUpload() {
+    _cloudSetStatus('上传中...', true);
+    const r = await dbPush();
+    _cloudSetStatus(r.msg, r.ok);
+    if (r.ok) {
+        localStorage.setItem(CLOUD_KEY_GISTID, 'db:' + _dbGetUserId().slice(0, 8));
+        showToast('☁️ 已上传到云数据库', 'success');
+    }
+}
+async function cloudDownload() {
+    if (!confirm('下载会覆盖本地当前路线 + 已保存路线 + 装备清单, 确定吗?')) return;
+    _cloudSetStatus('下载中...', true);
+    const r = await dbPull();
+    _cloudSetStatus(r.msg, r.ok);
+    if (r.ok) showToast('☁️ 已从云数据库恢复', 'success');
+}
+async function cloudAutoSync() {
+    _cloudSetStatus('同步中...', true);
+    const r = await dbAuto();
+    _cloudSetStatus(r.msg, r.ok);
+    if (r.ok) showToast('🔄 数据库同步完成', 'success');
+}
+async function cloudSilentSync() {
+    if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
+    const r = await dbPush();
+    if (!r.ok) console.warn('[db sync]', r.msg);
+}
 const CLOUD_KEY_TOKEN = 'travelmind_cloud_token';
 const CLOUD_KEY_GISTID = 'travelmind_cloud_gistid';
 const CLOUD_KEY_AUTOSYNC = 'travelmind_cloud_autosync';
 const CLOUD_FILENAME = 'travelmind-backup.json';
 
 function openCloudPanel() {
-    document.getElementById('cloudToken').value = localStorage.getItem(CLOUD_KEY_TOKEN) || '';
-    document.getElementById('cloudGistId').value = localStorage.getItem(CLOUD_KEY_GISTID) || '';
+    const uidEl = document.getElementById('cloudDbUid');
+    if (uidEl) uidEl.textContent = _dbGetUserId();
     document.getElementById('cloudAutoSyncChk').checked = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
     document.getElementById('cloudStatus').textContent = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1'
-        ? '✓ 自动同步已开启 (修改后 5 秒自动上传)'
+        ? '✓ 自动同步已开启 (修改后 5 秒自动上传到云端数据库)'
         : '提示: 勾选"自动同步"可让修改自动上传';
     document.getElementById('cloudModal').style.display = 'flex';
 }
@@ -3720,24 +3829,42 @@ function cloudImport() {
 }
 
 async function cloudTest() {
-    _cloudSetStatus('正在测试各代理连通性...', true);
-    const tests = [
-        { name: 'corsproxy.io', url: 'https://corsproxy.io/?' + encodeURIComponent('https://api.github.com/zen') },
-        { name: 'allorigins.win', url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.github.com/zen') },
-        { name: 'codetabs.com', url: 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent('https://api.github.com/zen') },
-    ];
-    const lines = [];
-    for (const t of tests) {
-        try {
-            const r = await fetch(t.url);
-            const ok = r.ok ? '✓' : '✗';
-            lines.push(`${ok} ${t.name}: HTTP ${r.status}`);
-        } catch (e) {
-            lines.push(`✗ ${t.name}: ${e.message}`);
+    _cloudSetStatus('正在测试数据库...', true);
+    try {
+        const r = await fetch(SUPABASE_URL + '/rest/v1/travelmind_backups?select=user_id&limit=1', {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+        });
+        if (r.ok) {
+            _cloudSetStatus(`✓ 数据库连得上 (HTTP ${r.status})`, true);
+            showToast('🔧 数据库 OK', 'success');
+        } else {
+            _cloudSetStatus(`✗ 数据库返回 HTTP ${r.status}`, false);
         }
+    } catch (e) {
+        _cloudSetStatus(`✗ 连不上: ${e.message}`, false);
     }
-    _cloudSetStatus(lines.join(' | '), true);
-    showToast('🔧 网络测试完成', 'success');
+}
+
+async function cloudRestoreById() {
+    const id = prompt('粘贴之前复制过的云端 ID:');
+    if (!id || !id.trim()) return;
+    const trimmed = id.trim();
+    try {
+        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(trimmed) + '&select=data,updated_at');
+        if (!rows || rows.length === 0) {
+            alert('❌ 没找到这个 ID 的备份 (检查是否拼写错误)');
+            return;
+        }
+        if (!confirm(`✓ 找到了备份 (${new Date(rows[0].updated_at).toLocaleString('zh-CN')}), 导入会覆盖本地所有数据, 确定吗?`)) return;
+        if (_cloudApplyData(rows[0].data)) {
+            // 用这个 ID 当作本机 ID, 后续同步就用它
+            localStorage.setItem(DB_KEY_USERID, trimmed);
+            showToast('✓ 已从云端恢复', 'success');
+            _cloudSetStatus(`✓ 已恢复 ID ${trimmed.slice(0,8)} 的数据`, true);
+        }
+    } catch (e) {
+        alert('恢复失败: ' + e.message);
+    }
 }
 
 // ====== V21: 新手引导 ======
