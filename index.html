@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.1</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.2</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-21.1');
+        console.log('🗺️ 川西旅行规划 v20260719-21.2');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -943,6 +943,17 @@
             <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);min-width:120px;">⬆️ 上传</button>
             <button class="btn btn-primary" onclick="cloudDownload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">⬇️ 下载</button>
             <button class="btn btn-secondary" onclick="cloudAutoSync()" style="flex:1;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;min-width:120px;" title="下载 → 合并 → 上传">🔄 自动同步</button>
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
+                ⛔ 上传一直 403？试试 <b>手动备份</b>（零依赖，复制 JSON 到任何地方）
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="cloudExport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📋 导出</button>
+                <button class="btn btn-secondary" onclick="cloudImport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📥 导入</button>
+                <button class="btn btn-secondary" onclick="cloudTest()" style="flex:1;background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8;min-width:90px;" title="测试网络/CORS">🔧 测网络</button>
+            </div>
         </div>
 
         <div style="margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;">
@@ -3168,6 +3179,27 @@ function _triggerAutoSync() {
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => cloudSilentSync(), 5000);
 }
+// 多代理兜底 (按优先级尝试)
+function _fetchViaProxy(url, options) {
+    const PROXIES = [
+        u => 'https://corsproxy.io/?' + encodeURIComponent(u) + '&enable=true',
+        u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+        u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
+    ];
+    // 顺序尝试, 第一个返回 ok 的用
+    return (async () => {
+        for (const wrap of PROXIES) {
+            try {
+                const res = await fetch(wrap(url), options);
+                if (res.ok) return res;
+                if (res.status < 500) return res;  // 4xx 立即返回 (凭据问题, 别试别的代理)
+                // 5xx 继续尝试下一个代理
+            } catch (e) { continue; }
+        }
+        throw new Error('所有代理都不可用');
+    })();
+}
+
 async function cloudSilentSync() {
     const token = localStorage.getItem(CLOUD_KEY_TOKEN);
     const gistId = localStorage.getItem(CLOUD_KEY_GISTID);
@@ -3175,7 +3207,7 @@ async function cloudSilentSync() {
     try {
         const data = _cloudGetAllData();
         const url = `https://api.github.com/gists/${gistId}`;
-        await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+        await _fetchViaProxy(url, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
             body: JSON.stringify({ files: { [CLOUD_FILENAME]: { content: JSON.stringify(data, null, 2) } } }),
@@ -3564,7 +3596,7 @@ async function cloudUpload() {
         if (gistId) { url = `https://api.github.com/gists/${gistId}`; method = 'PATCH'; }
         else { url = 'https://api.github.com/gists'; method = 'POST'; }
         // 用 fetch + proxy 兜底 (浏览器跨域)
-        const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+        const res = await _fetchViaProxy(url, {
             method,
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -3586,7 +3618,7 @@ async function cloudDownload() {
     _cloudSetStatus('下载中...', true);
     try {
         const url = `https://api.github.com/gists/${gistId}`;
-        const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+        const res = await _fetchViaProxy(url, {
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' },
         });
         if (!res.ok) { _cloudSetStatus(`下载失败: HTTP ${res.status}`, false); return; }
@@ -3609,7 +3641,7 @@ async function cloudAutoSync() {
     _cloudSetStatus('同步中...', true);
     try {
         const url = `https://api.github.com/gists/${gistId}`;
-        const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+        const res = await _fetchViaProxy(url, {
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' },
         });
         if (!res.ok) { _cloudSetStatus(`获取远程失败: ${res.status}`, false); return; }
@@ -3628,7 +3660,7 @@ async function cloudAutoSync() {
             gear: _mergeById(local.gear, remote.gear, 'id'),
         };
         // 上传合并结果
-        const patchRes = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+        const patchRes = await _fetchViaProxy(url, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
             body: JSON.stringify({ files: { [CLOUD_FILENAME]: { content: JSON.stringify(merged, null, 2) } } }),
@@ -3651,6 +3683,61 @@ function _mergeById(localArr, remoteArr, idKey, tsKey) {
         else if (!existing) map.set(id, item);
     });
     return Array.from(map.values());
+}
+
+// ====== V21.2: 手动导入/导出 (零依赖兜底) ======
+function cloudExport() {
+    const data = _cloudGetAllData();
+    const json = JSON.stringify(data, null, 2);
+    const ta = document.createElement('textarea');
+    ta.value = json;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        showToast(`📋 已复制到剪贴板 (${(json.length/1024).toFixed(1)}KB), 可粘贴到任何云盘/邮箱/笔记`, 'success');
+    } catch (e) {
+        prompt('复制下面的 JSON:', json);
+    }
+    document.body.removeChild(ta);
+}
+
+function cloudImport() {
+    const json = prompt('粘贴之前导出的 JSON 备份:');
+    if (!json) return;
+    try {
+        const data = JSON.parse(json);
+        if (!confirm('导入会覆盖本地所有数据, 确定吗?')) return;
+        if (_cloudApplyData(data)) {
+            showToast('📥 导入成功', 'success');
+            _cloudSetStatus(`✓ 已导入备份 (${new Date(data.timestamp).toLocaleString('zh-CN')})`, true);
+        } else {
+            showToast('数据格式不对', 'error');
+        }
+    } catch (e) {
+        showToast('JSON 解析失败: ' + e.message, 'error');
+    }
+}
+
+async function cloudTest() {
+    _cloudSetStatus('正在测试各代理连通性...', true);
+    const tests = [
+        { name: 'corsproxy.io', url: 'https://corsproxy.io/?' + encodeURIComponent('https://api.github.com/zen') },
+        { name: 'allorigins.win', url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.github.com/zen') },
+        { name: 'codetabs.com', url: 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent('https://api.github.com/zen') },
+    ];
+    const lines = [];
+    for (const t of tests) {
+        try {
+            const r = await fetch(t.url);
+            const ok = r.ok ? '✓' : '✗';
+            lines.push(`${ok} ${t.name}: HTTP ${r.status}`);
+        } catch (e) {
+            lines.push(`✗ ${t.name}: ${e.message}`);
+        }
+    }
+    _cloudSetStatus(lines.join(' | '), true);
+    showToast('🔧 网络测试完成', 'success');
 }
 
 // ====== V21: 新手引导 ======
