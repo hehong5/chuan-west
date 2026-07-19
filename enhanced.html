@@ -6,14 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-1</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-2</title>
 
     <!-- 高德地图 JS API 2.0 -->
     <script type="text/javascript">
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-1');
+        console.log('🗺️ 川西旅行规划 v20260719-2');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -761,13 +761,11 @@ function initMap() {
     // 地图点击事件
     state.map.on('click', onMapClick);
 
-    // 初始化PlaceSearch
-    state.placeSearch = new AMap.PlaceSearch({
-        pageSize: 20,
-        autoFitView: true,
-    });
+    // PlaceSearch 采用单例懒加载策略（避免 WebGL CONTEXT_LOST）
+    state._placeSearchSingleton = null;
+    state._searchInFlight = false;
 
-    // 初始化驾车规划
+    // 初始化驾车规划（PlaceSearch 用单例模式，按需创建）
     state.driving = new AMap.Driving({
         map: null, // 不在地图上自动绘制
         hideMarkers: true,
@@ -1008,80 +1006,81 @@ function setRadius(r) {
 function searchPoi() {
     const keyword = document.getElementById('searchKeyword').value.trim();
 
-    // 防抖：取消上一次未完成的请求
-    if (state._searchTimer) {
-        clearTimeout(state._searchTimer);
-    }
+    if (state._searchTimer) clearTimeout(state._searchTimer);
     state._searchTimer = setTimeout(() => {
-        doSearch(keyword, '');
+        doSearch(keyword);
     }, 300);
 }
 
-function doSearch(keyword, type) {
+function doSearch(keyword) {
     // 优先使用定位点；没有定位点时用地图中心
     const center = state._locCenter ||
                    [state.map.getCenter().lng, state.map.getCenter().lat];
 
-    // 高德 V2.0 不支持复合 type 查询（如 "风景名胜|旅游景点"），
-    // 会导致回调永不触发！改用关键词组合搜索
-    const scenicKeywords = '风景名胜 旅游景点 景区 景点';
-    const foodKeywords = '餐厅 饭店 美食 餐饮';
-    const hotelKeywords = '酒店 宾馆 客栈 民宿';
-
+    // 用关键词组合，不带竖线的复合 type（高德 V2.0 不支持）
     let finalKeyword = keyword;
     if (state.currentSearchType === 'scenic') {
-        finalKeyword = keyword ? (keyword + ' ' + scenicKeywords) : scenicKeywords;
+        finalKeyword = keyword ? (keyword + ' 旅游景点 景区') : '旅游景点 景区';
     } else if (state.currentSearchType === 'food') {
-        finalKeyword = keyword ? (keyword + ' ' + foodKeywords) : foodKeywords;
+        finalKeyword = keyword ? (keyword + ' 餐厅 饭店') : '餐厅 饭店';
     } else if (state.currentSearchType === 'hotel') {
-        finalKeyword = keyword ? (keyword + ' ' + hotelKeywords) : hotelKeywords;
+        finalKeyword = keyword ? (keyword + ' 酒店 民宿 客栈') : '酒店 民宿 客栈';
     }
 
-    console.log('[搜索] center=', center, 'radius=', state.currentRadius, 'type=', type, 'keyword=', finalKeyword);
+    console.log('[搜索v3] center=', center, 'radius=', state.currentRadius, 'keyword=', finalKeyword);
 
-    // 取消上一次
-    if (state._searchAbort && state._searchAbort.abort) {
-        try { state._searchAbort.abort(); } catch(e) {}
+    // 复用单例 PlaceSearch，避免重复创建导致 WebGL CONTEXT_LOST
+    if (!state._placeSearchSingleton) {
+        state._placeSearchSingleton = new AMap.PlaceSearch({
+            pageSize: 15,
+            autoFitView: false,
+        });
     }
+    const ps = state._placeSearchSingleton;
+
+    // 上一个请求未完成则直接放弃（不去 abort，避免触发错误回调）
+    if (state._searchInFlight) {
+        console.log('[搜索v3] 上一个请求未完成，跳过');
+        return;
+    }
+    state._searchInFlight = true;
 
     showLoading('搜索中...');
-
-    const ps = new AMap.PlaceSearch({
-        pageSize: 15,
-        autoFitView: false,
-    });
-    state._searchAbort = ps;
 
     ps.searchNearBy(
         finalKeyword,
         center,
         state.currentRadius,
-        '', // 留空，只靠关键词匹配
+        '',
         (status, result) => {
+            state._searchInFlight = false;
             hideLoading();
-            console.log('[搜索结果] status=', status, 'info=', result && result.info, 'count=', result && result.poiList && result.poiList.pois && result.poiList.pois.length);
-            if (status === 'complete' && result && result.poiList && result.poiList.pois) {
+            console.log('[搜索v3结果] status=', status, 'count=', result && result.poiList && result.poiList.pois && result.poiList.pois.length);
+            if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
                 const pois = result.poiList.pois.slice(0, 15);
                 renderPoiList(pois);
                 drawPoiMarkers(pois);
                 showToast(`找到 ${pois.length} 个结果`, 'success');
             } else {
-                showToast('未找到结果：' + (result && result.info ? result.info : status), 'warning');
-                document.getElementById('poiList').innerHTML = '';
+                // 偏远地区/无结果时的友好提示
+                const info = result && result.info ? result.info : '';
+                let msg = '该区域暂无结果';
+                if (status === 'no_data') msg = '该区域 10km 内无相关地点，试试扩大半径或换关键词';
+                else if (info) msg = '搜索失败：' + info;
+                showToast(msg, 'warning');
+                document.getElementById('poiList').innerHTML =
+                    '<div class="empty-state"><p>😔 周边没找到</p><p style="font-size:12px;color:#94a3b8;margin-top:8px;">可手动拖动地图到城市区域，或在搜索框输入具体地名</p></div>';
                 clearPoiMarkers();
             }
-            try { ps.destroy && ps.destroy(); } catch(e) {}
-            state._searchAbort = null;
         }
     );
 
     // 超时保险
     setTimeout(() => {
-        if (state._searchAbort === ps) {
+        if (state._searchInFlight) {
+            state._searchInFlight = false;
             hideLoading();
-            showToast('搜索超时，请重试', 'warning');
-            try { ps.destroy && ps.destroy(); } catch(e) {}
-            state._searchAbort = null;
+            showToast('搜索超时（偏远地区可能无数据），请尝试其他区域', 'warning');
         }
     }, 8000);
 }
