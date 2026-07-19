@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-9</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-10</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-9');
+        console.log('🗺️ 川西旅行规划 v20260719-10');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -648,7 +648,7 @@
                 <div id="statsBar" style="display:none;" class="stats-bar">
                     <div class="stat-item">
                         <div class="stat-value" id="statDistance">0</div>
-                        <div class="stat-label">公里</div>
+                        <div class="stat-label">总公里</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" id="statPoints">0</div>
@@ -656,7 +656,11 @@
                     </div>
                     <div class="stat-item">
                         <div class="stat-value" id="statTime">0</div>
-                        <div class="stat-label">小时</div>
+                        <div class="stat-label">总小时</div>
+                    </div>
+                    <div class="stat-item" title="全程最长的一段">
+                        <div class="stat-value" id="statMaxLeg" style="font-size:14px;">—</div>
+                        <div class="stat-label">最长途</div>
                     </div>
                 </div>
 
@@ -757,67 +761,157 @@ const state = {
 };
 
 // ====== 预设线路方案（来源：川西格聂南线双方案自驾规划.md） ======
-// 每点包含: name（地标名）, lng/lat（精确坐标）, alt（海拔,米）, tag（住宿/景点/景区分类）, note（当日核心）
-// 导入后地图自动飞到当前激活线路的第一天, 点 waypoint 上的 Day 按钮查看每日详情
+// 每点: name 地标, lng/lat 坐标, alt 海拔, tag 分类, note 简介, wiki 详情 (带 .md 原文摘录), gallery 图文摘要
 const PRESET_PLANS = {
     // 线路一: 稻城亚丁版 (16天, 3600km)
     plan1: {
         title: '线路一（稻城亚丁 16 天）',
-        activeDay: 3, // 默认聚焦 Day 3 亚丁长线
+        activeDay: 3,
         days: [
-            { d: 'D1', name: '西昌', lng: 102.2641, lat: 27.8964, alt: 1500, note: '雅砻江峡谷起点，海拔适应起点' },
-            { d: 'D2', name: '木里县城', lng: 101.2803, lat: 27.9317, alt: 2300, note: '盐源→磨盘山垭口→乔瓦镇' },
-            { d: 'D3', name: 'G227 玛娜茶金', lng: 100.6600, lat: 28.7500, alt: 4380, note: '支路上玛娜茶金观景台，平视亚丁三神山' },
-            { d: 'D4', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, note: '亚丁门户，连住2晚' },
-            { d: 'D5', name: '亚丁长线(洛绒牛场)', lng: 100.3025, lat: 28.4292, alt: 4500, note: '牛奶海 4500m / 五色海 4700m，长线徒步7-8h' },
-            { d: 'D6', name: '稻城县城', lng: 100.2985, lat: 29.0371, alt: 3700, note: '短线珍珠海→波瓦山→尊胜塔林' },
-            { d: 'D7', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, note: '海子山兴伊措→长青春科尔寺，最高住宿点' },
-            { d: 'D8', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, note: '铁匠山→格聂之心→新冷古寺' },
-            { d: 'D9', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, note: '格聂南坡冰川，正对雪山' },
-            { d: 'D10', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, note: '热梯河谷出山，海拔骤降，洗澡修整' },
-            { d: 'D11', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, note: '盖玉镇火龙沟，克莱因蓝海子(石子路SUV)' },
-            { d: 'D12', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, note: 'G215接甘白路北上' },
-            { d: 'D13', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, note: '宁玛派母寺，第二金刚座' },
-            { d: 'D14', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, note: '32万木刻经版，9-11:30/14:30-17:30(中午关)' },
-            { d: 'D15', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, note: '大圆满法修证中心，红墙金顶' },
-            { d: 'D16', name: '新路海(玉龙拉措)', lng: 99.0500, lat: 31.9000, alt: 4040, note: '雀儿山冰川融水，云杉林倒影' },
-            { d: 'D17', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, note: 'G317穿雀儿山隧道' },
-            { d: 'D18', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, note: '必须"喇荣沟进沟预约"，0点抢票，限500/日' },
-            { d: 'D19', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, note: '经壤塘，曾克寺' },
-            { d: 'D20', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, note: '自驾进入，最高观景台 4520m' },
-            { d: 'D21', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, note: '红原草原南下，卓克基官寨' },
-            { d: 'D22', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, note: '汶马+都汶+成都绕城+雅西高速返程' },
+            { d: 'D1', name: '西昌', lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
+              note: '雅砻江峡谷起点，海拔适应起点',
+              wiki: '西昌，凉山彝族自治州首府，海拔约 1500m，邛海-泸山为城市地标。从这里出发北上进入横断山区，是川西环线的经典起点。出发早的话下午还能逛逛邛海湿地公园、品西昌火盆烧烤。' },
+            { d: 'D2', name: '木里县城', lng: 101.2803, lat: 27.9317, alt: 2300, tag: 'town',
+              note: '盐源→磨盘山垭口→乔瓦镇',
+              wiki: '木里藏族自治县，"最后的香格里拉"，森林覆盖率 67.3%。县城乔瓦镇海拔 2300m，是线路二泸亚线与线路一G227麦巴段的交汇点。县城附近有木里大寺（1656年，20米强巴铜佛）、康坞大寺（免费）。' },
+            { d: 'D3', name: 'G227 玛娜茶金', lng: 100.6600, lat: 28.7500, alt: 4380, tag: 'viewpoint',
+              note: '支路上玛娜茶金观景台，平视亚丁三神山',
+              wiki: '玛娜茶金观景台，海拔约 4380m，"玛娜茶金"藏语意为"母山旁的广阔草场"。在此可无遮挡平视亚丁三神山（仙乃日、央迈勇、夏诺多吉），最近直线距离仅 15 公里，是日出、日照金山与云海的绝佳机位。当年洛克考察的核心区。观景台附近无加油站，最近加油点在 25.8 公里外。' },
+            { d: 'D4', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, tag: 'town',
+              note: '亚丁门户，连住2晚',
+              wiki: '香格里拉镇（日瓦镇），海拔 2900m，是稻城亚丁景区的门户与住宿首选，海拔比亚丁村（4060m）友好得多。镇上酒店、餐馆密集，建议连住两晚。' },
+            { d: 'D5', name: '亚丁长线(洛绒牛场)', lng: 100.3025, lat: 28.4292, alt: 4500, tag: 'scenic',
+              note: '牛奶海 4500m / 五色海 4700m，长线徒步7-8h',
+              wiki: '稻城亚丁风景区长线（金刚挑战线）：游客中心→观光车 1h→扎灌崩→冲古寺→电瓶车→洛绒牛场→舍身崖→"绝望坡"→牛奶海（4500m）→五色海（4700m）。全程徒步约 7-8 小时，务必 7:30 前抵达、13:00 前从牛奶海下撤。门票旺季 146 元、观光车 120 元必购、电瓶车往返 80 元。长线每年 11.24—4.15 封闭。',
+              gallery: '稻城亚丁 / 洛绒牛场 / 牛奶海 / 五色海 / 三神山' },
+            { d: 'D6', name: '稻城县城', lng: 100.2985, lat: 29.0371, alt: 3700, tag: 'town',
+              note: '短线珍珠海→波瓦山→尊胜塔林',
+              wiki: '稻城县城，海拔 3700m。亚丁短线（观音慈悲线）：冲古寺→珍珠海（卓玛拉措，4100m），木栈道往返约 3 小时，坡度缓，可拍仙乃日倒影。返程翻波瓦山（4500m 垭口），途中看尊胜塔林（1 主塔+108 小塔）、傍河杨林。' },
+            { d: 'D7', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, tag: 'scenic',
+              note: '海子山兴伊措→长青春科尔寺，最高住宿点',
+              wiki: '理塘，藏语"平坦如铜镜的草坝"，海拔 4014m，是全程最高住宿点，号称"天空之城"。著名景观：长青春科尔寺（1580年三世达赖开光，康区第一大格鲁派寺庙，免费）、勒通古镇·千户藏寨（4A，仁康古屋+微型博物馆群）。傍晚可上东山顶俯瞰全景。海子山古冰川遗迹位于稻城至理塘途中。' },
+            { d: 'D8', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, tag: 'scenic',
+              note: '铁匠山→格聂之心→新冷古寺',
+              wiki: '格聂神山海拔 6204m，为四川第三高峰、藏区 24 座神山第 13 座"女神"。格聂之眼：直径约 30 米的圆形海子，水草围成"瞳孔"，无人机视角如大地之眸，清晨 6:00—7:30 无风时倒影最佳。新冷古寺（车可直达）藏"格聂三宝"：格聂之心奇石、母鹿角、反转海螺。' },
+            { d: 'D9', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, tag: 'town',
+              note: '格聂南坡冰川，正对雪山',
+              wiki: '则巴村，海拔约 3800m，正对格聂南坡冰川，是拍日照金山的最佳机位。村中有藏式民宿可住，清晨徒步或骑马去"一棵树"观景点（爬升至 4500m，往返约 3 小时）。' },
+            { d: 'D10', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, tag: 'town',
+              note: '热梯河谷出山，海拔骤降，洗澡修整',
+              wiki: '巴塘县，海拔 2580m，出格聂南线后的第一个大镇，海拔骤降 1200m，可以好好洗澡休整。若多一天，可加措普沟（G318方向北 110km，门票+观光车约 190 元，集雪山湖泊温泉于一体）。' },
+            { d: 'D11', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, tag: 'scenic',
+              note: '盖玉镇火龙沟，克莱因蓝海子(石子路SUV)',
+              wiki: '巴巴沟蓝松湖位于盖玉镇火龙沟自然保护区内，纯净的"克莱因蓝"高山海子，免费。最后约 15 分钟为石子路，建议四驱车/SUV 前往，轿车勿入。' },
+            { d: 'D12', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, tag: 'town',
+              note: 'G215接甘白路北上',
+              wiki: '白玉县，海拔 3050m，位于金沙江上游，是甘白路（甘孜—白玉，全程 220 公里柏油路，中国最美县道之一）的终点。县内噶陀寺、白玉寺构成康区三大宁玛派寺庙中的两座。' },
+            { d: 'D13', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, tag: 'scenic',
+              note: '宁玛派母寺，第二金刚座',
+              wiki: '噶陀寺（1159 年），宁玛派六大金刚道场中最著名的一座，堪称"宁玛派母寺"。莲花生大师曾亲自开光十三次，故又称"第二金刚座"。八百年间虹化成就者十万之众。寺内文武百尊坛城与十明佛学院规模惊人，免费开放。珍宝殿需僧人带领、禁拍。' },
+            { d: 'D14', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, tag: 'scenic',
+              note: '32万木刻经版，9-11:30/14:30-17:30(中午关)',
+              wiki: '德格印经院始建于 1729 年，藏区三大印经院之首，保存 32 万余块木刻经版、830 余种典籍，门票 50 元。开放时间 9:00-11:30 / 14:30-17:30（中午关闭），靠自然光作业、全程顺时针参观、不可随意拍照。冬季常有免票。' },
+            { d: 'D15', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, tag: 'scenic',
+              note: '大圆满法修证中心，红墙金顶',
+              wiki: '竹庆寺（佐钦寺）1684 年由第一世佐钦法王白玛仁增创建，宁玛派六大母寺之一、大圆满法的修证中心，分寺近三百座遍布海内外。寺院红墙金顶、佛学堂宏伟，大广场与尼泊尔风格白塔很有辨识度。曾收 20 元门票，现免费。大殿内禁拍。' },
+            { d: 'D16', name: '新路海(玉龙拉措)', lng: 99.0500, lat: 31.9000, alt: 4040, tag: 'scenic',
+              note: '雀儿山冰川融水，云杉林倒影',
+              wiki: '新路海（藏语"玉龙拉措"，意为"心倾神湖"）位于雀儿山隧道口附近，是雀儿山冰川融水汇成的冰蚀湖。湖边百年云杉林倒映湖面，被誉为"康巴第一圣湖"，免费。' },
+            { d: 'D17', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, tag: 'town',
+              note: 'G317穿雀儿山隧道',
+              wiki: '甘孜县，海拔 3390m，位于雅砻江上游，G317 上前往色达的必经之地。县城有甘孜寺（格鲁派），是川西小众中转站。' },
+            { d: 'D18', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, tag: 'scenic',
+              note: '必须"喇荣沟进沟预约"，0点抢票，限500/日',
+              wiki: '色达喇荣五明佛学院，世界最大的藏传佛学院。**必须网络预约**：在"喇荣沟进沟预约"小程序提前抢名额（每日 0 点放票），按预约时段到集散中心乘大巴进入，金马集散中心车票 48 元、洛若 30 元。2025 年实测每日限约 500 人，沟内停留约 90 分钟。佛学院海拔 4000-4100m。纪律：不拍僧人正面、不进大殿拍摄、禁飞无人机；天葬台严禁拍摄。' },
+            { d: 'D19', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, tag: 'town',
+              note: '经壤塘，曾克寺',
+              wiki: '阿坝县，海拔 3290m，安多藏区中心。途中经壤塘，觉囊派寺庙群（中壤塘）值得停半天。曾克寺位于壤塘县城附近。' },
+            { d: 'D20', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, tag: 'scenic',
+              note: '自驾进入，最高观景台 4520m',
+              wiki: '莲宝叶则·石头山风景区，巴颜喀拉山南段支脉、安多地区众神山之首，主峰 5141m。门票旺季 120 元/淡季 60 元，**目前无观光摆渡车，自驾进入**。核心：扎尕尔措（翡翠色湖水，刀劈石峰间栈道环湖）+ 4520 观景台（盘羊坪电瓶车往返 15 元或徒步 1.4km）。早晨 8 点前进景区光线最佳。4520 观景台电瓶车只收现金。' },
+            { d: 'D21', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, tag: 'town',
+              note: '红原草原南下，卓克基官寨',
+              wiki: '马尔康，阿坝州州府，海拔 2600m，嘉绒藏族文化中心。途中经红原草原（月亮湾，夏季花海）。卓克基土司官寨为国家级文保单位。' },
+            { d: 'D22', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
+              note: '汶马+都汶+成都绕城+雅西高速返程',
+              wiki: '全程最后一天，714km / 约 10 小时。路线：汶马高速→都汶高速→成都绕城→成雅高速→雅西高速返西昌。雅西高速是"天梯高速"，双螺旋隧道+干海子大桥。建议两名司机轮换、7:00 前出发。' },
         ],
     },
 
     // 线路二: 木里+泸沽湖版 (17天, 3900km)
     plan2: {
         title: '线路二（木里+泸沽湖 17 天）',
-        activeDay: 1, // 默认聚焦 D1 泸沽湖
+        activeDay: 1,
         days: [
-            { d: 'D1', name: '泸沽湖(大落水)', lng: 100.7680, lat: 27.6816, alt: 2690, note: '经盐源翻磨盘山，摩梭石板烧' },
-            { d: 'D2', name: '里格半岛', lng: 100.7430, lat: 27.6988, alt: 2690, note: '环湖60km，日出+猪槽船+走婚桥' },
-            { d: 'D3', name: '木里大寺', lng: 101.1833, lat: 28.2000, alt: 2900, note: '屋脚→瓦厂→木里大寺，泸亚线' },
-            { d: 'D4', name: '康坞大寺', lng: 101.2500, lat: 27.9833, alt: 2600, note: '依山而建，壁画精美(免费)' },
-            { d: 'D5', name: '寸冬海子', lng: 101.1500, lat: 27.8500, alt: 3500, note: '千岛漂浮草甸，下午4-6点光线最佳' },
-            { d: 'D6', name: '玛娜茶金观景台', lng: 100.6600, lat: 28.7500, alt: 4380, note: '平视亚丁三神山，日照金山' },
-            { d: 'D7', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, note: '过蒙自大峡谷，俄牙同' },
-            { d: 'D8', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, note: '翻波瓦山→稻城→理塘(不进亚丁景区)' },
-            { d: 'D9', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, note: '铁匠山→格聂之心→新冷古寺' },
-            { d: 'D10', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, note: '格聂南坡冰川' },
-            { d: 'D11', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, note: '热梯河谷出山' },
-            { d: 'D12', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, note: '盖玉镇火龙沟' },
-            { d: 'D13', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, note: 'G215接甘白路' },
-            { d: 'D14', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, note: '宁玛派母寺' },
-            { d: 'D15', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, note: '藏区三大印经院之首' },
-            { d: 'D16', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, note: '大圆满法修证中心' },
-            { d: 'D17', name: '新路海', lng: 99.0500, lat: 31.9000, alt: 4040, note: '雀儿山冰川融水' },
-            { d: 'D18', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, note: 'G317' },
-            { d: 'D19', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, note: '喇荣沟进沟预约' },
-            { d: 'D20', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, note: '经壤塘' },
-            { d: 'D21', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, note: '晨9点前最佳' },
-            { d: 'D22', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, note: '红原草原' },
-            { d: 'D23', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, note: '雅西高速返程' },
+            { d: 'D1', name: '泸沽湖(大落水)', lng: 100.7680, lat: 27.6816, alt: 2690, tag: 'scenic',
+              note: '经盐源翻磨盘山，摩梭石板烧',
+              wiki: '泸沽湖位于四川盐源县与云南宁蒗县交界，海拔 2690m，景区门票为湖区通票 70 元。大落水村是四川侧主要游客集散地。晚上可在大落水沿湖餐厅吃摩梭石板烧。' },
+            { d: 'D2', name: '里格半岛', lng: 100.7430, lat: 27.6988, alt: 2690, tag: 'viewpoint',
+              note: '环湖60km，日出+猪槽船+走婚桥',
+              wiki: '环湖约 60-70 公里。里格半岛观景台拍全景，8 点前到避开人流；猪槽船（大落水码头往返里务比岛 65 元/人）；草海·走婚桥傍晚光影最佳；女神湾（小众，湖面如镜）日落。格姆女神山索道 110 元/人，约 17:00 停运。' },
+            { d: 'D3', name: '木里大寺', lng: 101.1833, lat: 28.2000, alt: 2900, tag: 'scenic',
+              note: '屋脚→瓦厂→木里大寺，泸亚线',
+              wiki: '木里大寺始建于 1656 年，历时三百多年建成的"木里喇嘛王国"政教中心。康区最大的格鲁派寺院之一，弥勒殿内供 20 余米高的甲娃强巴（弥勒）铜佛，1713 年铸，佛体内贮五世班禅所赐舍利等圣物。泸亚线（泸沽湖—亚丁）东段：弯急、临崖、部分砂石路，需高底盘车辆与山路经验。' },
+            { d: 'D4', name: '康坞大寺', lng: 101.2500, lat: 27.9833, alt: 2600, tag: 'scenic',
+              note: '依山而建，壁画精美(免费)',
+              wiki: '康坞大寺位于木里县城约 30km，依山而建、殿堂错落，经幡边廊与森林环绕，壁画精美，免费开放。' },
+            { d: 'D5', name: '寸冬海子', lng: 101.1500, lat: 27.8500, alt: 3500, tag: 'scenic',
+              note: '千岛漂浮草甸，下午4-6点光线最佳',
+              wiki: '寸冬海子（又称香格里拉湖/长海子），位于木里县城约 38km、1 小时车程，柏油路可达，免费。湖中有数千座漂浮草甸，形成独有的"千岛之湖"。下午 4-6 点光线柔和时最美。' },
+            { d: 'D6', name: '玛娜茶金观景台', lng: 100.6600, lat: 28.7500, alt: 4380, tag: 'viewpoint',
+              note: '平视亚丁三神山，日照金山',
+              wiki: '玛娜茶金观景台：海拔约 4380m，"玛娜茶金"意为"母山旁的广阔草场"。在此可无遮挡平视亚丁三神山，最近直线距离仅 15 公里。是线路二"换亚丁"的核心机位——亚丁景区内部反而看不到这种"品"字形全景。日出 6:00-7:00、日照金山概率最高。' },
+            { d: 'D7', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, tag: 'town',
+              note: '过蒙自大峡谷，俄牙同',
+              wiki: '线路二不进入亚丁景区，沿 G227 北上过蒙自大峡谷、俄牙同，抵达亚丁门户香格里拉镇住宿休整。' },
+            { d: 'D8', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, tag: 'scenic',
+              note: '翻波瓦山→稻城→理塘(不进亚丁景区)',
+              wiki: '从香格里拉镇翻波瓦山至稻城县城，再北上经桑堆红草地、兔儿山（4696m）、海子山抵达理塘。下午游览长青春科尔寺与勒通古镇·千户藏寨。理塘海拔 4014m，全程最高住宿点。' },
+            { d: 'D9', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, tag: 'scenic',
+              note: '铁匠山→格聂之心→新冷古寺',
+              wiki: '参见线路一 D8 详情。' },
+            { d: 'D10', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, tag: 'town',
+              note: '格聂南坡冰川',
+              wiki: '参见线路一 D9 详情。' },
+            { d: 'D11', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, tag: 'town',
+              note: '热梯河谷出山',
+              wiki: '参见线路一 D10 详情。' },
+            { d: 'D12', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, tag: 'scenic',
+              note: '盖玉镇火龙沟',
+              wiki: '参见线路一 D11 详情。' },
+            { d: 'D13', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, tag: 'town',
+              note: 'G215接甘白路',
+              wiki: '参见线路一 D12 详情。' },
+            { d: 'D14', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, tag: 'scenic',
+              note: '宁玛派母寺',
+              wiki: '参见线路一 D13 详情。' },
+            { d: 'D15', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, tag: 'scenic',
+              note: '藏区三大印经院之首',
+              wiki: '参见线路一 D14 详情。' },
+            { d: 'D16', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, tag: 'scenic',
+              note: '大圆满法修证中心',
+              wiki: '参见线路一 D15 详情。' },
+            { d: 'D17', name: '新路海', lng: 99.0500, lat: 31.9000, alt: 4040, tag: 'scenic',
+              note: '雀儿山冰川融水',
+              wiki: '参见线路一 D16 详情。' },
+            { d: 'D18', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, tag: 'town',
+              note: 'G317',
+              wiki: '参见线路一 D17 详情。' },
+            { d: 'D19', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, tag: 'scenic',
+              note: '喇荣沟进沟预约',
+              wiki: '参见线路一 D18 详情。' },
+            { d: 'D20', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, tag: 'town',
+              note: '经壤塘',
+              wiki: '参见线路一 D19 详情。' },
+            { d: 'D21', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, tag: 'scenic',
+              note: '晨9点前最佳',
+              wiki: '参见线路一 D20 详情。' },
+            { d: 'D22', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, tag: 'town',
+              note: '红原草原',
+              wiki: '参见线路一 D21 详情。' },
+            { d: 'D23', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
+              note: '雅西高速返程',
+              wiki: '参见线路一 D22 详情。' },
         ],
     },
 };
@@ -991,14 +1085,9 @@ function drawMarkers() {
             extData: { index: i, name: p.name },
         });
 
-        // 信息窗
-        const infoWindow = new AMap.InfoWindow({
-            content: `<div style="padding:8px;"><b>${escapeHtml(p.name)}</b><br><small>${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</small></div>`,
-            offset: new AMap.Pixel(0, -32),
-        });
-
+        // 信息窗（点击 marker 弹出详情）
         marker.on('click', () => {
-            infoWindow.open(state.map, marker.getPosition());
+            openPoiDetail(i, marker.getPosition());
         });
 
         state.map.add(marker);
@@ -1015,28 +1104,363 @@ function clearMapMarkers() {
     }
 }
 
+// ====== 景点详情弹窗 + 周边推荐 ======
+// 用自定义 HTML 弹窗, 不用 InfoWindow (后者对复杂 HTML 渲染不友好)
+let _detailOverlay = null;
+
+function openPoiDetail(i, position) {
+    const p = state.waypoints[i];
+    if (!p) return;
+
+    // 关闭已有弹窗
+    if (_detailOverlay) { closePoiDetail(); }
+
+    // 找对应 plan/day 数据
+    const dayInfo = _findDayInfo(p);
+
+    // 弹窗 HTML
+    const html = `
+        <div id="poiDetailBox" style="
+            position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+            width:min(640px, 92vw); max-height: 86vh; overflow-y:auto;
+            background:#fff; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25);
+            z-index: 9999; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+            animation: detailIn .25s ease-out;
+        ">
+            <style>
+                @keyframes detailIn { from { opacity:0; transform: translate(-50%,-46%); } to { opacity:1; transform: translate(-50%,-50%); } }
+                #poiDetailBox::-webkit-scrollbar { width: 6px; }
+                #poiDetailBox::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+                #poiDetailBox .d-head { background: linear-gradient(135deg,#0ea5e9,#2563eb); color:#fff; padding:18px 22px; border-radius:14px 14px 0 0; position:relative; }
+                #poiDetailBox .d-close { position:absolute; right:14px; top:14px; background:rgba(255,255,255,.2); color:#fff; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:18px; line-height:1; }
+                #poiDetailBox .d-close:hover { background: rgba(255,255,255,.35); }
+                #poiDetailBox .d-tag { display:inline-block; background:rgba(255,255,255,.22); color:#fff; font-size:11px; padding:3px 10px; border-radius:10px; margin-right:6px; margin-top:6px; }
+                #poiDetailBox .d-body { padding:18px 22px; }
+                #poiDetailBox .d-wiki { font-size:13.5px; line-height:1.75; color:#334155; }
+                #poiDetailBox .d-wiki b { color:#0c4a6e; }
+                #poiDetailBox .d-actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+                #poiDetailBox .d-btn { font-size:12px; padding:7px 14px; border-radius:7px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+                #poiDetailBox .d-btn:hover { background:#e2e8f0; }
+                #poiDetailBox .d-btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+                #poiDetailBox .d-btn.primary:hover { background:#1d4ed8; }
+                #poiDetailBox .d-section { margin-top:18px; padding-top:14px; border-top:1px solid #e2e8f0; }
+                #poiDetailBox .d-section h4 { margin:0 0 10px 0; font-size:13px; color:#475569; display:flex; align-items:center; justify-content:space-between; }
+                #poiDetailBox .d-tabbar { display:flex; gap:6px; }
+                #poiDetailBox .d-tab { font-size:11px; padding:5px 10px; border:1px solid #e2e8f0; border-radius:14px; background:#fff; color:#475569; cursor:pointer; }
+                #poiDetailBox .d-tab.active { background:#0ea5e9; color:#fff; border-color:#0ea5e9; }
+                #poiDetailBox .d-poi { padding:9px 11px; border:1px solid #f1f5f9; border-radius:7px; margin-bottom:7px; display:flex; gap:9px; align-items:flex-start; transition: background .15s; cursor:pointer; }
+                #poiDetailBox .d-poi:hover { background:#f0f9ff; }
+                #poiDetailBox .d-poi-info { flex:1; min-width:0; }
+                #poiDetailBox .d-poi-name { font-size:13px; font-weight:600; color:#0f172a; margin-bottom:2px; display:flex; align-items:center; gap:5px; }
+                #poiDetailBox .d-poi-cat { font-size:10px; background:#dbeafe; color:#1e40af; padding:1px 6px; border-radius:3px; }
+                #poiDetailBox .d-poi-cat.food { background:#fef3c7; color:#92400e; }
+                #poiDetailBox .d-poi-cat.hotel { background:#fce7f3; color:#9d174d; }
+                #poiDetailBox .d-poi-addr { font-size:11px; color:#64748b; }
+                #poiDetailBox .d-poi-dist { font-size:11px; color:#0891b2; font-weight:600; white-space:nowrap; }
+                #poiDetailBox .d-loading { text-align:center; padding:20px; color:#94a3b8; font-size:12px; }
+                #poiDetailBox .d-empty { text-align:center; padding:18px; color:#94a3b8; font-size:12px; }
+                #poiDetailBox .d-foot { padding:11px 22px; background:#f8fafc; border-radius:0 0 14px 14px; font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; }
+                #poiDetailBox .d-foot a { color:#2563eb; text-decoration:none; }
+            </style>
+            <div class="d-head">
+                <button class="d-close" onclick="closePoiDetail()" title="关闭">×</button>
+                <div style="font-size:11px;opacity:.85;letter-spacing:1px;">${dayInfo ? escapeHtml(dayInfo.d) : ''} · 海拔 ${p.alt || '—'}m</div>
+                <h2 style="margin:6px 0 0 0; font-size:20px; line-height:1.3;">${escapeHtml(p.name.replace(/^D\d+\s*·\s*/, ''))}</h2>
+                <div>
+                    <span class="d-tag">📍 ${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</span>
+                    ${dayInfo && dayInfo.tag ? `<span class="d-tag">${_tagEmoji(dayInfo.tag)} ${_tagLabel(dayInfo.tag)}</span>` : ''}
+                </div>
+            </div>
+            <div class="d-body">
+                <div class="d-wiki">${(dayInfo && dayInfo.wiki) ? escapeHtml(dayInfo.wiki) : escapeHtml(p.note || '该地点暂无详细介绍')}</div>
+
+                <div class="d-actions">
+                    <a class="d-btn primary" target="_blank" href="https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${encodeURIComponent(p.name)}&src=mindmap&coordinate=gaode&callnative=1">🧭 高德导航</a>
+                    <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(p.name + ' 攻略')}">🔍 百度搜索攻略</a>
+                    <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(p.name)}">📕 小红书攻略</a>
+                    <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(p.name + ' 旅游 攻略')}&tbm=isch">🖼 Google 图片</a>
+                </div>
+
+                <div class="d-section">
+                    <h4>
+                        <span>📌 周边推荐</span>
+                        <div class="d-tabbar" id="poiTabBar">
+                            <button class="d-tab active" data-cat="scenic" onclick="switchDetailPoiCat(this, ${i})">🏞 景点</button>
+                            <button class="d-tab" data-cat="food" onclick="switchDetailPoiCat(this, ${i})">🍜 美食</button>
+                            <button class="d-tab" data-cat="hotel" onclick="switchDetailPoiCat(this, ${i})">🏨 住宿</button>
+                        </div>
+                    </h4>
+                    <div id="poiListInDetail"><div class="d-loading">🔄 加载周边中...</div></div>
+                </div>
+            </div>
+            <div class="d-foot">
+                <span>数据来源：高德地图 POI 搜索</span>
+                <a href="javascript:void(0)" onclick="closePoiDetail()">关闭</a>
+            </div>
+        </div>
+        <div id="poiDetailMask" style="position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:9998; animation: detailIn .2s;" onclick="closePoiDetail()"></div>
+    `;
+
+    // 用 overlay 容器插入
+    _detailOverlay = document.createElement('div');
+    _detailOverlay.innerHTML = html;
+    document.body.appendChild(_detailOverlay);
+
+    // 默认加载景点
+    _searchDetailNearby(p, i, 'scenic');
+}
+
+function closePoiDetail() {
+    if (_detailOverlay) {
+        _detailOverlay.remove();
+        _detailOverlay = null;
+    }
+}
+
+function _tagEmoji(tag) {
+    const m = { scenic: '🏞', viewpoint: '👀', town: '🏘', city: '🌆', hotel: '🏨', food: '🍜' };
+    return m[tag] || '📍';
+}
+function _tagLabel(tag) {
+    const m = { scenic: '景区', viewpoint: '观景台', town: '乡镇', city: '城市', hotel: '住宿', food: '美食' };
+    return m[tag] || '地点';
+}
+
+// 反查当前 waypoint 对应的 plan day (从 plan data 中找 name+alt 都一致的)
+function _findDayInfo(p) {
+    const baseName = p.name.replace(/^D\d+\s*·\s*/, '').trim();
+    for (const planId in PRESET_PLANS) {
+        for (const day of PRESET_PLANS[planId].days) {
+            if (day.name === baseName && day.alt === p.alt) {
+                return day;
+            }
+        }
+    }
+    // fallback: 仅按名称
+    for (const planId in PRESET_PLANS) {
+        for (const day of PRESET_PLANS[planId].days) {
+            if (day.name === baseName) return day;
+        }
+    }
+    return null;
+}
+
+function switchDetailPoiCat(tabEl, i) {
+    document.querySelectorAll('#poiTabBar .d-tab').forEach(t => t.classList.remove('active'));
+    tabEl.classList.add('active');
+    const cat = tabEl.dataset.cat;
+    const p = state.waypoints[i];
+    _searchDetailNearby(p, i, cat);
+}
+
+// 周边推荐（弹窗内嵌版, 复用 v7 setCity+search 策略）
+function _searchDetailNearby(p, i, cat) {
+    const container = document.getElementById('poiListInDetail');
+    if (!container) return;
+    container.innerHTML = '<div class="d-loading">🔄 加载 ' + _tagEmoji(cat) + ' 中...</div>';
+
+    // 先 Geocode 拿 city
+    geocodeKeyword(p.name.replace(/^D\d+\s*·\s*/, '')).then(geo => {
+        let city = (geo && geo.city) ? geo.city : null;
+        let center = (geo && geo.lng) ? [geo.lng, geo.lat] : [p.lng, p.lat];
+
+        const ps = new AMap.PlaceSearch({ pageSize: 8, autoFitView: false });
+        const catKw = cat === 'food' ? '餐厅 美食' : cat === 'hotel' ? '酒店 民宿' : '景区 景点';
+        const kw = (p.name.replace(/^D\d+\s*·\s*/, '') + ' ' + catKw);
+
+        let calledBack = false;
+        const onResult = (status, result) => {
+            if (calledBack) return;
+            calledBack = true;
+            try { ps.destroy && ps.destroy(); } catch(e){}
+            if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                const pois = result.poiList.pois.slice(0, 8);
+                container.innerHTML = pois.map(poi => {
+                    const poiLng = poi.location && (typeof poi.location.lng === 'function' ? poi.location.lng() : poi.location.lng);
+                    const poiLat = poi.location && (typeof poi.location.lat === 'function' ? poi.location.lat() : poi.location.lat);
+                    const dist = poiLng != null && poiLat != null
+                        ? _formatDistance(_haversine(p.lng, p.lat, poiLng, poiLat))
+                        : '—';
+                    return `
+                        <div class="d-poi" onclick="window.open('https://uri.amap.com/marker?position=${poiLng},${poiLat}&name=${encodeURIComponent(poi.name)}&src=mindmap&coordinate=gaode&callnative=1')">
+                            <div class="d-poi-info">
+                                <div class="d-poi-name"><span class="d-poi-cat ${cat === 'food' ? 'food' : cat === 'hotel' ? 'hotel' : ''}">${_catLabel(poi.type || cat)}</span>${escapeHtml(poi.name)}</div>
+                                <div class="d-poi-addr">${escapeHtml((poi.address || '').substring(0, 32))}</div>
+                            </div>
+                            <div class="d-poi-dist">${dist}</div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                container.innerHTML = '<div class="d-empty">暂无周边 ' + _tagEmoji(cat) + ' 数据，可点击上方"高德导航"直达地图查看</div>';
+            }
+        };
+
+        if (city) {
+            ps.setCity(city);
+            ps.search(kw, onResult);
+        } else {
+            ps.searchNearBy(kw, center, 10000, '', onResult);
+        }
+
+        setTimeout(() => {
+            if (!calledBack) onResult('timeout', null);
+        }, 8000);
+    });
+}
+
+function _catLabel(type) {
+    if (!type) return 'POI';
+    if (type.includes('餐饮') || type.includes('餐厅')) return '美食';
+    if (type.includes('住宿') || type.includes('酒店')) return '住宿';
+    if (type.includes('景点') || type.includes('公园')) return '景区';
+    return type.split(';')[0].substring(0, 4);
+}
+
+function _haversine(lng1, lat1, lng2, lat2) {
+    const R = 6371;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+}
+function _formatDistance(km) {
+    if (km < 1) return Math.round(km * 1000) + 'm';
+    return km.toFixed(1) + 'km';
+}
+
+
 // ====== 路径规划 ======
 // 注意: 高德 Driving API 每次 search 最多支持 ~16 个途经点, 超过会失败
 // 对预设线路 22-23 个点, 必须用「分段策略」: 把途经点按 10 个一组, 分别 search, 把路径拼起来
+// 每个 leg 的距离/时间通过把 search 返回的 steps 按 waypoint 拆分还原
 const DRIVING_SEGMENT_SIZE = 10;
 
+// 单段 search: 把传入的 n 个 waypoints 切分成 n-1 个 leg, 每个 leg 的 km / sec 按 step.path 长度比例分发
 function _drawRouteSingleSegment(pts, onDone) {
     const path = pts.map(p => new AMap.LngLat(p.lng, p.lat));
     state.driving.search(path, (status, result) => {
-        hideLoading();
         if (status === 'complete' && result.routes && result.routes.length > 0) {
+            const route = result.routes[0];
+            const steps = route.steps || [];
+            // 如果 step 数对不上 (pts.length-1)，则降级到"按比例切分总距离/总时间"
+            const expectSteps = pts.length - 1;
+            const useStepByStep = (steps.length === expectSteps);
+
+            if (!useStepByStep) {
+                console.warn(`[route] 高德返回 step ${steps.length} ≠ 期望 ${expectSteps}, 改用比例切分`);
+            }
+
+            // 对每个 leg 计算几何长度（直线 km）, leg 之间的距离/时间有以下来源:
+            // (a) step.distM/step.timeS 如可用
+            // (b) 否则按比例切分 route.totalDistance / route.totalTime
+            const totalDistM = route.distance || 0;
+            const totalTimeS = route.time || 0;
+
+            // 计算每 leg 的几何长度, 用于等比例切分总距/总时
+            const legGeos = [];
+            for (let i = 0; i < expectSteps; i++) {
+                const a = path[i], b = path[i+1];
+                legGeos.push(_lngLatPairKm(a, b));
+            }
+            const totalGeo = legGeos.reduce((s,v)=>s+v,0);
+
             const segPaths = [];
-            let totalDistance = 0, totalTime = 0;
-            result.routes.forEach(r => {
-                if (r.path) segPaths.push(...r.path);
-                totalDistance += r.distance || 0;
-                totalTime += r.time || 0;
+            const legs = [];
+            for (let i = 0; i < expectSteps; i++) {
+                const step = steps[i];
+                let stepPath = null;
+                let distM = 0, timeS = 0;
+
+                if (step && step.path && step.path.length > 0) {
+                    stepPath = step.path;
+                    const apiDistM = parseInt(step.distance) || 0;
+                    const apiTimeS = parseInt(step.time) || 0;
+                    if (apiDistM > 0) {
+                        distM = apiDistM;
+                        timeS = apiTimeS || Math.round(distM / 1000 * 60 * 1.4); // 60km/h default if time missing
+                    }
+                }
+
+                if (!stepPath) {
+                    stepPath = [path[i], path[i+1]];
+                }
+
+                // (b) 比例切分
+                if (distM === 0 && totalDistM > 0 && totalGeo > 0) {
+                    const share = legGeos[i] / totalGeo;
+                    distM = Math.round(totalDistM * share);
+                    timeS = Math.round(totalTimeS * share);
+                }
+                // (c) 终极兜底: haversine × 1.4
+                if (distM === 0) {
+                    distM = Math.round(legGeos[i] * 1000 * 1.4);
+                    timeS = Math.round(distM / 1000 * 60 * 1.4);
+                }
+
+                legs.push({
+                    from: i,
+                    to: i + 1,
+                    path: stepPath,
+                    geoKm: legGeos[i],
+                    distM: distM,
+                    timeS: timeS,
+                });
+                segPaths.push(...stepPath);
+            }
+
+            const realTotalDist = legs.reduce((s,l)=>s+l.distM,0)/1000;
+            const realTotalTime = legs.reduce((s,l)=>s+l.timeS,0);
+
+            onDone({
+                ok: true,
+                paths: segPaths,
+                legs: legs,
+                distance: realTotalDist,
+                time: realTotalTime,
             });
-            onDone({ ok: true, paths: segPaths, distance: totalDistance, time: totalTime });
         } else {
-            onDone({ ok: false, paths: path, info: result && result.info });
+            // 全段 fallback: haversine × 1.4
+            const legs = [];
+            const straight = [];
+            let totalDist = 0, totalTime = 0;
+            for (let i = 0; i < pts.length - 1; i++) {
+                const a = path[i], b = path[i+1];
+                const c = new AMap.LngLat(a.lng, a.lat);
+                const d = new AMap.LngLat(b.lng, b.lat);
+                const distKm = _lngLatPairKm(a, b) * 1.4;
+                const timeS = distKm / 60 * 3600;
+                legs.push({ from: i, to: i + 1, path: [c,d], geoKm: _lngLatPairKm(a,b), distM: Math.round(distKm*1000), timeS: Math.round(timeS) });
+                straight.push(c, d);
+                totalDist += distKm;
+                totalTime += timeS;
+            }
+            onDone({ ok: false, paths: straight, legs: legs, distance: totalDist, time: totalTime, info: result && result.info });
         }
     });
+}
+
+// 计算一组 LngLat 数组的几何公里数
+function _pathLenKm(lnglatArr) {
+    let sum = 0;
+    for (let i = 1; i < lnglatArr.length; i++) {
+        const a = lnglatArr[i-1], b = lnglatArr[i];
+        const lng1 = typeof a.lng === 'function' ? a.lng() : a.lng;
+        const lat1 = typeof a.lat === 'function' ? a.lat() : a.lat;
+        const lng2 = typeof b.lng === 'function' ? b.lng() : b.lng;
+        const lat2 = typeof b.lat === 'function' ? b.lat() : b.lat;
+        sum += _haversine(lng1, lat1, lng2, lat2);
+    }
+    return sum;
+}
+
+function _lngLatPairKm(a, b) {
+    const lng1 = typeof a.lng === 'function' ? a.lng() : a.lng;
+    const lat1 = typeof a.lat === 'function' ? a.lat() : a.lat;
+    const lng2 = typeof b.lng === 'function' ? b.lng() : b.lng;
+    const lat2 = typeof b.lat === 'function' ? b.lat() : b.lat;
+    return _haversine(lng1, lat1, lng2, lat2);
 }
 
 function drawRoute() {
@@ -1058,22 +1482,22 @@ function drawRoute() {
         });
     }
 
-    // 清除旧路径
-    if (state.routePath) {
-        try { state.map.remove(state.routePath); } catch(e){}
-        state.routePath = null;
-    }
+    // 清除旧路径 + 旧文本标签
+    if (state.routePath) { try { state.map.remove(state.routePath); } catch(e){} state.routePath = null; }
+    if (state._legLabels) { state._legLabels.forEach(t => state.map.remove(t)); state._legLabels = []; }
+    state._legLabels = [];
+    state._legs = []; // 保存每段信息给 UI
 
     const pts = state.waypoints;
     if (pts.length <= DRIVING_SEGMENT_SIZE + 1) {
-        // 10 个以内的点直接一次请求
         showLoading('路径规划中...');
         _drawRouteSingleSegment(pts, (res) => {
             _renderRouteResult(res);
             _fitToRouteOrMarkers();
+            _renderLegLabels();
+            _renderPointLegs(); // 侧边栏显示每段 km/h
         });
     } else {
-        // 多段拼接
         showLoading(`路径规划中（共 ${pts.length} 个点，分 ${Math.ceil((pts.length - 1) / DRIVING_SEGMENT_SIZE)} 段）...`);
         const segments = [];
         for (let i = 0; i < pts.length - 1; i += DRIVING_SEGMENT_SIZE) {
@@ -1082,6 +1506,7 @@ function drawRoute() {
         }
         const allPaths = [];
         let totalDistance = 0, totalTime = 0;
+        let allLegs = []; // 每段内部的 leg 加上全局偏移
         let allOk = true;
         let failedAny = false;
         let failedInfo = '';
@@ -1090,8 +1515,11 @@ function drawRoute() {
         const nextSegment = () => {
             if (runIdx >= segments.length) {
                 hideLoading();
+                state._legs = allLegs;
                 _renderRouteResult({ ok: !failedAny, paths: allPaths, distance: totalDistance, time: totalTime, info: failedInfo });
                 _fitToRouteOrMarkers();
+                _renderLegLabels();
+                _renderPointLegs();
                 return;
             }
             _drawRouteSingleSegment(segments[runIdx], (res) => {
@@ -1099,15 +1527,39 @@ function drawRoute() {
                     allPaths.push(...res.paths);
                     totalDistance += res.distance;
                     totalTime += res.time;
+                    if (res.legs) {
+                        const offset = runIdx * DRIVING_SEGMENT_SIZE;
+                        res.legs.forEach(l => {
+                            allLegs.push({
+                                from: l.from + offset,
+                                to: l.to + offset,
+                                path: l.path,
+                                geoKm: l.geoKm,
+                                distM: l.distM,
+                                timeS: l.timeS,
+                            });
+                        });
+                    }
                 } else {
                     failedAny = true;
                     failedInfo = res.info || '';
-                    // fallback: 直线连接该段
                     const segPath = segments[runIdx].map(p => new AMap.LngLat(p.lng, p.lat));
                     allPaths.push(...segPath);
+                    if (res.legs) {
+                        const offset = runIdx * DRIVING_SEGMENT_SIZE;
+                        res.legs.forEach(l => {
+                            allLegs.push({
+                                from: l.from + offset,
+                                to: l.to + offset,
+                                path: l.path,
+                                geoKm: l.geoKm,
+                                distM: l.distM,
+                                timeS: l.timeS,
+                            });
+                        });
+                    }
                 }
                 runIdx++;
-                // 高德 API 限频, 每段间隔 200ms
                 setTimeout(nextSegment, 200);
             });
         };
@@ -1115,12 +1567,86 @@ function drawRoute() {
     }
 }
 
+// 在地图上每段路径中点画一个 "240km / 5h" 小标签
+function _renderLegLabels() {
+    if (!state.map || !state._legs) return;
+    // 清掉旧标签
+    state._legLabels = state._legLabels || [];
+    state._legLabels.forEach(t => { try { state.map.remove(t); } catch(e){} });
+    state._legLabels = [];
+
+    state._legs.forEach((leg, i) => {
+        if (!leg.path || leg.path.length < 2) return;
+        if (i % 1 !== 0) return; // 全部都画
+        // 找 path 中点（按 step.path 几何中点: 取 path 序列的中位 index）
+        const mid = leg.path[Math.floor(leg.path.length / 2)];
+        const distKm = (leg.distM / 1000).toFixed(leg.distM < 10000 ? 1 : 0);
+        const timeH = (leg.timeS / 3600);
+        const timeStr = timeH >= 1 ? timeH.toFixed(1) + 'h' : Math.round(timeH * 60) + 'min';
+
+        const dom = document.createElement('div');
+        dom.style.cssText = `
+            background: rgba(255,255,255,0.95); color: #1e40af;
+            border: 1.5px solid #2563eb; border-radius: 14px;
+            padding: 3px 8px; font-size: 11px; font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0,0,0,.15); white-space: nowrap;
+            transform: translate(-50%, -50%);
+        `;
+        dom.innerHTML = `🚗 ${distKm}km / ${timeStr}`;
+
+        const text = new AMap.Text({
+            text: '',
+            position: [typeof mid.lng === 'function' ? mid.lng() : mid.lng, typeof mid.lat === 'function' ? mid.lat() : mid.lat],
+            offset: new AMap.Pixel(0, 0),
+            content: dom,
+        });
+        try {
+            state.map.add(text);
+            state._legLabels.push(text);
+        } catch(e){}
+    });
+}
+
+// 在侧边栏每个途经点下方插入"下一段 → X km / X h"小字
+function _renderPointLegs() {
+    // 注入到 .point-item 里
+    document.querySelectorAll('.point-item').forEach((el, i) => {
+        // 清理老的
+        const old = el.querySelector('.leg-info');
+        if (old) old.remove();
+
+        const next = state._legs && state._legs.find(l => l.from === i);
+        if (!next || i >= state.waypoints.length - 1) return;
+
+        const distKm = (next.distM / 1000).toFixed(next.distM < 10000 ? 1 : 0);
+        const timeH = next.timeS / 3600;
+        const timeStr = timeH >= 1 ? timeH.toFixed(1) + 'h' : Math.round(timeH * 60) + 'min';
+
+        const info = document.createElement('div');
+        info.className = 'leg-info';
+        info.style.cssText = 'margin-top:6px;padding:5px 8px;background:#eff6ff;border-left:3px solid #2563eb;border-radius:4px;font-size:11px;color:#1e40af;font-weight:600;';
+        info.innerHTML = `→ 下一段: <b>${distKm} km</b> · 开车 <b>${timeStr}</b>`;
+        el.querySelector('.point-info').appendChild(info);
+    });
+}
+
+
 function _renderRouteResult(res) {
     hideLoading();
     const color = res.ok ? '#2563eb' : '#94a3b8'; // 灰=部分段走直线, 蓝=全程驾车可达
     const pathArr = res.paths || [];
     document.getElementById('statDistance').textContent = (res.distance / 1000).toFixed(1);
     document.getElementById('statTime').textContent = (res.time / 3600).toFixed(1);
+
+    // 最长一段 km
+    if (state._legs && state._legs.length > 0) {
+        let maxLeg = state._legs[0];
+        state._legs.forEach(l => { if (l.distM > maxLeg.distM) maxLeg = l; });
+        const maxKm = (maxLeg.distM / 1000).toFixed(0);
+        const maxH = (maxLeg.timeS / 3600).toFixed(1);
+        const elMax = document.getElementById('statMaxLeg');
+        if (elMax) elMax.innerHTML = `${maxKm}<span style="font-size:11px;color:#64748b;">km/${maxH}h</span>`;
+    }
 
     if (state.routePath) {
         try { state.map.remove(state.routePath); } catch(e){}
@@ -1189,7 +1715,9 @@ function importRoute(planId) {
             lng: day.lng,
             lat: day.lat,
             alt: day.alt,
+            tag: day.tag,
             note: day.note,
+            wiki: day.wiki,
         });
     });
 
