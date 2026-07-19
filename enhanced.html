@@ -6,14 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-3</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-4</title>
 
     <!-- 高德地图 JS API 2.0 -->
     <script type="text/javascript">
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-3');
+        console.log('🗺️ 川西旅行规划 v20260719-4');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -1051,21 +1051,26 @@ function doSearch(keyword) {
         state._searchInFlight = false;
         hideLoading();
         console.log('[搜索v4结果] status=', status, 'info=', result && result.info, 'count=', result && result.poiList && result.poiList.pois && result.poiList.pois.length);
-        if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
-            const pois = result.poiList.pois.slice(0, 15);
-            renderPoiList(pois);
-            drawPoiMarkers(pois);
-            showToast(`找到 ${pois.length} 个结果`, 'success');
-        } else {
-            const info = result && result.info ? result.info : '';
-            let msg = '该区域暂无结果';
-            if (status === 'no_data') msg = '该区域 10km 内无相关地点，试试扩大半径或换关键词';
-            else if (info) msg = '搜索失败：' + info;
-            showToast(msg, 'warning');
-            document.getElementById('poiList').innerHTML =
-                '<div class="empty-state"><p>😔 周边没找到</p><p style="font-size:12px;color:#94a3b8;margin-top:8px;">可手动拖动地图到城市区域，或在搜索框输入具体地名</p></div>';
-            clearPoiMarkers();
-        }
+if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                    const pois = result.poiList.pois.slice(0, 15);
+                    renderPoiList(pois);
+                    drawPoiMarkers(pois);
+                    showToast(`找到 ${pois.length} 个结果`, 'success');
+                } else {
+                    const info = result && result.info ? result.info : '';
+                    let msg = '该区域暂无结果';
+                    if (status === 'timeout') {
+                        msg = '高德 API 12 秒未返回（偏远地区常见），请换城市或扩大半径';
+                    } else if (status === 'no_data') {
+                        msg = '该区域 10km 内无相关地点，试试扩大半径或换关键词';
+                    } else if (info) {
+                        msg = '搜索失败：' + info;
+                    }
+                    showToast(msg, 'warning');
+                    document.getElementById('poiList').innerHTML =
+                        '<div class="empty-state"><p>😔 周边没找到</p><p style="font-size:12px;color:#94a3b8;margin-top:8px;">可手动拖动地图到城市区域，或在搜索框输入具体地名</p></div>';
+                    clearPoiMarkers();
+                }
         try { ps.destroy && ps.destroy(); } catch(e) {}
     };
 
@@ -1130,6 +1135,24 @@ function addPoiToRoute(index) {
 function navToPoi(lng, lat, name) {
     const url = `https://uri.amap.com/navigation?to=${lng},${lat},${encodeURIComponent(name)}&mode=car&coordinate=gaode&src=mypage`;
     window.open(url, '_blank');
+}
+
+// 在地图上画搜索范围圆（让用户直观看到搜索范围）
+function drawSearchRangeCircle(lng, lat, radius) {
+    if (state._rangeCircle) {
+        try { state.map.remove(state._rangeCircle); } catch(e) {}
+    }
+    if (typeof AMap === 'undefined' || !AMap.Circle) return;
+    state._rangeCircle = new AMap.Circle({
+        center: [lng, lat],
+        radius: radius, // 米
+        strokeColor: '#3b82f6',
+        strokeOpacity: 0.6,
+        strokeWeight: 2,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+    });
+    state.map.add(state._rangeCircle);
 }
 
 function drawPoiMarkers(pois) {
@@ -1206,7 +1229,14 @@ function locateMe() {
                     showToast('定位成功：' + address, 'success');
 
                     // 自动搜索周边（延迟稍长，避免和定位Marker渲染冲突）
-                    setTimeout(searchPoi, 1500);
+                    // 偏远地区会自动搜索超时，改成只显示"已就绪"提示，让用户手动点搜索
+                    setTimeout(() => {
+                        document.getElementById('poiList').innerHTML =
+                            '<div class="empty-state"><p>📍 定位已就绪</p><p style="font-size:12px;color:#94a3b8;margin-top:8px;">在上方输入框输入景点/城市名称，或点击"+ 添加途经点"</p></div>';
+                        // 在地图上画一个搜索范围圆（10km），可视化给用户看
+                        drawSearchRangeCircle(lng, lat, state.currentRadius);
+                        showToast('定位成功，请在搜索框输入关键词', 'info');
+                    }, 1500);
                 } else {
                     // 定位失败时的后备方案：用浏览器原生定位
                     fallbackGeolocation(result.message);
