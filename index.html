@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.1</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-21');
+        console.log('🗺️ 川西旅行规划 v20260719-21.1');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -714,6 +714,9 @@
         <button class="btn btn-ai" onclick="aiOptimize()">
             <span>✨</span> AI 智能优化
         </button>
+        <button class="btn btn-secondary" onclick="openCloudPanel()" title="云端同步（GitHub Gist）" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:white;border:none;">
+            <span>☁️</span> 云同步
+        </button>
     </div>
 </div>
 
@@ -907,7 +910,53 @@
         </div>
     </div>
 
-    <!-- V21: 新手引导遮罩 -->
+    <!-- V21.1: 云同步 Modal -->
+<div id="cloudModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:14px;padding:24px;max-width:480px;width:90vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h2 style="margin:0;font-size:18px;color:#1e293b;">☁️ 云端同步</h2>
+            <button onclick="closeCloudPanel()" style="border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer;">✕</button>
+        </div>
+
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12px;color:#1e40af;margin-bottom:14px;line-height:1.6;">
+            💡 数据保存在 <b>你自己的 GitHub Gist</b> 里（私密），跨设备、跨浏览器、换版本都不丢。
+        </div>
+
+        <div style="margin-bottom:14px;">
+            <div style="font-size:13px;color:#475569;margin-bottom:6px;font-weight:600;">GitHub Personal Access Token (PAT)</div>
+            <input type="password" id="cloudToken" class="input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                style="font-family:monospace;font-size:13px;">
+            <div style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.5;">
+                ① 打开 <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:#3b82f6;">github.com/settings/tokens</a> → ② Generate new token (Fine-grained) → ③ 只勾选 <b>Gists: Read and write</b> → ④ 复制粘贴进来
+                <br>Token 只存本机 localStorage, 不上传服务器。
+            </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+            <div style="font-size:13px;color:#475569;margin-bottom:6px;font-weight:600;">Gist ID <span style="color:#94a3b8;font-weight:400;">(留空 = 创建新 gist)</span></div>
+            <input type="text" id="cloudGistId" class="input" placeholder="例如 8a3b1f7e..." style="font-family:monospace;font-size:13px;">
+        </div>
+
+        <div id="cloudStatus" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px;background:#f8fafc;border-radius:6px;min-height:20px;"></div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);min-width:120px;">⬆️ 上传</button>
+            <button class="btn btn-primary" onclick="cloudDownload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">⬇️ 下载</button>
+            <button class="btn btn-secondary" onclick="cloudAutoSync()" style="flex:1;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;min-width:120px;" title="下载 → 合并 → 上传">🔄 自动同步</button>
+        </div>
+
+        <div style="margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <label style="cursor:pointer;color:#475569;font-size:12px;">
+                <input type="checkbox" id="cloudAutoSyncChk" onchange="localStorage.setItem(CLOUD_KEY_AUTOSYNC, this.checked ? '1' : '0');document.getElementById('cloudStatus').textContent=this.checked?'✓ 自动同步已开启 (修改后 5 秒自动上传)':'自动同步已关闭';" style="margin-right:4px;">
+                启用自动同步
+            </label>
+            <span style="color:#cbd5e1;">|</span>
+            <span>路线 / 已保存路线 / 装备清单 / 停留天数</span>
+        </div>
+    </div>
+</div>
+
+<!-- V21: 新手引导遮罩 -->
 <div id="onboardOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;transition:opacity 0.3s;">
     <div id="onboardSpot" style="position:absolute;border:3px solid #8b5cf6;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.55),0 0 30px rgba(139,92,246,0.6);transition:all 0.4s cubic-bezier(0.4,0,0.2,1);pointer-events:none;"></div>
     <div id="onboardBubble" style="position:absolute;background:white;border-radius:14px;padding:20px 22px;max-width:320px;box-shadow:0 10px 40px rgba(0,0,0,0.3);transition:all 0.4s cubic-bezier(0.4,0,0.2,1);">
@@ -3112,6 +3161,28 @@ function escapeHtml(s) {
 }
 
 // ====== LocalStorage ======
+let _saveTimer = null;
+function _triggerAutoSync() {
+    if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
+    if (!localStorage.getItem(CLOUD_KEY_TOKEN) || !localStorage.getItem(CLOUD_KEY_GISTID)) return;
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => cloudSilentSync(), 5000);
+}
+async function cloudSilentSync() {
+    const token = localStorage.getItem(CLOUD_KEY_TOKEN);
+    const gistId = localStorage.getItem(CLOUD_KEY_GISTID);
+    if (!token || !gistId) return;
+    try {
+        const data = _cloudGetAllData();
+        const url = `https://api.github.com/gists/${gistId}`;
+        await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: { [CLOUD_FILENAME]: { content: JSON.stringify(data, null, 2) } } }),
+        });
+    } catch (e) { console.warn('[cloud sync]', e.message); }
+}
+
 function saveToLocal() {
     try {
         localStorage.setItem('travelmind_route', JSON.stringify({
@@ -3119,6 +3190,7 @@ function saveToLocal() {
             timestamp: Date.now(),
         }));
     } catch (e) {}
+    _triggerAutoSync();
 }
 
 function loadFromLocal() {
@@ -3146,6 +3218,7 @@ function setSavedRoutes(arr) {
     try {
         localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(arr));
     } catch (e) {}
+    _triggerAutoSync();
 }
 
 function saveCurrentRoute() {
@@ -3241,6 +3314,7 @@ function getGear() {
 }
 function setGear(arr) {
     try { localStorage.setItem(GEAR_KEY, JSON.stringify(arr)); } catch (e) {}
+    _triggerAutoSync();
 }
 
 function gearStatusLabel(s) {
@@ -3415,6 +3489,170 @@ function renderGear() {
 
 function initGear() { renderGear(); }
 
+// ====== V21.1: 云同步 (GitHub Gist) ======
+const CLOUD_KEY_TOKEN = 'travelmind_cloud_token';
+const CLOUD_KEY_GISTID = 'travelmind_cloud_gistid';
+const CLOUD_KEY_AUTOSYNC = 'travelmind_cloud_autosync';
+const CLOUD_FILENAME = 'travelmind-backup.json';
+
+function openCloudPanel() {
+    document.getElementById('cloudToken').value = localStorage.getItem(CLOUD_KEY_TOKEN) || '';
+    document.getElementById('cloudGistId').value = localStorage.getItem(CLOUD_KEY_GISTID) || '';
+    document.getElementById('cloudAutoSyncChk').checked = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
+    document.getElementById('cloudStatus').textContent = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1'
+        ? '✓ 自动同步已开启 (修改后 5 秒自动上传)'
+        : '提示: 勾选"自动同步"可让修改自动上传';
+    document.getElementById('cloudModal').style.display = 'flex';
+}
+function closeCloudPanel() { document.getElementById('cloudModal').style.display = 'none'; }
+
+function _cloudSaveCreds() {
+    const token = (document.getElementById('cloudToken').value || '').trim();
+    const gistId = (document.getElementById('cloudGistId').value || '').trim();
+    if (token) localStorage.setItem(CLOUD_KEY_TOKEN, token);
+    if (gistId) localStorage.setItem(CLOUD_KEY_GISTID, gistId);
+    return { token, gistId };
+}
+
+function _cloudSetStatus(msg, ok) {
+    const el = document.getElementById('cloudStatus');
+    el.textContent = msg;
+    el.style.color = ok ? '#059669' : '#dc2626';
+}
+
+function _cloudGetAllData() {
+    return {
+        version: 'v21',
+        timestamp: Date.now(),
+        currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
+        savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
+        gear: JSON.parse(localStorage.getItem(GEAR_KEY) || '[]'),
+    };
+}
+
+function _cloudApplyData(data) {
+    if (!data) return false;
+    if (data.currentRoute && data.currentRoute.waypoints) {
+        localStorage.setItem('travelmind_route', JSON.stringify(data.currentRoute));
+        state.waypoints = data.currentRoute.waypoints;
+        renderPoints();
+        drawRoute();
+    }
+    if (Array.isArray(data.savedRoutes)) {
+        localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(data.savedRoutes));
+        renderSavedRoutes();
+    }
+    if (Array.isArray(data.gear)) {
+        localStorage.setItem(GEAR_KEY, JSON.stringify(data.gear));
+        renderGear();
+    }
+    return true;
+}
+
+async function cloudUpload() {
+    const { token, gistId } = _cloudSaveCreds();
+    if (!token) { _cloudSetStatus('请先填 Token', false); return; }
+    _cloudSetStatus('上传中...', true);
+    try {
+        const data = _cloudGetAllData();
+        const body = {
+            description: 'TravelMind 川西旅行规划备份',
+            public: false,
+            files: { [CLOUD_FILENAME]: { content: JSON.stringify(data, null, 2) } },
+        };
+        let url, method;
+        if (gistId) { url = `https://api.github.com/gists/${gistId}`; method = 'PATCH'; }
+        else { url = 'https://api.github.com/gists'; method = 'POST'; }
+        // 用 fetch + proxy 兜底 (浏览器跨域)
+        const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+            method,
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) { _cloudSetStatus(`上传失败: HTTP ${res.status} ${res.statusText}`, false); return; }
+        const json = await res.json();
+        const newId = json.id;
+        localStorage.setItem(CLOUD_KEY_GISTID, newId);
+        document.getElementById('cloudGistId').value = newId;
+        _cloudSetStatus(`✓ 上传成功! Gist ID: ${newId.slice(0,8)}... (已保存)`, true);
+        showToast('☁️ 已上传到云端', 'success');
+    } catch (e) { _cloudSetStatus('上传失败: ' + e.message, false); }
+}
+
+async function cloudDownload() {
+    const { token, gistId } = _cloudSaveCreds();
+    if (!token || !gistId) { _cloudSetStatus('请先填 Token 和 Gist ID', false); return; }
+    if (!confirm('下载会覆盖本地当前路线 + 已保存路线 + 装备清单, 确定吗?')) return;
+    _cloudSetStatus('下载中...', true);
+    try {
+        const url = `https://api.github.com/gists/${gistId}`;
+        const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' },
+        });
+        if (!res.ok) { _cloudSetStatus(`下载失败: HTTP ${res.status}`, false); return; }
+        const json = await res.json();
+        const file = json.files && json.files[CLOUD_FILENAME];
+        if (!file) { _cloudSetStatus('Gist 中没找到备份文件', false); return; }
+        const data = JSON.parse(file.content);
+        if (_cloudApplyData(data)) {
+            _cloudSetStatus(`✓ 下载成功! 备份时间: ${new Date(data.timestamp).toLocaleString('zh-CN')}`, true);
+            showToast('☁️ 已从云端恢复', 'success');
+        } else { _cloudSetStatus('数据格式异常', false); }
+    } catch (e) { _cloudSetStatus('下载失败: ' + e.message, false); }
+}
+
+async function cloudAutoSync() {
+    // 下载 → 合并 → 上传
+    const { token, gistId } = _cloudSaveCreds();
+    if (!token) { _cloudSetStatus('请先填 Token', false); return; }
+    if (!gistId) { _cloudSetStatus('自动同步需要 Gist ID (请先手动上传一次)', false); return; }
+    _cloudSetStatus('同步中...', true);
+    try {
+        const url = `https://api.github.com/gists/${gistId}`;
+        const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' },
+        });
+        if (!res.ok) { _cloudSetStatus(`获取远程失败: ${res.status}`, false); return; }
+        const json = await res.json();
+        const file = json.files && json.files[CLOUD_FILENAME];
+        if (!file) { _cloudSetStatus('Gist 中没找到备份文件', false); return; }
+        const remote = JSON.parse(file.content);
+        const local = _cloudGetAllData();
+
+        // 合并策略: 已保存路线 - 按 id 去重保留最新时间戳; 装备清单 - 按 id 去重保留
+        const merged = {
+            version: 'v21-merged',
+            timestamp: Date.now(),
+            currentRoute: local.currentRoute.timestamp > (remote.currentRoute.timestamp || 0) ? local.currentRoute : remote.currentRoute,
+            savedRoutes: _mergeById(local.savedRoutes, remote.savedRoutes, 'id', 'timestamp'),
+            gear: _mergeById(local.gear, remote.gear, 'id'),
+        };
+        // 上传合并结果
+        const patchRes = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: { [CLOUD_FILENAME]: { content: JSON.stringify(merged, null, 2) } } }),
+        });
+        if (!patchRes.ok) { _cloudSetStatus(`合并上传失败: ${patchRes.status}`, false); return; }
+        // 应用合并到本地
+        _cloudApplyData(merged);
+        _cloudSetStatus(`✓ 同步完成! 当前路线: ${merged.currentRoute.waypoints?.length || 0} 点, 已保存路线: ${merged.savedRoutes.length} 条, 装备: ${merged.gear.length} 件`, true);
+        showToast('🔄 云端同步完成', 'success');
+    } catch (e) { _cloudSetStatus('同步失败: ' + e.message, false); }
+}
+
+function _mergeById(localArr, remoteArr, idKey, tsKey) {
+    const map = new Map();
+    [...(remoteArr || []), ...(localArr || [])].forEach(item => {
+        const id = item[idKey];
+        if (!id) return;
+        const existing = map.get(id);
+        if (!existing || (tsKey && item[tsKey] > (existing[tsKey] || 0))) map.set(id, item);
+        else if (!existing) map.set(id, item);
+    });
+    return Array.from(map.values());
+}
+
 // ====== V21: 新手引导 ======
 const ONBOARD_KEY = 'travelmind_onboard_done';
 const onboardSteps = [
@@ -3442,7 +3680,7 @@ const onboardSteps = [
     {
         title: '保存路线 + AI 装备',
         icon: '💾',
-        body: '滚到底部 → <b>💾 保存当前路线</b>（自定义名字）。<br>切到 <b>🎒 装备清单</b> → 粘贴物品清单 → <b>🤖 AI 解析入库</b>，自动归类 + 标记 采购/装车状态。',
+        body: '滚到底部 → <b>💾 保存当前路线</b>（自定义名字）。<br>切到 <b>🎒 装备清单</b> → 粘贴物品清单 → <b>🤖 AI 解析入库</b>，自动归类 + 标记 采购/装车状态。<br>💡 顶栏 <b>☁️ 云同步</b> → 绑定 GitHub Gist，跨设备永不丢失。',
         targetSel: '#savedRoutesList',
         bubblePos: 'right',
     },
@@ -3485,31 +3723,49 @@ function renderOnboard() {
         spot.style.width = '200px'; spot.style.height = '100px';
     }
 
-    // 2. 气泡定位
-    const margin = 16;
+    // 2. 气泡定位 (V21.1: 智能选边 + 视口夹紧)
+    const margin = 12;
+    const bubbleW = Math.min(320, window.innerWidth - margin * 2);
+    const bubbleH = 180;  // 估算高度
     if (target) {
         const r = target.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const rightSpace = window.innerWidth - r.right;
+        const leftSpace = r.left;
+        const bottomSpace = window.innerHeight - r.bottom;
+        const topSpace = r.top;
+        bubble.style.transform = '';
+
         let bx, by;
-        if (step.bubblePos === 'right') {
-            bx = r.right + margin;
-            by = r.top + r.height / 2;
-            bubble.style.transform = 'translateY(-50%)';
-            // 右侧空间不够?
-            if (bx + 320 > window.innerWidth) {
-                bx = r.left - 320 - margin;
-                if (bx < margin) { bx = margin; by = r.bottom + margin; bubble.style.transform = ''; }
-            }
-        } else {
-            bx = window.innerWidth / 2 - 160;
+        // 决策: 右 > 左 > 下 > 上
+        if (rightSpace >= bubbleW + margin) {
+            bx = r.right + margin; by = cy - bubbleH / 2;
+        } else if (leftSpace >= bubbleW + margin) {
+            bx = r.left - bubbleW - margin; by = cy - bubbleH / 2;
+        } else if (bottomSpace >= bubbleH + margin) {
+            bx = Math.max(margin, Math.min(window.innerWidth - bubbleW - margin, cx - bubbleW / 2));
             by = r.bottom + margin;
-            bubble.style.transform = '';
+        } else if (topSpace >= bubbleH + margin) {
+            bx = Math.max(margin, Math.min(window.innerWidth - bubbleW - margin, cx - bubbleW / 2));
+            by = r.top - bubbleH - margin;
+        } else {
+            // 兜底: 屏幕底部居中
+            bx = (window.innerWidth - bubbleW) / 2;
+            by = window.innerHeight - bubbleH - margin;
         }
+        // 视口夹紧
+        bx = Math.max(margin, Math.min(window.innerWidth - bubbleW - margin, bx));
+        by = Math.max(margin, Math.min(window.innerHeight - bubbleH - margin, by));
+
         bubble.style.left = bx + 'px';
         bubble.style.top = by + 'px';
+        bubble.style.maxWidth = bubbleW + 'px';
     } else {
         bubble.style.left = '50%';
         bubble.style.top = '50%';
         bubble.style.transform = 'translate(-50%,-50%)';
+        bubble.style.maxWidth = bubbleW + 'px';
     }
 
     // 3. 文本
@@ -3547,6 +3803,20 @@ function showHelpFab() {
     const fab = document.getElementById('helpFab');
     if (fab) fab.style.display = 'block';
 }
+
+// V21.1: ESC 退出 + 窗口变化重定位
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('onboardOverlay').style.display === 'block') {
+        finishOnboard(true);
+    }
+});
+let _onboardResizeTimer = null;
+window.addEventListener('resize', () => {
+    if (document.getElementById('onboardOverlay').style.display === 'block') {
+        clearTimeout(_onboardResizeTimer);
+        _onboardResizeTimer = setTimeout(renderOnboard, 200);
+    }
+});
 
 // ====== 启动 ======
 window.addEventListener('load', () => {
