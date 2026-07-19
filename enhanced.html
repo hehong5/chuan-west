@@ -6,14 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-6</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-7</title>
 
     <!-- 高德地图 JS API 2.0 -->
     <script type="text/javascript">
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-6');
+        console.log('🗺️ 川西旅行规划 v20260719-7');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -1013,47 +1013,48 @@ function searchPoi() {
 }
 
 // 把"西昌"这种城市名/地名，先用 Geocoder 转成 [lng, lat]
-// 这是关键 —— searchNearBy 是"中心点+关键词"，不是"去关键词的地方找东西"
+// 这是关键 —— 不用 searchNearBy 走"中心点+关键词"，改用 setCity + search
+// 高德 setCity + search 是城市内搜索, 比 searchNearBy 稳定得多
 let _geoCoder = null;
 function geocodeKeyword(keyword) {
-    return new Promise((resolve, reject) => {
-        if (!keyword) { resolve(null); return; }
+    return new Promise((resolve) => {
+        if (!keyword) { resolve({ lng: null, lat: null, city: null }); return; }
         if (!_geoCoder) {
             _geoCoder = new AMap.Geocoder({ city: '全国', radius: 1000 });
         }
         _geoCoder.getLocation(keyword, (status, result) => {
             if (status === 'complete' && result && result.geocodes && result.geocodes.length > 0) {
                 const loc = result.geocodes[0].location;
-                resolve([loc.lng, loc.lat]);
+                const city = result.geocodes[0].city || result.geocodes[0].adcode || null;
+                const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+                const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+                resolve({ lng, lat, city });
             } else {
-                resolve(null); // 解析不出来, 不阻塞, fallback 到当前中心
+                resolve({ lng: null, lat: null, city: null });
             }
         });
     });
 }
 
 async function doSearch(keyword) {
-    // 优先使用定位点；没有定位点时用地图中心
+    let city = null;
     let center = state._locCenter ||
                  [state.map.getCenter().lng, state.map.getCenter().lat];
 
-    // 如果用户输入了关键词, 先把关键词解析成坐标点
-    // 这样在稻城亚丁搜"西昌", 中心点会变成西昌市, 才能搜出西昌的景点
+    // 如果有关键词, 先 Geocode
     if (keyword) {
-        const geocodedCenter = await geocodeKeyword(keyword);
-        if (geocodedCenter) {
-            console.log('[搜索v5] 关键词"', keyword, '"解析到坐标:', geocodedCenter);
-            center = geocodedCenter;
-            // 把地图视图飞到解析出来的城市, 增强可视化
+        const geo = await geocodeKeyword(keyword);
+        console.log('[搜索v6] Geocode 结果:', geo);
+        if (geo && geo.lng != null && geo.lat != null) {
+            center = [geo.lng, geo.lat];
+            city = geo.city;
             state.map.setCenter(center);
             state.map.setZoom(12);
-            // 画搜索范围圆
-            drawSearchRangeCircle(center[0], center[1], state.currentRadius);
+            drawSearchRangeCircle(geo.lng, geo.lat, state.currentRadius);
         } else {
-            console.warn('[搜索v5] 关键词"', keyword, '"未能解析坐标, 用当前中心');
+            console.warn('[搜索v6] 关键词未解析出坐标, 用当前中心');
         }
     } else {
-        // 无关键词时, 用当前定位/中心
         if (state._locCenter) {
             drawSearchRangeCircle(state._locCenter[0], state._locCenter[1], state.currentRadius);
         }
@@ -1068,12 +1069,10 @@ async function doSearch(keyword) {
         finalKeyword = keyword ? (keyword + ' 酒店 民宿 客栈') : '酒店 民宿 客栈';
     }
 
-    console.log('[搜索v5] center=', center, 'radius=', state.currentRadius, 'keyword=', finalKeyword);
+    console.log('[搜索v6] city=', city, 'center=', center, 'keyword=', finalKeyword);
 
-    // 高德 V2.0 PlaceSearch 单例 + 复用会导致第二个请求回调不触发
-    // 解决: 每次都 new, 但用 setTimeout 串行化, 避免并发触发内部错误
     if (state._searchInFlight) {
-        console.log('[搜索v5] 有请求在跑, 排队');
+        console.log('[搜索v6] 有请求在跑, 排队');
         setTimeout(() => doSearch(keyword), 500);
         return;
     }
@@ -1088,26 +1087,22 @@ async function doSearch(keyword) {
 
     let calledBack = false;
     const onResult = (status, result) => {
-        if (calledBack) return; // 防止超时和回调都触发
+        if (calledBack) return;
         calledBack = true;
         state._searchInFlight = false;
         hideLoading();
-        console.log('[搜索v5结果] status=', status, 'info=', result && result.info, 'count=', result && result.poiList && result.poiList.pois && result.poiList.pois.length);
-        if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+        const count = result && result.poiList && result.poiList.pois && result.poiList.pois.length;
+        console.log('[搜索v6结果] status=', status, 'info=', result && result.info, 'count=', count);
+        if (status === 'complete' && count > 0) {
             const pois = result.poiList.pois.slice(0, 15);
             renderPoiList(pois);
             drawPoiMarkers(pois);
             showToast(`找到 ${pois.length} 个结果`, 'success');
         } else {
-            const info = result && result.info ? result.info : '';
             let msg = '该区域暂无结果';
-            if (status === 'timeout') {
-                msg = '高德 API 12 秒未返回（偏远地区常见），请换城市或扩大半径';
-            } else if (status === 'no_data') {
-                msg = '该区域 10km 内无相关地点，试试扩大半径或换关键词';
-            } else if (info) {
-                msg = '搜索失败：' + info;
-            }
+            if (status === 'timeout') msg = '高德 8 秒未返回（偏远/弱网常见），请换城市或扩大半径';
+            else if (status === 'no_data') msg = '该区域无相关地点，试试扩大半径或换关键词';
+            else if (result && result.info) msg = '搜索失败：' + result.info;
             showToast(msg, 'warning');
             document.getElementById('poiList').innerHTML =
                 '<div class="empty-state"><p>😔 周边没找到</p><p style="font-size:12px;color:#94a3b8;margin-top:8px;">可手动拖动地图到城市区域，或在搜索框输入具体地名</p></div>';
@@ -1116,21 +1111,21 @@ async function doSearch(keyword) {
         try { ps.destroy && ps.destroy(); } catch(e) {}
     };
 
-    ps.searchNearBy(
-        finalKeyword,
-        center,
-        state.currentRadius,
-        '',
-        onResult
-    );
+    // 关键改动: 用 setCity + search, 不用 searchNearBy
+    if (city) {
+        ps.setCity(city);
+        ps.search(finalKeyword, (status, result) => onResult(status, result));
+    } else {
+        ps.searchNearBy(finalKeyword, center, state.currentRadius, '', onResult);
+    }
 
-    // 12 秒超时（高德偏远地区偶尔真会慢）
+    // 8 秒超时
     setTimeout(() => {
         if (!calledBack) {
-            console.warn('[搜索v5] 12 秒超时未回调');
+            console.warn('[搜索v6] 8 秒超时未回调');
             onResult('timeout', null);
         }
-    }, 12000);
+    }, 8000);
 }
 
 function renderPoiList(pois) {
