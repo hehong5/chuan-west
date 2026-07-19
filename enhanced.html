@@ -6,14 +6,15 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-8</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-9</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
     <script type="text/javascript">
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-8');
+        console.log('🗺️ 川西旅行规划 v20260719-9');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -871,10 +872,7 @@ function onMapClick(e) {
 
 // ====== 添加途经点 ======
 function addWaypoint(name, lng, lat) {
-    if (state.waypoints.length >= 10) {
-        showToast('最多支持10个途经点', 'error');
-        return;
-    }
+    // 移除最多10个途经点的限制（导入预设线路需要 20+ 个）
     state.waypoints.push({ name, lng, lat });
     renderPoints();
     drawRoute();
@@ -1018,55 +1016,139 @@ function clearMapMarkers() {
 }
 
 // ====== 路径规划 ======
-function drawRoute() {
-    if (state.waypoints.length < 2) {
-        document.getElementById('statDistance').textContent = '0';
-        document.getElementById('statTime').textContent = '0';
-        return;
-    }
+// 注意: 高德 Driving API 每次 search 最多支持 ~16 个途经点, 超过会失败
+// 对预设线路 22-23 个点, 必须用「分段策略」: 把途经点按 10 个一组, 分别 search, 把路径拼起来
+const DRIVING_SEGMENT_SIZE = 10;
 
-    showLoading('路径规划中...');
-
-    const path = state.waypoints.map(p => new AMap.LngLat(p.lng, p.lat));
-
+function _drawRouteSingleSegment(pts, onDone) {
+    const path = pts.map(p => new AMap.LngLat(p.lng, p.lat));
     state.driving.search(path, (status, result) => {
         hideLoading();
         if (status === 'complete' && result.routes && result.routes.length > 0) {
-            const route = result.routes[0];
-            const distance = (route.distance / 1000).toFixed(1);
-            const time = (route.time / 3600).toFixed(1);
-
-            document.getElementById('statDistance').textContent = distance;
-            document.getElementById('statTime').textContent = time;
-
-            // 绘制路径
-            if (state.routePath) state.map.remove(state.routePath);
-            state.routePath = new AMap.Polyline({
-                path: route.path,
-                strokeColor: '#2563eb',
-                strokeWeight: 6,
-                strokeOpacity: 0.85,
-                showDir: true,
+            const segPaths = [];
+            let totalDistance = 0, totalTime = 0;
+            result.routes.forEach(r => {
+                if (r.path) segPaths.push(...r.path);
+                totalDistance += r.distance || 0;
+                totalTime += r.time || 0;
             });
-            state.map.add(state.routePath);
-
-            // 适应视野
-            state.map.setFitView([state.routePath, ...state.markers]);
+            onDone({ ok: true, paths: segPaths, distance: totalDistance, time: totalTime });
         } else {
-            // 直线连接
-            if (state.routePath) state.map.remove(state.routePath);
-            state.routePath = new AMap.Polyline({
-                path: path,
-                strokeColor: '#94a3b8',
-                strokeWeight: 4,
-                strokeOpacity: 0.7,
-                strokeStyle: 'dashed',
-            });
-            state.map.add(state.routePath);
-            state.map.setFitView([state.routePath, ...state.markers]);
-            showToast('路径规划失败，使用直线连接', 'error');
+            onDone({ ok: false, paths: path, info: result && result.info });
         }
     });
+}
+
+function drawRoute() {
+    if (!state.map || !AMap || !AMap.Driving) {
+        console.warn('[drawRoute] 地图或 API 尚未就绪, 跳过');
+        return;
+    }
+    if (state.waypoints.length < 2) {
+        const eld = document.getElementById('statDistance'); if (eld) eld.textContent = '0';
+        const elt = document.getElementById('statTime'); if (elt) elt.textContent = '0';
+        return;
+    }
+
+    // 懒初始化驾车规划
+    if (!state.driving) {
+        state.driving = new AMap.Driving({
+            map: null,
+            hideMarkers: true,
+        });
+    }
+
+    // 清除旧路径
+    if (state.routePath) {
+        try { state.map.remove(state.routePath); } catch(e){}
+        state.routePath = null;
+    }
+
+    const pts = state.waypoints;
+    if (pts.length <= DRIVING_SEGMENT_SIZE + 1) {
+        // 10 个以内的点直接一次请求
+        showLoading('路径规划中...');
+        _drawRouteSingleSegment(pts, (res) => {
+            _renderRouteResult(res);
+            _fitToRouteOrMarkers();
+        });
+    } else {
+        // 多段拼接
+        showLoading(`路径规划中（共 ${pts.length} 个点，分 ${Math.ceil((pts.length - 1) / DRIVING_SEGMENT_SIZE)} 段）...`);
+        const segments = [];
+        for (let i = 0; i < pts.length - 1; i += DRIVING_SEGMENT_SIZE) {
+            const end = Math.min(i + DRIVING_SEGMENT_SIZE + 1, pts.length);
+            segments.push(pts.slice(i, end));
+        }
+        const allPaths = [];
+        let totalDistance = 0, totalTime = 0;
+        let allOk = true;
+        let failedAny = false;
+        let failedInfo = '';
+        let runIdx = 0;
+
+        const nextSegment = () => {
+            if (runIdx >= segments.length) {
+                hideLoading();
+                _renderRouteResult({ ok: !failedAny, paths: allPaths, distance: totalDistance, time: totalTime, info: failedInfo });
+                _fitToRouteOrMarkers();
+                return;
+            }
+            _drawRouteSingleSegment(segments[runIdx], (res) => {
+                if (res.ok) {
+                    allPaths.push(...res.paths);
+                    totalDistance += res.distance;
+                    totalTime += res.time;
+                } else {
+                    failedAny = true;
+                    failedInfo = res.info || '';
+                    // fallback: 直线连接该段
+                    const segPath = segments[runIdx].map(p => new AMap.LngLat(p.lng, p.lat));
+                    allPaths.push(...segPath);
+                }
+                runIdx++;
+                // 高德 API 限频, 每段间隔 200ms
+                setTimeout(nextSegment, 200);
+            });
+        };
+        nextSegment();
+    }
+}
+
+function _renderRouteResult(res) {
+    hideLoading();
+    const color = res.ok ? '#2563eb' : '#94a3b8'; // 灰=部分段走直线, 蓝=全程驾车可达
+    const pathArr = res.paths || [];
+    document.getElementById('statDistance').textContent = (res.distance / 1000).toFixed(1);
+    document.getElementById('statTime').textContent = (res.time / 3600).toFixed(1);
+
+    if (state.routePath) {
+        try { state.map.remove(state.routePath); } catch(e){}
+    }
+    state.routePath = new AMap.Polyline({
+        path: pathArr,
+        strokeColor: color,
+        strokeWeight: 6,
+        strokeOpacity: res.ok ? 0.85 : 0.6,
+        strokeStyle: res.ok ? 'solid' : 'dashed',
+        showDir: true,
+    });
+    state.map.add(state.routePath);
+
+    // 任何段失败时提示
+    if (!res.ok && res.info) {
+        console.warn('[drawRoute] 部分段未达, 已用直线连接:', res.info);
+        showToast('⚠️ 部分段高德未返回, 已用虚线连接。', 'warning');
+    }
+}
+
+function _fitToRouteOrMarkers() {
+    const fitArr = [];
+    if (state.routePath) fitArr.push(state.routePath);
+    fitArr.push(...state.markers);
+    if (fitArr.length > 0) {
+        try { state.map.setFitView(fitArr); } catch(e){}
+    }
 }
 
 // ====== 点击地图选点 ======
