@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.4</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.5</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-21.4');
+        console.log('🗺️ 川西旅行规划 v20260719-21.5');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -927,15 +927,15 @@
         </div>
 
         <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#065f46;margin-bottom:14px;line-height:1.6;">
-            💚 数据保存在 <b>云端数据库</b>，跨设备、跨浏览器、换版本都不丢。<br>
-            无需注册、无需 token、无需配置——你本机的匿名 ID 已被自动记录。
+            💚 <b>配对码 = 团队口令</b>。所有输入相同配对码的设备共享同一份数据。<br>
+            ✨ 第一次打开会生成一个给你，复制发给队友即可同步。
         </div>
 
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:11px;color:#475569;margin-bottom:14px;line-height:1.6;">
-            <b>你的云端 ID：</b>
+            <b>📌 本机的配对码：</b>
             <code id="cloudDbUid" style="font-family:monospace;color:#1e40af;background:white;padding:2px 6px;border-radius:4px;font-size:11px;"></code>
-            <button onclick="navigator.clipboard.writeText(_dbGetUserId());showToast('ID 已复制', 'success')" style="margin-left:6px;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">📋 复制</button>
-            <div style="margin-top:4px;color:#94a3b8;">在新设备上点"📥 用 ID 恢复"即可拉回数据</div>
+            <button onclick="navigator.clipboard.writeText(localStorage.getItem(DB_KEY_USERID)||'');showToast('配对码已复制', 'success')" style="margin-left:6px;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">📋 复制</button>
+            <div style="margin-top:6px;color:#94a3b8;">把这一串发给队友，他们点下面"🆕 加入已有配对"输入即可</div>
         </div>
 
         <div id="cloudStatus" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px;background:#f8fafc;border-radius:6px;min-height:20px;"></div>
@@ -948,10 +948,11 @@
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
             <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-                🆔 跨设备恢复：在新设备点这个，输入之前的 ID
+                🔗 <b>换设备？换电脑？</b> 输入队友给你的配对码
             </div>
             <div style="display:flex;gap:6px;">
-                <button class="btn btn-secondary" onclick="cloudRestoreById()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">📥 用 ID 恢复</button>
+                <button class="btn btn-secondary" onclick="joinPair()" style="flex:1;background:#ddd6fe;color:#5b21b6;border:1px solid #c4b5fd;font-weight:600;">🆕 加入已有配对</button>
+                <button class="btn btn-secondary" onclick="leavePair()" style="flex:0 0 auto;background:#fef3c7;color:#92400e;border:1px solid #fde68a;" title="生成全新配对码 (会脱离当前数据)">🔄 重置</button>
             </div>
         </div>
 
@@ -3543,14 +3544,55 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const DB_KEY_USERID = 'travelmind_db_userid';
 
 // 用 crypto.randomUUID 分配一个匿名用户 ID (本机永久)
-function _dbGetUserId() {
-    let id = localStorage.getItem(DB_KEY_USERID);
-    if (!id) {
-        id = (crypto.randomUUID && crypto.randomUUID()) ||
-             'uid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
-        localStorage.setItem(DB_KEY_USERID, id);
+// V21.5: 配对码 → user_id 转换
+// 相同配对码 + 固定盐 → 相同 hash → 共享同一份云端数据
+// 不同设备算出来一样, 不需要传任何凭据
+const _PAIR_SALT = 'travelmind-v21-5-pairing';
+async function _pairCodeToUid(code) {
+    // 用 Web Crypto 做 SHA-256 (现代浏览器都有)
+    try {
+        const data = new TextEncoder().encode(_PAIR_SALT + ':' + code);
+        const buf = await crypto.subtle.digest('SHA-256', data);
+        const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        return 'tm-' + hex.slice(0, 32);  // 32 字符 hash (够用, 不超 PK 限制)
+    } catch (e) {
+        // 极旧浏览器 fallback: 用纯 hash
+        return 'tm-' + _fallbackHash(_PAIR_SALT + ':' + code).slice(0, 32);
     }
-    return id;
+}
+function _fallbackHash(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+        h = ((h << 5) - h) + s.charCodeAt(i);
+        h |= 0;
+    }
+    // 简单拼凑成长度
+    let out = '';
+    for (let i = 0; i < 8; i++) out += Math.abs(h + i * 2654435761).toString(36);
+    return out;
+}
+
+// 当前 user_id (异步初始化)
+let _currentUid = null;
+async function _ensureUid() {
+    if (_currentUid) return _currentUid;
+    let code = localStorage.getItem(DB_KEY_USERID);
+    if (!code) {
+        // 第一次: 生成一个易记的随机配对码 (告诉用户)
+        code = 'team-' + Math.random().toString(36).slice(2, 8);
+        localStorage.setItem(DB_KEY_USERID, code);
+    }
+    _currentUid = await _pairCodeToUid(code);
+    return _currentUid;
+}
+// 同步版 (用于显示, 用 fallback hash)
+function _dbGetUserId() {
+    let code = localStorage.getItem(DB_KEY_USERID);
+    if (!code) {
+        code = 'team-' + Math.random().toString(36).slice(2, 8);
+        localStorage.setItem(DB_KEY_USERID, code);
+    }
+    return 'tm-' + _fallbackHash(_PAIR_SALT + ':' + code).slice(0, 32);
 }
 
 async function _dbFetch(path, options = {}) {
@@ -3686,8 +3728,10 @@ const CLOUD_KEY_AUTOSYNC = 'travelmind_cloud_autosync';
 const CLOUD_FILENAME = 'travelmind-backup.json';
 
 function openCloudPanel() {
+    // V21.5: 显示配对码 (人话), 不是 user_id hash
+    const code = localStorage.getItem(DB_KEY_USERID) || '(未配对)';
     const uidEl = document.getElementById('cloudDbUid');
-    if (uidEl) uidEl.textContent = _dbGetUserId();
+    if (uidEl) uidEl.textContent = code;
     document.getElementById('cloudAutoSyncChk').checked = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
     document.getElementById('cloudStatus').textContent = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1'
         ? '✓ 自动同步已开启 (修改后 5 秒自动上传到云端数据库)'
@@ -3894,26 +3938,76 @@ async function cloudTest() {
     }
 }
 
-async function cloudRestoreById() {
-    const id = prompt('粘贴之前复制过的云端 ID:');
-    if (!id || !id.trim()) return;
-    const trimmed = id.trim();
-    try {
-        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(trimmed) + '&select=data,updated_at');
-        if (!rows || rows.length === 0) {
-            alert('❌ 没找到这个 ID 的备份 (检查是否拼写错误)');
-            return;
-        }
-        if (!confirm(`✓ 找到了备份 (${new Date(rows[0].updated_at).toLocaleString('zh-CN')}), 导入会覆盖本地所有数据, 确定吗?`)) return;
-        if (_cloudApplyData(rows[0].data)) {
-            // 用这个 ID 当作本机 ID, 后续同步就用它
-            localStorage.setItem(DB_KEY_USERID, trimmed);
-            showToast('✓ 已从云端恢复', 'success');
-            _cloudSetStatus(`✓ 已恢复 ID ${trimmed.slice(0,8)} 的数据`, true);
-        }
-    } catch (e) {
-        alert('恢复失败: ' + e.message);
+async function joinPair() {
+    const currentCode = localStorage.getItem(DB_KEY_USERID) || '';
+    const code = prompt(
+        '🔗 输入队友给你的配对码:\n(本机当前: ' + currentCode + ')',
+        ''
+    );
+    if (!code || !code.trim()) return;
+    const trimmed = code.trim();
+    // 校验: 3-30 字符, 允许字母数字连字符下划线
+    if (!/^[a-zA-Z0-9_-]{3,30}$/.test(trimmed)) {
+        alert('❌ 配对码必须是 3-30 字符, 只能是字母/数字/连字符/下划线');
+        return;
     }
+    // 查云端有没有这个配对码的数据
+    try {
+        const newUid = await _pairCodeToUid(trimmed);
+        _currentUid = newUid;
+        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(newUid) + '&select=data,updated_at');
+        localStorage.setItem(DB_KEY_USERID, trimmed);
+
+        if (!rows || rows.length === 0) {
+            // 没有: 这个配对码还没上传过
+            if (!confirm('ℹ️ 云端没找到配对码 "' + trimmed + '" 的数据。\n\n确定要使用这个配对码吗? (之后所有用此码的设备都共享你这台机器的数据)')) {
+                return;
+            }
+            // 本机数据推上去
+            await dbPush();
+            showToast('✓ 已使用配对码 "' + trimmed + '"', 'success');
+            _cloudSetStatus('✓ 配对成功: ' + trimmed + ' (云端暂无数据, 已上传本地数据)', true);
+        } else {
+            // 有: 询问覆盖还是保留
+            const remoteTime = new Date(rows[0].updated_at).toLocaleString('zh-CN');
+            const choice = prompt(
+                `✓ 找到配对码 "${trimmed}" 的备份 (最后更新: ${remoteTime})\n\n` +
+                `输入 "1" = 下载云端覆盖本机\n` +
+                `输入 "2" = 上传本机覆盖云端\n` +
+                `输入 "3" = 双向合并 (推荐)\n\n` +
+                `直接回车 = 取消`,
+                '1'
+            );
+            if (!choice) return;
+            if (choice === '1') {
+                await dbPull();
+                showToast('✓ 已从云端下载', 'success');
+            } else if (choice === '2') {
+                await dbPush();
+                showToast('✓ 已上传到云端', 'success');
+            } else if (choice === '3') {
+                await dbAuto();
+                showToast('✓ 双向合并完成', 'success');
+            } else {
+                return;
+            }
+            _cloudSetStatus('✓ 配对成功: ' + trimmed, true);
+        }
+        openCloudPanel();  // 刷新显示
+    } catch (e) {
+        alert('配对失败: ' + e.message);
+    }
+}
+
+function leavePair() {
+    const cur = localStorage.getItem(DB_KEY_USERID) || '';
+    if (!confirm('⚠️ 生成新配对码?\n\n当前配对码: ' + cur + '\n\n新配对码将脱离当前共享数据 (云端旧数据不会丢, 只是本机看不到了)。')) return;
+    const newCode = 'team-' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem(DB_KEY_USERID, newCode);
+    _currentUid = null;  // 让下次自动重算
+    _ensureUid();
+    showToast('✓ 新配对码: ' + newCode, 'success');
+    openCloudPanel();
 }
 
 // ====== V21: 新手引导 ======
