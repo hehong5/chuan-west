@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-17</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-18</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-17');
+        console.log('🗺️ 川西旅行规划 v20260719-18');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -294,6 +294,28 @@
             font-size: 14px;
         }
         .point-action-btn:hover { background: var(--bg); color: var(--danger); }
+
+        /* V18: 拖动抓手 - 加大点击区域 + 明确视觉 */
+        .point-action-btn.drag-handle {
+            cursor: grab;
+            font-size: 16px;
+            font-weight: 700;
+            color: #64748b;
+            letter-spacing: -2px;
+            padding: 0 4px;
+        }
+        .point-action-btn.drag-handle:hover { background: #fef3c7; color: #f59e0b; }
+        .point-action-btn.drag-handle:active { cursor: grabbing; }
+        /* V18: 上下移按钮 */
+        .point-action-btn[title="上移一位"],
+        .point-action-btn[title="下移一位"] {
+            font-size: 11px;
+            color: #0ea5e9;
+        }
+        .point-action-btn[title="上移一位"]:hover,
+        .point-action-btn[title="下移一位"]:hover {
+            background: #e0f2fe; color: #0284c7;
+        }
 
         .stats-bar {
             background: linear-gradient(135deg, var(--primary), var(--primary-light));
@@ -685,9 +707,19 @@
                     <input type="text" class="input" id="endInput" placeholder="搜索终点（如：稻城）">
                 </div>
 
-                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:12px;background:linear-gradient(135deg,#10b981,#14b8a6);" onclick="addWaypoint()">
+                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px;background:linear-gradient(135deg,#10b981,#14b8a6);" onclick="addWaypoint()">
                     📍 点击地图选点添加途经点
                 </button>
+
+                <!-- V18: 加油/充电搜索按钮 -->
+                <div style="display:flex;gap:6px;margin-bottom:12px;">
+                    <button class="btn btn-secondary" style="flex:1;background:linear-gradient(135deg,#ef4444,#f97316);color:white;border:none;font-size:13px;padding:8px;" onclick="searchFuelStations()">
+                        ⛽ 加油站
+                    </button>
+                    <button class="btn btn-secondary" style="flex:1;background:linear-gradient(135deg,#10b981,#06b6d4);color:white;border:none;font-size:13px;padding:8px;" onclick="searchFuelStations()">
+                        🔌 充电桩
+                    </button>
+                </div>
 
                 <div id="waypointsContainer"></div>
 
@@ -954,6 +986,20 @@ function removeWaypoint(index) {
     saveToLocal();
 }
 
+// ====== 移动途经点 (V18: 上下移按钮) ======
+// dir: -1 = 上移, +1 = 下移
+function moveWaypoint(index, dir) {
+    const newIdx = index + dir;
+    // 起终点不动 (i=0 起点, 末尾终点)
+    if (newIdx < 1 || newIdx > state.waypoints.length - 2) return;
+    if (index < 1 || index > state.waypoints.length - 2) return;
+    const [moved] = state.waypoints.splice(index, 1);
+    state.waypoints.splice(newIdx, 0, moved);
+    renderPoints();
+    drawRoute();
+    saveToLocal();
+}
+
 // ====== 渲染路线点列表 ======
 function renderPoints() {
     const list = document.getElementById('pointList');
@@ -978,8 +1024,6 @@ function renderPoints() {
         if (i === state.waypoints.length - 1) cls += ' end';
 
         const label = i === 0 ? '起点' : i === state.waypoints.length - 1 ? '终点' : '途经';
-        const alt = p.alt ? `<span style="color:#0891b2;font-weight:600;">⛰ ${p.alt}m</span> · ` : '';
-        const note = p.note ? `<div style="font-size:11px;color:#64748b;margin-top:3px;line-height:1.4;">${escapeHtml(p.note)}</div>` : '';
         // 起终点不显示长按拖动按钮（避免顺序混乱）
         const showDrag = i > 0 && i < state.waypoints.length - 1;
 
@@ -988,11 +1032,12 @@ function renderPoints() {
                 <div class="point-index">${i + 1}</div>
                 <div class="point-info">
                     <div class="point-name">${escapeHtml(p.name)}</div>
-                    <div class="point-coord">${label} · ${alt}${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</div>
-                    ${note}
+                    <div class="point-coord">${label}${p.alt ? ` · ⛰ ${p.alt}m` : ''}</div>
                 </div>
                 <div class="point-actions">
-                    ${showDrag ? `<button class="point-action-btn drag-handle" data-index="${i}" title="长按 0.6 秒拖动排序">🤏</button>` : ''}
+                    ${showDrag ? `<button class="point-action-btn" onclick="event.stopPropagation(); moveWaypoint(${i}, -1)" title="上移一位">▲</button>` : ''}
+                    ${showDrag ? `<button class="point-action-btn" onclick="event.stopPropagation(); moveWaypoint(${i}, 1)" title="下移一位">▼</button>` : ''}
+                    ${showDrag ? `<button class="point-action-btn drag-handle" data-index="${i}" title="长按 0.25 秒拖动排序">⋮⋮</button>` : ''}
                     <button class="point-action-btn" onclick="event.stopPropagation(); flyToWaypoint(${i});" title="飞到此点">📍</button>
                     <button class="point-action-btn" onclick="event.stopPropagation(); removeWaypoint(${i});" title="删除">✕</button>
                 </div>
@@ -1005,14 +1050,14 @@ function renderPoints() {
     drawMarkers();
 }
 
-// ====== 拖拽排序 (V15: 长按 🤏 抓手 600ms 才进入可拖模式) ======
+// ====== 拖拽排序 (V18: 长按 250ms 更灵敏 + 加 ↑↓ 兜底) ======
 function attachDragHandlers() {
     const handles = document.querySelectorAll('.drag-handle');
     if (!handles.length) return;
 
     let pressTimer = null;
     let pressHandle = null;
-    const PRESS_MS = 600;
+    const PRESS_MS = 250;  // V18: 从 600ms 降到 250ms (用户反馈不灵敏)
     let dragging = null; // { sourceIdx }
     let lastOverIdx = null;
 
@@ -2040,6 +2085,9 @@ function importRoute(planId) {
         });
     });
 
+    // V18: 换方案时清掉旧的加油/充电 marker
+    clearFuelMarkers();
+
     // 渲染地图 + 路线
     renderPoints();
     drawRoute();
@@ -2063,6 +2111,9 @@ function importRoute(planId) {
     }, 300);
 
     showToast(`✓ 已导入【${plan.title}】，${plan.days.length} 个途经点, 已飞到 D${idx+1} ${focus.name}`, 'success');
+
+    // V18: 导入后自动搜索沿途加油站/充电桩
+    setTimeout(() => searchFuelStations(), 800);
 }
 
 // ====== POI 搜索 ======
@@ -2300,6 +2351,173 @@ function clearPoiMarkers() {
         state.map.remove(state._poiMarkers);
         state._poiMarkers = [];
     }
+}
+
+// ====== V18: 加油站 + 充电桩搜索 ======
+let _fuelSearchRunning = false;
+
+async function searchFuelStations() {
+    if (_fuelSearchRunning) {
+        showToast('正在搜索中...', 'info');
+        return;
+    }
+    if (!state.waypoints || state.waypoints.length === 0) {
+        showToast('请先添加路线点', 'error');
+        return;
+    }
+
+    _fuelSearchRunning = true;
+    showLoading('🔍 搜索沿途加油站 / 充电桩...');
+
+    // 先清掉旧的
+    clearFuelMarkers();
+
+    try {
+        const ps = new AMap.PlaceSearch({
+            pageSize: 6,
+            autoFitView: false,
+        });
+
+        const results = []; // { lng, lat, name, type: 'fuel'|'charge' }
+        const keywords = [
+            { kw: '加油站',     type: 'fuel'   },
+            { kw: '中石化加油站', type: 'fuel' },
+            { kw: '充电站',     type: 'charge' },
+            { kw: '充电桩',     type: 'charge' },
+        ];
+
+        // 对每个途经点搜索, 限制总耗时
+        const seen = new Set(); // 去重 (lng+lat+name)
+        const limit = Math.min(state.waypoints.length, 22);
+        for (let i = 0; i < limit; i++) {
+            const p = state.waypoints[i];
+            if (!p) continue;
+            for (const { kw, type } of keywords) {
+                try {
+                    const pois = await new Promise((resolve) => {
+                        ps.searchNearBy(kw, [p.lng, p.lat], 5000, (status, result) => {
+                            if (status === 'complete' && result.poiList) {
+                                resolve(result.poiList.pois || []);
+                            } else {
+                                resolve([]);
+                            }
+                        });
+                    });
+                    pois.slice(0, 3).forEach(poi => {
+                        if (!poi.location) return;
+                        const key = `${poi.location.lng.toFixed(4)}_${poi.location.lat.toFixed(4)}_${poi.name}`;
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        results.push({
+                            lng: poi.location.lng,
+                            lat: poi.location.lat,
+                            name: poi.name,
+                            type,
+                            address: poi.address || '',
+                            near: p.name,
+                        });
+                    });
+                } catch (_) { /* 单点失败不阻塞整体 */ }
+            }
+        }
+
+        hideLoading();
+        _fuelSearchRunning = false;
+
+        // 在地图上绘制
+        drawFuelMarkers(results);
+        const fuelCount = results.filter(r => r.type === 'fuel').length;
+        const chargeCount = results.filter(r => r.type === 'charge').length;
+        showToast(`⛽ ${fuelCount} 个加油站 / 🔌 ${chargeCount} 个充电站`, 'success');
+        renderFuelLegend(fuelCount, chargeCount);
+    } catch (err) {
+        hideLoading();
+        _fuelSearchRunning = false;
+        showToast('搜索失败: ' + err.message, 'error');
+    }
+}
+
+function drawFuelMarkers(results) {
+    state._fuelMarkers = [];
+    results.forEach(r => {
+        const isFuel = r.type === 'fuel';
+        const color = isFuel ? '#ef4444' : '#10b981';
+        const icon = isFuel ? '⛽' : '🔌';
+
+        const el = document.createElement('div');
+        el.style.cssText = `
+            width: 28px; height: 28px;
+            background: ${color};
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+        `;
+        el.innerHTML = icon;
+        el.title = `${r.name}${r.address ? '\n' + r.address : ''}\n（附近途经点：${r.near}）`;
+
+        el.onclick = () => {
+            showToast(`${icon} ${r.name}${r.address ? ' · ' + r.address : ''}`, 'info');
+        };
+
+        const m = new AMap.Marker({
+            position: [r.lng, r.lat],
+            content: el,
+            offset: new AMap.Pixel(-14, -14),
+            zIndex: 80,
+        });
+        state.map.add(m);
+        state._fuelMarkers.push(m);
+    });
+}
+
+function clearFuelMarkers() {
+    if (state._fuelMarkers && state._fuelMarkers.length > 0) {
+        state.map.remove(state._fuelMarkers);
+        state._fuelMarkers = [];
+    }
+    const legend = document.getElementById('fuelLegend');
+    if (legend) legend.style.display = 'none';
+}
+
+function renderFuelLegend(fuelN, chargeN) {
+    let legend = document.getElementById('fuelLegend');
+    if (!legend) {
+        legend = document.createElement('div');
+        legend.id = 'fuelLegend';
+        legend.style.cssText = `
+            position: absolute; bottom: 20px; left: 20px;
+            background: white; padding: 10px 14px; border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            font-size: 12px; color: #334155;
+            display: flex; gap: 14px; align-items: center;
+            z-index: 1000; border: 1px solid #e2e8f0;
+        `;
+        legend.innerHTML = `
+            <span style="display:flex;align-items:center;gap:4px;">
+                <span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:50%;border:1.5px solid white;"></span>
+                加油站
+            </span>
+            <span style="display:flex;align-items:center;gap:4px;">
+                <span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:50%;border:1.5px solid white;"></span>
+                充电桩
+            </span>
+            <button id="btnClearFuel" style="border:none;background:transparent;color:#64748b;cursor:pointer;font-size:11px;">✕ 关闭</button>
+        `;
+        document.body.appendChild(legend);
+        legend.querySelector('#btnClearFuel').onclick = clearFuelMarkers;
+    }
+    legend.style.display = 'flex';
+    legend.querySelector('span:nth-child(1)').innerHTML = `
+        <span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:50%;border:1.5px solid white;"></span>
+        加油站 (${fuelN})
+    `;
+    legend.querySelector('span:nth-child(2)').innerHTML = `
+        <span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:50%;border:1.5px solid white;"></span>
+        充电桩 (${chargeN})
+    `;
 }
 
 // ====== GPS 定位 ======
