@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-15</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-16</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-15');
+        console.log('🗺️ 川西旅行规划 v20260719-16');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -235,10 +235,19 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             margin-bottom: 6px;
-            cursor: grab;
+            cursor: pointer;        /* V16: 整行可点 (跳转 + 详情) */
             transition: all 0.2s;
         }
-        .point-item:hover { border-color: var(--primary); transform: translateX(2px); }
+        .point-item:hover {
+            border-color: var(--primary);
+            transform: translateX(2px);
+            background: #f0f9ff;
+            box-shadow: 0 2px 8px rgba(14,165,233,0.15);
+        }
+        .point-item.active-flash {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
 
         .point-index {
             width: 24px;
@@ -583,6 +592,26 @@
         }
         .route-marker.start { background: var(--success); }
         .route-marker.end { background: var(--danger); }
+
+        /* marker 旁的地点名称标签 */
+        .marker-name-label {
+            background: rgba(255,255,255,0.95);
+            color: #0f172a;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            white-space: nowrap;
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .marker-name-label.start { color: #047857; border-color: #6ee7b7; background: #ecfdf5; }
+        .marker-name-label.end   { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
     </style>
 </head>
 <body>
@@ -951,7 +980,7 @@ function renderPoints() {
         const showDrag = i > 0 && i < state.waypoints.length - 1;
 
         return `
-            <div class="${cls}" data-index="${i}">
+            <div class="${cls}" data-index="${i}" onclick="openAndFlyTo(${i})" title="点击：跳到地图 + 查看详情">
                 <div class="point-index">${i + 1}</div>
                 <div class="point-info">
                     <div class="point-name">${escapeHtml(p.name)}</div>
@@ -960,8 +989,8 @@ function renderPoints() {
                 </div>
                 <div class="point-actions">
                     ${showDrag ? `<button class="point-action-btn drag-handle" data-index="${i}" title="长按 0.6 秒拖动排序">🤏</button>` : ''}
-                    <button class="point-action-btn" onclick="flyToWaypoint(${i})" title="飞到此点">📍</button>
-                    <button class="point-action-btn" onclick="removeWaypoint(${i})" title="删除">✕</button>
+                    <button class="point-action-btn" onclick="event.stopPropagation(); flyToWaypoint(${i});" title="飞到此点">📍</button>
+                    <button class="point-action-btn" onclick="event.stopPropagation(); removeWaypoint(${i});" title="删除">✕</button>
                 </div>
             </div>
         `;
@@ -1108,7 +1137,21 @@ function flyToWaypoint(i) {
     state.map.setZoomAndCenter(11, [p.lng, p.lat]);
 }
 
-// ====== 在地图上绘制Marker ======
+// V16: 点击左侧列表项 → 先飞过去 + 再打开详情 (双重视觉反馈)
+function openAndFlyTo(i) {
+    const p = state.waypoints[i];
+    if (!p) return;
+    // 1) 飞到该点
+    flyToWaypoint(i);
+    // 2) 闪烁高亮列表项
+    const item = document.querySelector(`.point-item[data-index="${i}"]`);
+    if (item) {
+        item.classList.add('active-flash');
+        setTimeout(() => item.classList.remove('active-flash'), 800);
+    }
+    // 3) 打开详情弹窗 (高德 POI 三类)
+    openPoiDetail(i, [p.lng, p.lat]);
+}
 function drawMarkers() {
     clearMapMarkers();
 
@@ -1116,11 +1159,26 @@ function drawMarkers() {
         const isStart = i === 0;
         const isEnd = i === state.waypoints.length - 1;
 
+        // 数字 + 名称 的复合内容
         const markerContent = document.createElement('div');
         markerContent.className = 'route-marker';
         if (isStart) markerContent.classList.add('start');
         else if (isEnd) markerContent.classList.add('end');
         markerContent.textContent = i + 1;
+
+        // 名称标签（挂在 marker 右边）
+        const labelContent = document.createElement('div');
+        labelContent.className = 'marker-name-label';
+        if (isStart) labelContent.classList.add('start');
+        else if (isEnd) labelContent.classList.add('end');
+        // 截断过长的名称
+        labelContent.textContent = (p.name || `途经点 ${i + 1}`).slice(0, 14);
+        labelContent.title = p.name || `途经点 ${i + 1}`; // 鼠标悬停看完整名
+        // 点击名称标签 = 直接打开详情
+        labelContent.onclick = (e) => {
+            e.stopPropagation();
+            openPoiDetail(i, [p.lng, p.lat]);
+        };
 
         // V15: 起终点不能拖动; 中间点默认不可拖, 600ms 长按后才开启
         const canDrag = !(isStart || isEnd) && state.waypoints.length > 2;
@@ -1134,6 +1192,22 @@ function drawMarkers() {
             raiseOnDrag: true,
             cursor: canDrag ? 'grab' : 'default',
         });
+
+        // 名称 Label (地图上跟随 marker 移动的悬浮文字)
+        const nameLabel = new AMap.Text({
+            text: '',
+            anchor: 'left',     // 文字的左端对齐 marker
+            offset: new AMap.Pixel(20, -8),  // 标记圆右侧
+            style: {
+                'background': 'transparent',
+                'border': 'none',
+                'padding': '0',
+                'margin': '0',
+            },
+            position: [p.lng, p.lat],
+        });
+        // 把我们的 div 塞进 Label 内容
+        nameLabel.setContent(labelContent);
 
         // 信息窗（点击 marker 弹出详情）
         marker.on('click', () => {
@@ -1208,7 +1282,23 @@ function drawMarkers() {
         });
 
         state.map.add(marker);
+        state.map.add(nameLabel);   // V16: 把名称 Label 一并挂到地图
+        // 拖动中实时同步 Label 位置
+        marker.on('dragging', () => {
+            const pos = marker.getPosition();
+            nameLabel.setPosition(pos);
+        });
+        // 缩放时: zoom <= 9 显示名称, > 9 仅显示编号 (避免挤)
+        const applyZoom = () => {
+            const z = state.map.getZoom();
+            nameLabel.setContent(z <= 9 ? labelContent : '');
+        };
+        state.map.on('zoomend', applyZoom);
+        // 初始根据当前 zoom 应用
+        applyZoom();
+
         state.markers.push(marker);
+        state.markers.push(nameLabel);  // 清理时一起清掉
     });
 }
 
