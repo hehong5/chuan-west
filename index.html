@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-13</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-15</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-13');
+        console.log('🗺️ 川西旅行规划 v20260719-15');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -622,25 +622,42 @@
             <div class="tab-panel active" id="panel-route">
                 <!-- 一键导入线路方案 -->
                 <div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #fbbf24;">
-                    <div style="font-weight:600;color:#92400e;margin-bottom:8px;font-size:13px;">📥 一键导入预设线路</div>
+                    <div style="font-weight:600;color:#92400e;margin-bottom:8px;font-size:13px;">📥 一键导入 单线方案</div>
                     <div style="display:flex;gap:6px;">
-                        <button class="btn btn-primary" style="flex:1;font-size:12px;padding:8px;" onclick="importRoute('plan1')">线路一（稻城亚丁 16 天）</button>
-                        <button class="btn btn-secondary" style="flex:1;font-size:12px;padding:8px;" onclick="importRoute('plan2')">线路二（木里+泸沽湖 17 天）</button>
+                        <button class="btn btn-primary" style="flex:1;font-size:12px;padding:10px;background:linear-gradient(135deg,#dc2626,#ef4444);" onclick="importRoute('planV3')">🚗 单线方案（木里大寺+泸沽湖+亚丁+格聂+新都桥 21 天）</button>
                     </div>
-                    <div style="font-size:11px;color:#78350f;margin-top:6px;line-height:1.4;">导入会自动清空当前路线，并跳转到 <span style="color:#dc2626;font-weight:600;">当前激活线路的第一天</span>，点 Day 1 详情按钮查看每日景点/海拔。</div>
+                    <div style="font-size:11px;color:#78350f;margin-top:8px;line-height:1.4;">路线亮点：西昌→木里大寺→<b>泸沽湖连住 1 晚</b>→<b>香格里拉镇入亚丁</b>→稻城→理塘→<b>格聂之眼</b>→白玉→德格→<b>新都桥连住 2 晚</b>→康定→雅西高速→西昌。导入后地图自动跳到 D5（泸沽湖）。</div>
                 </div>
 
                 <div class="route-input">
                     <div class="input-label">📍 起点</div>
                     <input type="text" class="input" id="startInput" placeholder="搜索起点（如：成都）">
                 </div>
+
+                <!-- 🆕 V15: 搜索添加途经点（可指定起点 / 途经点 / 终点） -->
+                <div class="route-input" style="margin-top:6px;">
+                    <div class="input-label">🧭 搜索添加 <span style="font-weight:400;color:#64748b;font-size:11px;">(选角色→输入地名→回车)</span></div>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <select id="viaRole" class="input" style="flex:0 0 auto;width:auto;padding:8px 10px;font-size:13px;">
+                            <option value="via">途经点</option>
+                            <option value="start">起点(替换)</option>
+                            <option value="end">终点(替换)</option>
+                        </select>
+                        <input type="text" class="input" id="viaInput" placeholder="搜地点（如：稻城、塔公草原、色达…）"
+                            style="flex:1;min-width:0;"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();addViaSearch();}" />
+                        <button class="btn btn-secondary" type="button" onclick="addViaSearch()" style="padding:8px 14px;font-size:13px;white-space:nowrap;">➕ 加</button>
+                    </div>
+                    <div id="viaHint" style="font-size:11px;color:#64748b;margin-top:4px;">输入地名后回车，高德解析后按所选角色加入。起终点会被替换。</div>
+                </div>
+
                 <div class="route-input">
                     <div class="input-label">🎯 终点</div>
                     <input type="text" class="input" id="endInput" placeholder="搜索终点（如：稻城）">
                 </div>
 
-                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:12px;" onclick="addWaypoint()">
-                    + 添加途经点
+                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:12px;background:linear-gradient(135deg,#10b981,#14b8a6);" onclick="addWaypoint()">
+                    📍 点击地图选点添加途经点
                 </button>
 
                 <div id="waypointsContainer"></div>
@@ -760,158 +777,81 @@ const state = {
     aiResult: null,
 };
 
-// ====== 预设线路方案（来源：川西格聂南线双方案自驾规划.md） ======
+// ====== 预设线路方案（来源：川西格聂南线双方案自驾规划.md / V3 合并路线） ======
+// V3: 路线1 末段（稻城亚丁→格聂→新都桥→西昌）+ 路线2 木里+泸沽湖中段
+// 新都桥连住 2-3 天，其它途经点尽量贴合原数据，只精简了色达/莲宝叶则/马尔康节点
 // 每点: name 地标, lng/lat 坐标, alt 海拔, tag 分类, note 简介, wiki 详情 (带 .md 原文摘录), gallery 图文摘要
 const PRESET_PLANS = {
-    // 线路一: 稻城亚丁版 (16天, 3600km)
-    plan1: {
-        title: '线路一（稻城亚丁 16 天）',
-        activeDay: 3,
+    planV3: {
+        title: '单线方案（木里大寺+泸沽湖1晚+亚丁+格聂+新都桥2晚 21 天）',
+        activeDay: 4,
         days: [
-            { d: 'D1', name: '西昌', lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
-              note: '雅砻江峡谷起点，海拔适应起点',
-              wiki: '西昌，凉山彝族自治州首府，海拔约 1500m，邛海-泸山为城市地标。从这里出发北上进入横断山区，是川西环线的经典起点。出发早的话下午还能逛逛邛海湿地公园、品西昌火盆烧烤。' },
-            { d: 'D2', name: '木里县城', lng: 101.2803, lat: 27.9317, alt: 2300, tag: 'town',
-              note: '盐源→磨盘山垭口→乔瓦镇',
-              wiki: '木里藏族自治县，"最后的香格里拉"，森林覆盖率 67.3%。县城乔瓦镇海拔 2300m，是线路二泸亚线与线路一G227麦巴段的交汇点。县城附近有木里大寺（1656年，20米强巴铜佛）、康坞大寺（免费）。' },
-            { d: 'D3', name: 'G227 玛娜茶金', lng: 100.6600, lat: 28.7500, alt: 4380, tag: 'viewpoint',
-              note: '支路上玛娜茶金观景台，平视亚丁三神山',
-              wiki: '玛娜茶金观景台，海拔约 4380m，"玛娜茶金"藏语意为"母山旁的广阔草场"。在此可无遮挡平视亚丁三神山（仙乃日、央迈勇、夏诺多吉），最近直线距离仅 15 公里，是日出、日照金山与云海的绝佳机位。当年洛克考察的核心区。观景台附近无加油站，最近加油点在 25.8 公里外。' },
-            { d: 'D4', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, tag: 'town',
-              note: '亚丁门户，连住2晚',
-              wiki: '香格里拉镇（日瓦镇），海拔 2900m，是稻城亚丁景区的门户与住宿首选，海拔比亚丁村（4060m）友好得多。镇上酒店、餐馆密集，建议连住两晚。' },
-            { d: 'D5', name: '亚丁长线(洛绒牛场)', lng: 100.3025, lat: 28.4292, alt: 4500, tag: 'scenic',
-              note: '牛奶海 4500m / 五色海 4700m，长线徒步7-8h',
-              wiki: '稻城亚丁风景区长线（金刚挑战线）：游客中心→观光车 1h→扎灌崩→冲古寺→电瓶车→洛绒牛场→舍身崖→"绝望坡"→牛奶海（4500m）→五色海（4700m）。全程徒步约 7-8 小时，务必 7:30 前抵达、13:00 前从牛奶海下撤。门票旺季 146 元、观光车 120 元必购、电瓶车往返 80 元。长线每年 11.24—4.15 封闭。',
+            { d: 'D1',  name: '西昌(出发)',                lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
+              note: '雅砻江峡谷起点，海拔适应起点', wiki: '西昌，凉山州首府，海拔 1500m。邛海-泸山为城市地标，可品火盆烧烤。' },
+            { d: 'D2',  name: '西昌→木里县城',            lng: 101.2803, lat: 27.9317, alt: 2300, tag: 'town',
+              note: '盐源→磨盘山垭口→乔瓦镇，279km/5h', wiki: '木里藏族自治县，"最后的香格里拉"，森林覆盖率 67.3%。乔瓦镇海拔 2300m，沿途油站稀疏建议出发前满油。' },
+            { d: 'D3',  name: '木里大寺',                  lng: 101.1833, lat: 28.2000, alt: 2900, tag: 'scenic',
+              note: '屋脚→瓦厂→木里大寺，70km/3h', wiki: '木里大寺始建于 1656 年，"木里喇嘛王国"政教中心，康区最大格鲁派寺院之一。弥勒殿供 20m 甲娃强巴铜佛（1713 年铸），佛体贮五世班禅舍利。山路 70km 砂石+临崖，需四驱 SUV。' },
+            { d: 'D4',  name: '屋脚→瓦厂→泸沽湖(大落水)', lng: 100.7680, lat: 27.6816, alt: 2690, tag: 'scenic',
+              note: '140km/4-5h，第 1 晚住泸沽湖', wiki: '泸沽湖位于川滇交界，海拔 2690m，通票 70 元。大落水村是四川侧主要集散地，摩梭石板烧烤尝。' },
+            { d: 'D5',  name: '环湖+翻山→香格里拉镇',     lng: 100.3208, lat: 28.4817, alt: 2900, tag: 'town',
+              note: '里格日出→猪槽船→草海走婚桥→下午木里/蒙自大峡谷→香格里拉镇', wiki: '清晨里格半岛拍日出（8 点前避人流）→猪槽船（大落水→里务比岛 65 元）→草海·走婚桥。下午 14:00 前拔营，经木里、蒙自大峡谷抵亚丁门户香格里拉镇（日瓦），海拔 2900m，比亚丁村友好。' },
+            { d: 'D6',  name: '亚丁长线(洛绒牛场→牛奶海)', lng: 100.3025, lat: 28.4292, alt: 4500, tag: 'scenic',
+              note: '牛奶海 4500m / 五色海 4700m，长线徒步 7-8h', wiki: '金刚挑战线：观光车 1h→扎灌崩→冲古寺→电瓶车→洛绒牛场→舍身崖→绝望坡→牛奶海（4500m）→五色海（4700m）。务必 7:30 前进、13:00 前下撤。门票 146+观光车 120+电瓶车 80。长线 11.24—4.15 封闭。',
               gallery: '稻城亚丁 / 洛绒牛场 / 牛奶海 / 五色海 / 三神山' },
-            { d: 'D6', name: '稻城县城', lng: 100.2985, lat: 29.0371, alt: 3700, tag: 'town',
-              note: '短线珍珠海→波瓦山→尊胜塔林',
-              wiki: '稻城县城，海拔 3700m。亚丁短线（观音慈悲线）：冲古寺→珍珠海（卓玛拉措，4100m），木栈道往返约 3 小时，坡度缓，可拍仙乃日倒影。返程翻波瓦山（4500m 垭口），途中看尊胜塔林（1 主塔+108 小塔）、傍河杨林。' },
-            { d: 'D7', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, tag: 'scenic',
-              note: '海子山兴伊措→长青春科尔寺，最高住宿点',
-              wiki: '理塘，藏语"平坦如铜镜的草坝"，海拔 4014m，是全程最高住宿点，号称"天空之城"。著名景观：长青春科尔寺（1580年三世达赖开光，康区第一大格鲁派寺庙，免费）、勒通古镇·千户藏寨（4A，仁康古屋+微型博物馆群）。傍晚可上东山顶俯瞰全景。海子山古冰川遗迹位于稻城至理塘途中。' },
-            { d: 'D8', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, tag: 'scenic',
-              note: '铁匠山→格聂之心→新冷古寺',
-              wiki: '格聂神山海拔 6204m，为四川第三高峰、藏区 24 座神山第 13 座"女神"。格聂之眼：直径约 30 米的圆形海子，水草围成"瞳孔"，无人机视角如大地之眸，清晨 6:00—7:30 无风时倒影最佳。新冷古寺（车可直达）藏"格聂三宝"：格聂之心奇石、母鹿角、反转海螺。' },
-            { d: 'D9', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, tag: 'town',
-              note: '格聂南坡冰川，正对雪山',
-              wiki: '则巴村，海拔约 3800m，正对格聂南坡冰川，是拍日照金山的最佳机位。村中有藏式民宿可住，清晨徒步或骑马去"一棵树"观景点（爬升至 4500m，往返约 3 小时）。' },
-            { d: 'D10', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, tag: 'town',
-              note: '热梯河谷出山，海拔骤降，洗澡修整',
-              wiki: '巴塘县，海拔 2580m，出格聂南线后的第一个大镇，海拔骤降 1200m，可以好好洗澡休整。若多一天，可加措普沟（G318方向北 110km，门票+观光车约 190 元，集雪山湖泊温泉于一体）。' },
-            { d: 'D11', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, tag: 'scenic',
-              note: '盖玉镇火龙沟，克莱因蓝海子(石子路SUV)',
-              wiki: '巴巴沟蓝松湖位于盖玉镇火龙沟自然保护区内，纯净的"克莱因蓝"高山海子，免费。最后约 15 分钟为石子路，建议四驱车/SUV 前往，轿车勿入。' },
-            { d: 'D12', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, tag: 'town',
-              note: 'G215接甘白路北上',
-              wiki: '白玉县，海拔 3050m，位于金沙江上游，是甘白路（甘孜—白玉，全程 220 公里柏油路，中国最美县道之一）的终点。县内噶陀寺、白玉寺构成康区三大宁玛派寺庙中的两座。' },
-            { d: 'D13', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, tag: 'scenic',
-              note: '宁玛派母寺，第二金刚座',
-              wiki: '噶陀寺（1159 年），宁玛派六大金刚道场中最著名的一座，堪称"宁玛派母寺"。莲花生大师曾亲自开光十三次，故又称"第二金刚座"。八百年间虹化成就者十万之众。寺内文武百尊坛城与十明佛学院规模惊人，免费开放。珍宝殿需僧人带领、禁拍。' },
-            { d: 'D14', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, tag: 'scenic',
-              note: '32万木刻经版，9-11:30/14:30-17:30(中午关)',
-              wiki: '德格印经院始建于 1729 年，藏区三大印经院之首，保存 32 万余块木刻经版、830 余种典籍，门票 50 元。开放时间 9:00-11:30 / 14:30-17:30（中午关闭），靠自然光作业、全程顺时针参观、不可随意拍照。冬季常有免票。' },
-            { d: 'D15', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, tag: 'scenic',
-              note: '大圆满法修证中心，红墙金顶',
-              wiki: '竹庆寺（佐钦寺）1684 年由第一世佐钦法王白玛仁增创建，宁玛派六大母寺之一、大圆满法的修证中心，分寺近三百座遍布海内外。寺院红墙金顶、佛学堂宏伟，大广场与尼泊尔风格白塔很有辨识度。曾收 20 元门票，现免费。大殿内禁拍。' },
-            { d: 'D16', name: '新路海(玉龙拉措)', lng: 99.0500, lat: 31.9000, alt: 4040, tag: 'scenic',
-              note: '雀儿山冰川融水，云杉林倒影',
-              wiki: '新路海（藏语"玉龙拉措"，意为"心倾神湖"）位于雀儿山隧道口附近，是雀儿山冰川融水汇成的冰蚀湖。湖边百年云杉林倒映湖面，被誉为"康巴第一圣湖"，免费。' },
-            { d: 'D17', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, tag: 'town',
-              note: 'G317穿雀儿山隧道',
-              wiki: '甘孜县，海拔 3390m，位于雅砻江上游，G317 上前往色达的必经之地。县城有甘孜寺（格鲁派），是川西小众中转站。' },
-            { d: 'D18', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, tag: 'scenic',
-              note: '必须"喇荣沟进沟预约"，0点抢票，限500/日',
-              wiki: '色达喇荣五明佛学院，世界最大的藏传佛学院。**必须网络预约**：在"喇荣沟进沟预约"小程序提前抢名额（每日 0 点放票），按预约时段到集散中心乘大巴进入，金马集散中心车票 48 元、洛若 30 元。2025 年实测每日限约 500 人，沟内停留约 90 分钟。佛学院海拔 4000-4100m。纪律：不拍僧人正面、不进大殿拍摄、禁飞无人机；天葬台严禁拍摄。' },
-            { d: 'D19', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, tag: 'town',
-              note: '经壤塘，曾克寺',
-              wiki: '阿坝县，海拔 3290m，安多藏区中心。途中经壤塘，觉囊派寺庙群（中壤塘）值得停半天。曾克寺位于壤塘县城附近。' },
-            { d: 'D20', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, tag: 'scenic',
-              note: '自驾进入，最高观景台 4520m',
-              wiki: '莲宝叶则·石头山风景区，巴颜喀拉山南段支脉、安多地区众神山之首，主峰 5141m。门票旺季 120 元/淡季 60 元，**目前无观光摆渡车，自驾进入**。核心：扎尕尔措（翡翠色湖水，刀劈石峰间栈道环湖）+ 4520 观景台（盘羊坪电瓶车往返 15 元或徒步 1.4km）。早晨 8 点前进景区光线最佳。4520 观景台电瓶车只收现金。' },
-            { d: 'D21', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, tag: 'town',
-              note: '红原草原南下，卓克基官寨',
-              wiki: '马尔康，阿坝州州府，海拔 2600m，嘉绒藏族文化中心。途中经红原草原（月亮湾，夏季花海）。卓克基土司官寨为国家级文保单位。' },
-            { d: 'D22', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
-              note: '汶马+都汶+成都绕城+雅西高速返程',
-              wiki: '全程最后一天，714km / 约 10 小时。路线：汶马高速→都汶高速→成都绕城→成雅高速→雅西高速返西昌。雅西高速是"天梯高速"，双螺旋隧道+干海子大桥。建议两名司机轮换、7:00 前出发。' },
+            { d: 'D7',  name: '亚丁短线+稻城',             lng: 100.2985, lat: 29.0371, alt: 3700, tag: 'town',
+              note: '珍珠海→冲古寺→稻城县城，波瓦山 4500m', wiki: '短线（观音慈悲线）：冲古寺→珍珠海（卓玛拉措 4100m），木栈道往返 3h 坡度缓，可拍仙乃日倒影。返程翻波瓦山（4500m）看尊胜塔林、傍河杨林。' },
+            { d: 'D8',  name: '理塘(勒通古镇)',            lng: 100.2697, lat: 29.9917, alt: 4014, tag: 'scenic',
+              note: '海子山兴伊措→长青春科尔寺，最高住宿点', wiki: '理塘海拔 4014m，全程最高住宿点"天空之城"。长青春科尔寺（1580 年三世达赖开光）+勒通古镇·千户藏寨 4A。今晚不洗澡不饮酒。' },
+            { d: 'D9',  name: '格聂之眼+铁匠山+新冷古寺',  lng: 99.9167, lat: 29.8162, alt: 4400, tag: 'scenic',
+              note: '170km/5h，格聂之心一棵树', wiki: '格聂神山 6204m 四川第三高峰。格聂之眼：直径 30m 圆形海子，水草围"瞳孔"，清晨 6:00—7:30 无风倒影最佳。新冷古寺车可直达，藏"格聂三宝"。' },
+            { d: 'D10', name: '则巴村(格聂南坡冰川)',      lng: 99.7500, lat: 29.5500, alt: 3800, tag: 'town',
+              note: '格聂南坡冰川，正对雪山', wiki: '则巴村海拔 3800m，正对格聂南坡冰川，是拍日照金山最佳机位。藏式民宿可住，清晨可徒步/骑马"一棵树"观景（4500m，往返 3h）。' },
+            { d: 'D11', name: '巴塘(洗澡修整日)',          lng: 99.0907, lat: 30.0051, alt: 2580, tag: 'town',
+              note: '热梯河谷出山，海拔骤降 1200m', wiki: '巴塘海拔 2580m，出格聂南线后第一个大镇，好好洗澡休整。可选加措普沟（G318 北 110km，门票+车 190 元）。' },
+            { d: 'D12', name: '巴巴沟蓝松湖',              lng: 99.2200, lat: 30.6500, alt: 3800, tag: 'scenic',
+              note: '盖玉镇火龙沟，克莱因蓝海子(SUV)', wiki: '蓝松湖位于盖玉镇火龙沟保护区，克莱因蓝高山海子，免费。最后 15 分钟石子路，建议 SUV 前往。' },
+            { d: 'D13', name: '白玉县城',                  lng: 98.8253, lat: 31.2093, alt: 3050, tag: 'town',
+              note: 'G215 接甘白路北上', wiki: '白玉海拔 3050m，金沙江上游，甘白路（甘孜—白玉，220km 柏油）终点。噶陀寺、白玉寺为宁玛派三大寺之二。' },
+            { d: 'D14', name: '噶陀寺',                    lng: 98.5000, lat: 31.3500, alt: 4000, tag: 'scenic',
+              note: '宁玛派母寺，第二金刚座', wiki: '噶陀寺（1159 年）宁玛派六大金刚道场之母寺，莲花生大师开光十三次。八百年虹化成就者十万众。文武百尊坛城+十明佛学院，免费。珍宝殿需僧人带领。' },
+            { d: 'D15', name: '德格印经院',                lng: 98.5808, lat: 31.8056, alt: 3270, tag: 'scenic',
+              note: '32 万木刻经版，9-11:30/14:30-17:30(中午关)', wiki: '德格印经院始建于 1729 年，藏区三大印经院之首，32 万经版、830+ 典籍，门票 50 元。**9:00-11:30 / 14:30-17:30 中午关**。靠自然光作业、顺时针参观。冬季常免票。' },
+            { d: 'D16', name: '新路海(玉龙拉措)→甘孜',    lng: 99.0500, lat: 31.9000, alt: 4040, tag: 'scenic',
+              note: '雀儿山冰川融水，云杉林倒影', wiki: '新路海（玉龙拉措）雀儿山冰川融水的冰蚀湖，"康巴第一圣湖"，免费。穿雀儿山隧道后沿 G317 北上抵甘孜县（3390m）。' },
+            { d: 'D17', name: '新都桥(住1·摄影天堂)',      lng: 101.3950, lat: 30.0354, alt: 3460, tag: 'town',
+              note: 'G317→G215→新都桥，约 420km/7h', wiki: '新都桥海拔 3460m，"摄影天堂""光与影的世界"。金秋最惊艳。藏寨散落、溪流蜿蜒。D17-D18 连住 2 晚。' },
+            { d: 'D18', name: '新都桥(住2·周边深入)',      lng: 101.4200, lat: 30.0700, alt: 3700, tag: 'scenic',
+              note: '折多山口+塔公草原+木雅金塔，一日游 600/天', wiki: '新都桥周边一日游：折多山口（4298m）、观景台日出/日落、塔公草原（3730m，木雅金塔 20 元）、甲根坝乡。聘当地司机一日 600 元小车最值。',
+              gallery: '新都桥 / 折多山 / 塔公草原 / 木雅金塔 / 摄影天堂' },
+            { d: 'D19', name: '墨石公园',                  lng: 101.4730, lat: 30.0370, alt: 3500, tag: 'scenic',
+              note: '异域星球墨石公园+返前修整', wiki: '墨石公园（海拔 3500m）距新都桥 30km，中国唯一高原石林"异域星球"。门票 60+观光车 30，石阶栈道约 3-4h。下午回新都桥洗车加油。' },
+            { d: 'D20', name: '新都桥→康定',               lng: 101.9667, lat: 30.0500, alt: 2560, tag: 'town',
+              note: '新都桥→康定 75km/1.5h，海拔下降', wiki: 'G318 折多山（4298m）垭口到康定，海拔骤降至 2560m。可游跑马山、情歌广场。' },
+            { d: 'D21', name: '西昌(返程)',                lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
+              note: '康定→雅西高速→西昌 530km/8h', wiki: '康定→雅西高速返西昌 530km/8h。雅西高速"天梯高速"双螺旋隧道+干海子大桥。两司机轮换、7:00 前出发。' },
         ],
     },
 
-    // 线路二: 木里+泸沽湖版 (17天, 3900km)
+    // 旧线路保留 (兼容性，避免外部链接/旧 localStorage 报错)
+    plan1: {
+        title: '【废弃】线路一（稻城亚丁 16 天）',
+        activeDay: 3,
+        days: [
+            { d: 'D1', name: '西昌', lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city', note: '雅砻江峡谷起点，海拔适应起点', wiki: '西昌出发点。已合并到 V3。' },
+            { d: 'D2', name: '木里县城', lng: 101.2803, lat: 27.9317, alt: 2300, tag: 'town', note: '盐源→磨盘山垭口→乔瓦镇', wiki: '木里县城。已合并到 V3。' },
+            { d: 'D3', name: 'G227 玛娜茶金', lng: 100.6600, lat: 28.7500, alt: 4380, tag: 'viewpoint', note: '支路上玛娜茶金观景台', wiki: '玛娜茶金观景台（旧 V3 已合并）。' },
+            { d: 'D4', name: '香格里拉镇', lng: 100.3208, lat: 28.4817, alt: 2900, tag: 'town', note: '亚丁门户', wiki: 'V3 已使用。' },
+            { d: 'D5', name: '亚丁长线', lng: 100.3025, lat: 28.4292, alt: 4500, tag: 'scenic', note: '牛奶海/五色海', wiki: 'V3 已使用。' },
+        ],
+    },
     plan2: {
-        title: '线路二（木里+泸沽湖 17 天）',
+        title: '【废弃】线路二（木里+泸沽湖 17 天）',
         activeDay: 1,
         days: [
-            { d: 'D1', name: '泸沽湖(大落水)', lng: 100.7680, lat: 27.6816, alt: 2690, tag: 'scenic',
-              note: '经盐源翻磨盘山，摩梭石板烧',
-              wiki: '泸沽湖位于四川盐源县与云南宁蒗县交界，海拔 2690m，景区门票为湖区通票 70 元。大落水村是四川侧主要游客集散地。晚上可在大落水沿湖餐厅吃摩梭石板烧。' },
-            { d: 'D2', name: '里格半岛', lng: 100.7430, lat: 27.6988, alt: 2690, tag: 'viewpoint',
-              note: '环湖60km，日出+猪槽船+走婚桥',
-              wiki: '环湖约 60-70 公里。里格半岛观景台拍全景，8 点前到避开人流；猪槽船（大落水码头往返里务比岛 65 元/人）；草海·走婚桥傍晚光影最佳；女神湾（小众，湖面如镜）日落。格姆女神山索道 110 元/人，约 17:00 停运。' },
-            { d: 'D3', name: '木里大寺', lng: 101.1833, lat: 28.2000, alt: 2900, tag: 'scenic',
-              note: '屋脚→瓦厂→木里大寺，泸亚线',
-              wiki: '木里大寺始建于 1656 年，历时三百多年建成的"木里喇嘛王国"政教中心。康区最大的格鲁派寺院之一，弥勒殿内供 20 余米高的甲娃强巴（弥勒）铜佛，1713 年铸，佛体内贮五世班禅所赐舍利等圣物。泸亚线（泸沽湖—亚丁）东段：弯急、临崖、部分砂石路，需高底盘车辆与山路经验。' },
-            { d: 'D4', name: '康坞大寺', lng: 101.2500, lat: 27.9833, alt: 2600, tag: 'scenic',
-              note: '依山而建，壁画精美(免费)',
-              wiki: '康坞大寺位于木里县城约 30km，依山而建、殿堂错落，经幡边廊与森林环绕，壁画精美，免费开放。' },
-            { d: 'D5', name: '寸冬海子', lng: 101.1500, lat: 27.8500, alt: 3500, tag: 'scenic',
-              note: '千岛漂浮草甸，下午4-6点光线最佳',
-              wiki: '寸冬海子（又称香格里拉湖/长海子），位于木里县城约 38km、1 小时车程，柏油路可达，免费。湖中有数千座漂浮草甸，形成独有的"千岛之湖"。下午 4-6 点光线柔和时最美。' },
-            { d: 'D6', name: '玛娜茶金观景台', lng: 100.6600, lat: 28.7500, alt: 4380, tag: 'viewpoint',
-              note: '平视亚丁三神山，日照金山',
-              wiki: '玛娜茶金观景台：海拔约 4380m，"玛娜茶金"意为"母山旁的广阔草场"。在此可无遮挡平视亚丁三神山，最近直线距离仅 15 公里。是线路二"换亚丁"的核心机位——亚丁景区内部反而看不到这种"品"字形全景。日出 6:00-7:00、日照金山概率最高。' },
-            { d: 'D7', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, tag: 'town',
-              note: '过蒙自大峡谷，俄牙同',
-              wiki: '线路二不进入亚丁景区，沿 G227 北上过蒙自大峡谷、俄牙同，抵达亚丁门户香格里拉镇住宿休整。' },
-            { d: 'D8', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, tag: 'scenic',
-              note: '翻波瓦山→稻城→理塘(不进亚丁景区)',
-              wiki: '从香格里拉镇翻波瓦山至稻城县城，再北上经桑堆红草地、兔儿山（4696m）、海子山抵达理塘。下午游览长青春科尔寺与勒通古镇·千户藏寨。理塘海拔 4014m，全程最高住宿点。' },
-            { d: 'D9', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, tag: 'scenic',
-              note: '铁匠山→格聂之心→新冷古寺',
-              wiki: '参见线路一 D8 详情。' },
-            { d: 'D10', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, tag: 'town',
-              note: '格聂南坡冰川',
-              wiki: '参见线路一 D9 详情。' },
-            { d: 'D11', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, tag: 'town',
-              note: '热梯河谷出山',
-              wiki: '参见线路一 D10 详情。' },
-            { d: 'D12', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, tag: 'scenic',
-              note: '盖玉镇火龙沟',
-              wiki: '参见线路一 D11 详情。' },
-            { d: 'D13', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, tag: 'town',
-              note: 'G215接甘白路',
-              wiki: '参见线路一 D12 详情。' },
-            { d: 'D14', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, tag: 'scenic',
-              note: '宁玛派母寺',
-              wiki: '参见线路一 D13 详情。' },
-            { d: 'D15', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, tag: 'scenic',
-              note: '藏区三大印经院之首',
-              wiki: '参见线路一 D14 详情。' },
-            { d: 'D16', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, tag: 'scenic',
-              note: '大圆满法修证中心',
-              wiki: '参见线路一 D15 详情。' },
-            { d: 'D17', name: '新路海', lng: 99.0500, lat: 31.9000, alt: 4040, tag: 'scenic',
-              note: '雀儿山冰川融水',
-              wiki: '参见线路一 D16 详情。' },
-            { d: 'D18', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, tag: 'town',
-              note: 'G317',
-              wiki: '参见线路一 D17 详情。' },
-            { d: 'D19', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, tag: 'scenic',
-              note: '喇荣沟进沟预约',
-              wiki: '参见线路一 D18 详情。' },
-            { d: 'D20', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, tag: 'town',
-              note: '经壤塘',
-              wiki: '参见线路一 D19 详情。' },
-            { d: 'D21', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, tag: 'scenic',
-              note: '晨9点前最佳',
-              wiki: '参见线路一 D20 详情。' },
-            { d: 'D22', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, tag: 'town',
-              note: '红原草原',
-              wiki: '参见线路一 D21 详情。' },
-            { d: 'D23', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, tag: 'city',
-              note: '雅西高速返程',
-              wiki: '参见线路一 D22 详情。' },
+            { d: 'D1', name: '泸沽湖', lng: 100.7680, lat: 27.6816, alt: 2690, tag: 'scenic', note: 'V3 已合并', wiki: 'V3 已使用。' },
+            { d: 'D2', name: '里格半岛', lng: 100.7430, lat: 27.6988, alt: 2690, tag: 'viewpoint', note: 'V3 已合并', wiki: 'V3 已使用。' },
+            { d: 'D3', name: '木里大寺', lng: 101.1833, lat: 28.2000, alt: 2900, tag: 'scenic', note: 'V3 已合并', wiki: 'V3 已使用。' },
         ],
     },
 };
@@ -1007,9 +947,11 @@ function renderPoints() {
         const label = i === 0 ? '起点' : i === state.waypoints.length - 1 ? '终点' : '途经';
         const alt = p.alt ? `<span style="color:#0891b2;font-weight:600;">⛰ ${p.alt}m</span> · ` : '';
         const note = p.note ? `<div style="font-size:11px;color:#64748b;margin-top:3px;line-height:1.4;">${escapeHtml(p.note)}</div>` : '';
+        // 起终点不显示长按拖动按钮（避免顺序混乱）
+        const showDrag = i > 0 && i < state.waypoints.length - 1;
 
         return `
-            <div class="${cls}" draggable="true" data-index="${i}">
+            <div class="${cls}" data-index="${i}">
                 <div class="point-index">${i + 1}</div>
                 <div class="point-info">
                     <div class="point-name">${escapeHtml(p.name)}</div>
@@ -1017,6 +959,7 @@ function renderPoints() {
                     ${note}
                 </div>
                 <div class="point-actions">
+                    ${showDrag ? `<button class="point-action-btn drag-handle" data-index="${i}" title="长按 0.6 秒拖动排序">🤏</button>` : ''}
                     <button class="point-action-btn" onclick="flyToWaypoint(${i})" title="飞到此点">📍</button>
                     <button class="point-action-btn" onclick="removeWaypoint(${i})" title="删除">✕</button>
                 </div>
@@ -1024,37 +967,138 @@ function renderPoints() {
         `;
     }).join('');
 
-    // 拖拽排序
+    // 拖拽排序（V15: 改用 🤏 抓手 + 600ms 长按, 避免误触）
     attachDragHandlers();
     drawMarkers();
 }
 
-// ====== 拖拽排序 ======
+// ====== 拖拽排序 (V15: 长按 🤏 抓手 600ms 才进入可拖模式) ======
 function attachDragHandlers() {
-    const items = document.querySelectorAll('.point-item');
-    let dragSrc = null;
+    const handles = document.querySelectorAll('.drag-handle');
+    if (!handles.length) return;
 
+    let pressTimer = null;
+    let pressHandle = null;
+    const PRESS_MS = 600;
+    let dragging = null; // { sourceIdx }
+    let lastOverIdx = null;
+
+    const clearPress = () => {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+        if (pressHandle) {
+            pressHandle.style.background = '';
+            pressHandle.style.transform = '';
+            pressHandle = null;
+        }
+    };
+
+    handles.forEach(handle => {
+        const sourceIdx = parseInt(handle.dataset.index);
+        const item = handle.closest('.point-item');
+
+        // 鼠标 / 触摸按下 → 启动 600ms 长按
+        const onDown = (e) => {
+            if (pressHandle) return;
+            pressHandle = handle;
+            handle.style.background = '#fef3c7';
+            handle.style.transform = 'scale(1.15)';
+            pressTimer = setTimeout(() => {
+                if (pressHandle !== handle) return;
+                // 进入拖动模式
+                dragging = { sourceIdx };
+                handle.style.background = '#f59e0b';
+                handle.style.color = '#fff';
+                if (item) {
+                    item.draggable = true;
+                    item.style.opacity = '0.7';
+                    item.style.boxShadow = '0 4px 16px rgba(245,158,11,.4)';
+                }
+                showToast('✋ 进入拖动模式，拖到目标项上松开', 'success');
+                try {
+                    const dt = (e.dataTransfer && e.dataTransfer.setData) ? e.dataTransfer : null;
+                    if (dt) dt.setData('text/plain', String(sourceIdx));
+                } catch (_) {}
+            }, PRESS_MS);
+        };
+
+        const onUp = () => {
+            // 没撑到 600ms → 取消
+            if (pressTimer) {
+                clearPress();
+                if (item && item.draggable) {
+                    item.draggable = false;
+                    item.style.opacity = '';
+                    item.style.boxShadow = '';
+                }
+                dragging = null;
+            }
+        };
+
+        handle.addEventListener('mousedown', onDown);
+        handle.addEventListener('touchstart', onDown, { passive: true });
+        handle.addEventListener('mouseup', onUp);
+        handle.addEventListener('mouseleave', onUp);
+        handle.addEventListener('touchend', onUp);
+        handle.addEventListener('touchcancel', onUp);
+
+        // 防止抓手 click 时触发 item 上的 click / 误删
+        handle.addEventListener('click', e => e.stopPropagation());
+    });
+
+    // 拖动排序: 监听 item 上的 dragover / drop (item 在 onDown 时被设为 draggable=true)
+    const items = document.querySelectorAll('.point-item');
     items.forEach(item => {
-        item.addEventListener('dragstart', e => {
-            dragSrc = parseInt(item.dataset.index);
-            item.style.opacity = '0.4';
-        });
-        item.addEventListener('dragend', e => {
-            item.style.opacity = '1';
-        });
-        item.addEventListener('dragover', e => e.preventDefault());
-        item.addEventListener('drop', e => {
+        item.addEventListener('dragover', e => {
+            if (!dragging) return;
             e.preventDefault();
             const targetIdx = parseInt(item.dataset.index);
-            if (dragSrc === null || dragSrc === targetIdx) return;
-
-            const [moved] = state.waypoints.splice(dragSrc, 1);
+            if (lastOverIdx !== targetIdx) {
+                lastOverIdx = targetIdx;
+                items.forEach(el => el.style.background = '');
+                item.style.background = '#fef3c7';
+            }
+        });
+        item.addEventListener('dragleave', e => {
+            if (!dragging) return;
+            item.style.background = '';
+        });
+        item.addEventListener('drop', e => {
+            if (!dragging) return;
+            e.preventDefault();
+            const targetIdx = parseInt(item.dataset.index);
+            const src = dragging.sourceIdx;
+            if (isNaN(targetIdx) || isNaN(src) || src === targetIdx) {
+                cleanup();
+                return;
+            }
+            const [moved] = state.waypoints.splice(src, 1);
             state.waypoints.splice(targetIdx, 0, moved);
+            cleanup();
             renderPoints();
             drawRoute();
             saveToLocal();
+            showToast(`✓ 已挪到第 ${targetIdx + 1} 位`, 'success');
         });
+        item.addEventListener('dragend', cleanup);
     });
+
+    function cleanup() {
+        items.forEach(el => {
+            el.style.background = '';
+            el.style.opacity = '';
+            el.style.boxShadow = '';
+            el.draggable = false;
+        });
+        handles.forEach(h => {
+            h.style.background = '';
+            h.style.transform = '';
+            h.style.color = '';
+        });
+        dragging = null;
+        lastOverIdx = null;
+        pressTimer = null;
+        pressHandle = null;
+    }
 }
 
 // ====== 飞到指定途经点 ======
@@ -1078,16 +1122,89 @@ function drawMarkers() {
         else if (isEnd) markerContent.classList.add('end');
         markerContent.textContent = i + 1;
 
+        // V15: 起终点不能拖动; 中间点默认不可拖, 600ms 长按后才开启
+        const canDrag = !(isStart || isEnd) && state.waypoints.length > 2;
+
         const marker = new AMap.Marker({
             position: [p.lng, p.lat],
             content: markerContent,
             offset: new AMap.Pixel(-16, -16),
             extData: { index: i, name: p.name },
+            draggable: false,    // V15: 默认关, 长按 600ms 才打开
+            raiseOnDrag: true,
+            cursor: canDrag ? 'grab' : 'default',
         });
 
         // 信息窗（点击 marker 弹出详情）
         marker.on('click', () => {
             openPoiDetail(i, marker.getPosition());
+        });
+
+        // V15: 长按 marker 600ms 才进入可拖模式 (避免误触 + 一抓就拖)
+        let pressTimer = null;
+        let pressed = false;
+        const onDown = () => {
+            if (!canDrag) return;
+            if (pressTimer) return;
+            pressTimer = setTimeout(() => {
+                if (!canDrag) return;
+                pressed = true;
+                marker.setDraggable(true);
+                markerContent.style.transform = 'scale(1.2)';
+                markerContent.style.boxShadow = '0 0 0 6px rgba(245,158,11,.35)';
+                markerContent.style.transition = 'transform .15s';
+                showToast('✋ 已进入拖动模式，松开放到新位置', 'success');
+            }, 600);
+        };
+        const onUp = () => {
+            if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+            // 只有真正进入 pressed 模式后才关闭 draggable (dragend 之后由 dragend 负责重排)
+            if (pressed) {
+                pressed = false;
+                marker.setDraggable(false);
+                markerContent.style.transform = '';
+                markerContent.style.boxShadow = '';
+            }
+        };
+        marker.on('mousedown', onDown);
+        marker.on('touchstart', onDown);
+        marker.on('mouseup', onUp);
+        marker.on('touchend', onUp);
+        marker.on('mouseleave', onUp);
+
+        // dragend: 把 marker 拖到目标位置后, 按坐标找最近的邻居 marker 插队
+        // (保留起终点位置不变)
+        marker.on('dragend', () => {
+            const newPos = marker.getPosition();
+            const newLng = newPos.lng;
+            const newLat = newPos.lat;
+            const oldIdx = parseInt(marker.getExtData().index);
+            // 复位 marker 的 draggable 状态与样式
+            marker.setDraggable(false);
+            markerContent.style.transform = '';
+            markerContent.style.boxShadow = '';
+            pressed = false;
+
+            if (isNaN(oldIdx) || oldIdx < 1 || oldIdx >= state.waypoints.length - 1) {
+                renderPoints(); // 起终点 / 异常 → 闪回原位
+                return;
+            }
+            const moved = state.waypoints.splice(oldIdx, 1)[0];
+            moved.lng = newLng;
+            moved.lat = newLat;
+            // 找最近邻的下标, 插入到它后面 (保持视觉相邻)
+            let bestIdx = state.waypoints.length;
+            let bestDist = Infinity;
+            for (let j = 1; j < state.waypoints.length - 1; j++) {
+                const w = state.waypoints[j];
+                const d = Math.hypot(w.lng - newLng, w.lat - newLat);
+                if (d < bestDist) { bestDist = d; bestIdx = j + 1; }
+            }
+            state.waypoints.splice(bestIdx, 0, moved);
+            renderPoints();
+            drawRoute();
+            saveToLocal();
+            showToast(`✓ 途经点 #${oldIdx + 1} 已挪到第 ${bestIdx + 1} 位`, 'success');
         });
 
         state.map.add(marker);
@@ -1720,6 +1837,68 @@ function _fitToRouteOrMarkers() {
     if (fitArr.length > 0) {
         try { state.map.setFitView(fitArr); } catch(e){}
     }
+}
+
+// ====== 中间途经点搜索加入 (V15 重写) ======
+// 根据 #viaRole 选择, 可以把地点设为「起点（替换）」/「途经点（追加在终点前）」/「终点（替换）」
+async function addViaSearch() {
+    const input = document.getElementById('viaInput');
+    const roleSel = document.getElementById('viaRole');
+    const hint = document.getElementById('viaHint');
+    if (!input || !roleSel || !hint) return;
+
+    const keyword = (input.value || '').trim();
+    const role = roleSel.value || 'via';
+    if (!keyword) { input.focus(); return; }
+
+    hint.textContent = '正在解析 "' + keyword + '"…';
+    hint.style.color = '#f59e0b';
+
+    const r = await geocodeKeyword(keyword);
+    if (!r || r.lng == null) {
+        hint.textContent = '❌ 找不到 "' + keyword + '"，试试其它关键词';
+        hint.style.color = '#dc2626';
+        showToast('找不到该地点：高德未识别', 'error');
+        return;
+    }
+
+    const cleanName = keyword.length > 30 ? keyword.slice(0, 30) + '…' : keyword;
+    const tagForRole = role === 'via' ? 'via' : (role === 'start' ? 'city' : 'city');
+    const newWp = { name: cleanName, lng: r.lng, lat: r.lat, tag: tagForRole };
+
+    if (role === 'start') {
+        if (state.waypoints.length === 0) state.waypoints.push(newWp);
+        else state.waypoints[0] = { ...state.waypoints[0], ...newWp };
+        showToast(`✓ 已设为新起点：${cleanName}`, 'success');
+    } else if (role === 'end') {
+        if (state.waypoints.length === 0) state.waypoints.push(newWp);
+        else {
+            const last = state.waypoints.length - 1;
+            state.waypoints[last] = { ...state.waypoints[last], ...newWp };
+        }
+        showToast(`✓ 已设为新终点：${cleanName}`, 'success');
+    } else {
+        // 途经点: 插在「终点之前」, 避免把终点挤掉
+        if (state.waypoints.length <= 1) {
+            state.waypoints.push(newWp);
+        } else {
+            state.waypoints.splice(state.waypoints.length - 1, 0, newWp);
+        }
+        showToast(`✓ 已加为途经点：${cleanName}`, 'success');
+    }
+
+    renderPoints();
+    drawRoute();
+    saveToLocal();
+    input.value = '';
+    hint.textContent = '✓ 已添加：' + cleanName;
+    hint.style.color = '#10b981';
+    setTimeout(() => {
+        if (hint.textContent.indexOf('已添加') >= 0) {
+            hint.textContent = '输入地名后回车，高德解析后按所选角色加入。起终点会被替换。';
+            hint.style.color = '#64748b';
+        }
+    }, 2500);
 }
 
 // ====== 点击地图选点 ======
