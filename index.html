@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-18</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-19</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-18');
+        console.log('🗺️ 川西旅行规划 v20260719-19');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -749,6 +749,16 @@
                 </div>
 
                 <div class="point-list" id="pointList"></div>
+
+                <!-- V19: 我的路线保存 -->
+                <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #e2e8f0;">
+                    <div style="display:flex;gap:6px;margin-bottom:8px;">
+                        <input type="text" class="input" id="savedRouteName" placeholder="给当前路线起个名字"
+                            style="flex:1;min-width:0;font-size:13px;" maxlength="30">
+                        <button class="btn btn-primary" style="font-size:13px;padding:8px 12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);" onclick="saveCurrentRoute()">💾 保存</button>
+                    </div>
+                    <div id="savedRoutesList" style="font-size:12px;"></div>
+                </div>
             </div>
 
             <!-- 周边探索 Tab -->
@@ -2395,7 +2405,7 @@ async function searchFuelStations() {
             for (const { kw, type } of keywords) {
                 try {
                     const pois = await new Promise((resolve) => {
-                        ps.searchNearBy(kw, [p.lng, p.lat], 5000, (status, result) => {
+                        ps.searchNearBy(kw, [p.lng, p.lat], 10000, (status, result) => {  // V19: 5km → 10km
                             if (status === 'complete' && result.poiList) {
                                 resolve(result.poiList.pois || []);
                             } else {
@@ -2458,19 +2468,58 @@ function drawFuelMarkers(results) {
         el.innerHTML = icon;
         el.title = `${r.name}${r.address ? '\n' + r.address : ''}\n（附近途经点：${r.near}）`;
 
-        el.onclick = () => {
-            showToast(`${icon} ${r.name}${r.address ? ' · ' + r.address : ''}`, 'info');
-        };
-
         const m = new AMap.Marker({
             position: [r.lng, r.lat],
             content: el,
             offset: new AMap.Pixel(-14, -14),
             zIndex: 80,
         });
+        m._fuelData = r;  // V19: 保存数据, 供弹窗使用
+        m.on('click', () => showFuelNavWindow(r));
         state.map.add(m);
         state._fuelMarkers.push(m);
     });
+}
+
+// V19: 加油站/充电桩 弹窗导航
+function showFuelNavWindow(r) {
+    const isFuel = r.type === 'fuel';
+    const icon = isFuel ? '⛽' : '🔌';
+    const typeName = isFuel ? '加油站' : '充电站';
+    const gaodeUrl = `https://uri.amap.com/navigation?to=${r.lng},${r.lat},${encodeURIComponent(r.name)}&mode=car&src=mindmap&coordinate=gaode&callnative=1`;
+    const baiduUrl = `https://map.baidu.com/dir/?type=bl&destination=${r.lat},${r.lng}&destination_name=${encodeURIComponent(r.name)}&mode=driving&coord_type=gcj02`;
+
+    const html = `
+        <div style="font-size:11px;opacity:.85;letter-spacing:1px;">${icon} ${typeName}</div>
+        <h2 style="margin:6px 0 4px 0; font-size:17px; line-height:1.3;">${escapeHtml(r.name)}</h2>
+        <div style="font-size:12px;color:#475569;line-height:1.5;">
+            📍 ${escapeHtml(r.address || '坐标 ' + r.lng.toFixed(4) + ', ' + r.lat.toFixed(4))}<br>
+            🧭 距途经点 <strong style="color:#0ea5e9;">${escapeHtml(r.near)}</strong>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+            <a class="d-btn primary" target="_blank" href="${gaodeUrl}" rel="noopener">🚗 高德导航</a>
+            <a class="d-btn" target="_blank" href="${baiduUrl}" rel="noopener">🗺 百度导航</a>
+            <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(r.name + ' ' + (isFuel ? '加油站' : '充电站'))}" rel="noopener">🔍 百度查</a>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#94a3b8;">
+            ${isFuel ? '💡 92#/95# 一般有, 高原偏远站点可能只收现金' : '💡 高原充电桩主要在县城酒店, 建议带 16A 慢充便携桩'}
+        </div>
+    `;
+    showFuelInfoWindow(r.lng, r.lat, html);
+}
+
+// V19: 自定义信息窗体 (使用 Amap.InfoWindow)
+let _fuelInfoWindow = null;
+function showFuelInfoWindow(lng, lat, html) {
+    if (!_fuelInfoWindow) {
+        _fuelInfoWindow = new AMap.InfoWindow({
+            isCustom: true,
+            offset: new AMap.Pixel(0, -14),
+            closeWhenClickMap: true,
+        });
+    }
+    _fuelInfoWindow.setContent(`<div style="background:white;padding:14px 16px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.2);min-width:240px;max-width:320px;border:1px solid #e2e8f0;">${html}</div>`);
+    _fuelInfoWindow.open(state.map, [lng, lat]);
 }
 
 function clearFuelMarkers() {
@@ -2907,10 +2956,108 @@ function loadFromLocal() {
     } catch (e) {}
 }
 
+// ====== V19: 我的路线 - 多路线保存/加载/删除 ======
+const SAVED_ROUTES_KEY = 'travelmind_saved_routes';
+
+function getSavedRoutes() {
+    try {
+        return JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]');
+    } catch (e) { return []; }
+}
+
+function setSavedRoutes(arr) {
+    try {
+        localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(arr));
+    } catch (e) {}
+}
+
+function saveCurrentRoute() {
+    if (!state.waypoints || state.waypoints.length === 0) {
+        showToast('当前没有路线点可保存', 'error');
+        return;
+    }
+    const nameInput = document.getElementById('savedRouteName');
+    let name = (nameInput.value || '').trim();
+    if (!name) {
+        name = `路线 ${new Date().toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    const routes = getSavedRoutes();
+    const route = {
+        id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name,
+        waypoints: JSON.parse(JSON.stringify(state.waypoints)), // 深拷贝
+        timestamp: Date.now(),
+        pointCount: state.waypoints.length,
+    };
+    routes.unshift(route);
+    if (routes.length > 20) routes.length = 20;  // 最多保留 20 条
+    setSavedRoutes(routes);
+
+    nameInput.value = '';
+    renderSavedRoutes();
+    showToast(`💾 已保存【${route.name}】`, 'success');
+}
+
+function loadSavedRoute(id) {
+    const routes = getSavedRoutes();
+    const r = routes.find(x => x.id === id);
+    if (!r) return;
+    if (!confirm(`加载【${r.name}】？\n当前路线会被覆盖（${state.waypoints.length} 个点）。`)) return;
+
+    state.waypoints = JSON.parse(JSON.stringify(r.waypoints));
+    renderPoints();
+    drawRoute();
+    saveToLocal();
+    // 飞到第一个点
+    if (state.waypoints[0]) {
+        state.map.setZoomAndCenter(7, [state.waypoints[0].lng, state.waypoints[0].lat]);
+    }
+    showToast(`✓ 已加载【${r.name}】( ${r.pointCount} 点)`, 'success');
+}
+
+function deleteSavedRoute(id, name) {
+    if (!confirm(`删除【${name}】?`)) return;
+    const routes = getSavedRoutes().filter(x => x.id !== id);
+    setSavedRoutes(routes);
+    renderSavedRoutes();
+    showToast(`🗑 已删除【${name}】`, 'success');
+}
+
+function renderSavedRoutes() {
+    const box = document.getElementById('savedRoutesList');
+    if (!box) return;
+    const routes = getSavedRoutes();
+    if (routes.length === 0) {
+        box.innerHTML = '<div style="color:#94a3b8;font-size:11px;text-align:center;padding:6px;">还没有保存的路线</div>';
+        return;
+    }
+    box.innerHTML = routes.map(r => {
+        const date = new Date(r.timestamp);
+        const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        return `
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;">
+                <div style="flex:1;min-width:0;cursor:pointer;" onclick="loadSavedRoute('${r.id}')" title="点击加载">
+                    <div style="font-size:13px;color:#334155;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📂 ${escapeHtml(r.name)}</div>
+                    <div style="font-size:11px;color:#94a3b8;">${r.pointCount} 点 · ${dateStr}</div>
+                </div>
+                <button onclick="deleteSavedRoute('${r.id}', '${escapeHtml(r.name).replace(/'/g, "\\'")}')"
+                    style="border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:16px;padding:0 4px;" title="删除">✕</button>
+            </div>
+        `;
+    }).join('');
+}
+
+// 启动时调用一次, 让"还没有保存的路线"显示出来
+function initSavedRoutes() {
+    renderSavedRoutes();
+}
+
 // ====== 启动 ======
 window.addEventListener('load', () => {
     initMap();
     loadFromLocal();
+    initSavedRoutes();
 
     // 起点终点输入自动补全
     setupAutocomplete('startInput', (lng, lat, name) => {
