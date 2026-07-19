@@ -744,8 +744,8 @@ const state = {
 // ====== 初始化地图 ======
 function initMap() {
     state.map = new AMap.Map('map', {
-        zoom: 8,
-        center: [100.3, 30.6], // 川西区域中心
+        zoom: 9,
+        center: [102.7, 30.05], // 成都-稻城路线中段（保证有 POI）
         viewMode: '2D',
         mapStyle: 'amap://styles/normal',
     });
@@ -1003,7 +1003,6 @@ function setRadius(r) {
 
 function searchPoi() {
     const keyword = document.getElementById('searchKeyword').value.trim();
-    const center = state.map.getCenter();
     const typeMap = {
         scenic: '风景名胜|旅游景点',
         food: '餐饮服务',
@@ -1015,11 +1014,16 @@ function searchPoi() {
         clearTimeout(state._searchTimer);
     }
     state._searchTimer = setTimeout(() => {
-        doSearch(keyword, center, typeMap[state.currentSearchType] || '');
+        doSearch(keyword, typeMap[state.currentSearchType] || '');
     }, 300);
 }
 
-function doSearch(keyword, center, type) {
+function doSearch(keyword, type) {
+    const center = state.map.getCenter();
+
+    // 调试输出
+    console.log('[搜索] center=', center.lng, center.lat, 'radius=', state.currentRadius, 'type=', type, 'keyword=', keyword);
+
     showLoading('搜索中...');
 
     state.placeSearch.searchNearBy(
@@ -1029,14 +1033,15 @@ function doSearch(keyword, center, type) {
         type || '',
         (status, result) => {
             hideLoading();
-            if (status === 'complete' && result.poiList) {
+            console.log('[搜索结果] status=', status, 'result=', result);
+            if (status === 'complete' && result && result.poiList && result.poiList.pois) {
                 // 限制结果数量，避免大量渲染卡顿
-                const pois = (result.poiList.pois || []).slice(0, 15);
+                const pois = result.poiList.pois.slice(0, 15);
                 renderPoiList(pois);
                 drawPoiMarkers(pois);
                 showToast(`找到 ${pois.length} 个结果${result.poiList.pois.length > 15 ? '（仅显示前15个）' : ''}`, 'success');
             } else {
-                showToast('未找到结果', 'error');
+                showToast('未找到结果（' + (result && result.info ? result.info : status) + '）', 'error');
                 document.getElementById('poiList').innerHTML = '';
                 clearPoiMarkers();
             }
@@ -1124,40 +1129,91 @@ function clearPoiMarkers() {
 }
 
 // ====== GPS 定位 ======
+let _geolocation = null;
 function locateMe() {
     showLoading('定位中...');
-    state.map.plugin('AMap.Geolocation', () => {
-        const geolocation = new AMap.Geolocation({
-            enableHighAccuracy: true,
-            timeout: 10000,
-        });
 
-        geolocation.getCurrentPosition((status, result) => {
-            hideLoading();
-            if (status === 'complete') {
-                const { lng, lat, address } = result;
-                state.map.setCenter([lng, lat]);
-                state.map.setZoom(13);
-
-                // 添加定位标记（用内联SVG，避开外部图片加载）
-                if (state._locMarker) state.map.remove(state._locMarker);
-                state._locMarker = new AMap.Marker({
-                    position: [lng, lat],
-                    content: '<div style="width:18px;height:18px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 0 0 6px rgba(239,68,68,0.25),0 2px 6px rgba(0,0,0,0.3);"></div>',
-                    offset: new AMap.Pixel(-9, -9),
-                    zIndex: 200,
+    try {
+        AMap.plugin('AMap.Geolocation', () => {
+            if (!_geolocation) {
+                _geolocation = new AMap.Geolocation({
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    showButton: false,
+                    showMarker: false,
+                    useNative: false,
                 });
-                state.map.add(state._locMarker);
-
-                showToast(`定位成功：${address || '当前位置'}`, 'success');
-
-                // 自动搜索周边（延迟稍长，避免和定位Marker渲染冲突）
-                setTimeout(searchPoi, 1200);
-            } else {
-                showToast('定位失败：' + (result.message || '未知错误'), 'error');
             }
+
+            _geolocation.getCurrentPosition((status, result) => {
+                hideLoading();
+                if (status === 'complete') {
+                    const lng = result.position.lng;
+                    const lat = result.position.lat;
+                    const address = result.formattedAddress || result.address || '当前位置';
+
+                    state.map.setCenter([lng, lat]);
+                    state.map.setZoom(13);
+
+                    // 添加定位标记（用内联SVG，避开外部图片加载）
+                    if (state._locMarker) state.map.remove(state._locMarker);
+                    state._locMarker = new AMap.Marker({
+                        position: [lng, lat],
+                        content: '<div style="width:18px;height:18px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 0 0 6px rgba(239,68,68,0.25),0 2px 6px rgba(0,0,0,0.3);"></div>',
+                        offset: new AMap.Pixel(-9, -9),
+                        zIndex: 200,
+                    });
+                    state.map.add(state._locMarker);
+
+                    showToast('定位成功：' + address, 'success');
+
+                    // 自动搜索周边（延迟稍长，避免和定位Marker渲染冲突）
+                    setTimeout(searchPoi, 1500);
+                } else {
+                    // 定位失败时的后备方案：用浏览器原生定位
+                    fallbackGeolocation(result.message);
+                }
+            });
         });
-    });
+    } catch (e) {
+        hideLoading();
+        fallbackGeolocation(e.message);
+    }
+}
+
+// 浏览器原生定位后备
+function fallbackGeolocation(reason) {
+    if (!navigator.geolocation) {
+        showToast('浏览器不支持定位，请手动移动地图', 'error');
+        return;
+    }
+    showLoading('使用浏览器定位...');
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            hideLoading();
+            const lng = pos.coords.longitude;
+            const lat = pos.coords.latitude;
+            state.map.setCenter([lng, lat]);
+            state.map.setZoom(13);
+
+            if (state._locMarker) state.map.remove(state._locMarker);
+            state._locMarker = new AMap.Marker({
+                position: [lng, lat],
+                content: '<div style="width:18px;height:18px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 0 0 6px rgba(239,68,68,0.25),0 2px 6px rgba(0,0,0,0.3);"></div>',
+                offset: new AMap.Pixel(-9, -9),
+                zIndex: 200,
+            });
+            state.map.add(state._locMarker);
+
+            showToast('定位成功（浏览器原生）', 'success');
+            setTimeout(searchPoi, 800);
+        },
+        err => {
+            hideLoading();
+            showToast('定位失败：' + reason + ' | 浏览器定位：' + err.message, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
 }
 
 // ====== AI 智能优化 ======
