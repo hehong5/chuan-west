@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.5</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.6</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -820,7 +820,7 @@
                 <div class="empty-state" id="routeEmpty">
                     <div class="empty-state-icon">🗺️</div>
                     <p>输入起点终点，或点击地图选点</p>
-                    <p style="font-size:12px;margin-top:8px;">支持最多10个途经点</p>
+                    <p style="font-size:12px;margin-top:8px;">支持任意数量的途经点</p>
                 </div>
 
                 <div class="point-list" id="pointList"></div>
@@ -1312,21 +1312,11 @@ function renderPoints() {
                </span>`;
 
         return `
-            <div class="${cls}" data-index="${i}" title="✏️ 点击名称直接改名/改海拔">
+            <div class="${cls}" data-index="${i}">
                 <div class="point-index">${i + 1}</div>
-                <div class="point-info" onclick="openAndFlyTo(${i})" style="cursor:pointer;flex:1;">
-                    <div class="point-name" contenteditable="true"
-                        onmousedown="event.stopPropagation();"
-                        onclick="event.stopPropagation();"
-                        onblur="saveWaypointEdit(${i}, this.innerText.trim())"
-                        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
-                        title="点击直接改名 (按 Enter 保存)">${escapeHtml(p.name)}</div>
-                    <div class="point-coord">${label} · <span contenteditable="true"
-                        onmousedown="event.stopPropagation();"
-                        onclick="event.stopPropagation();"
-                        onblur="saveAltEdit(${i}, this.innerText.trim())"
-                        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
-                        title="点击改海拔数字 (按 Enter 保存)" style="display:inline-block;min-width:50px;outline:1px dashed transparent;border-radius:3px;padding:0 2px;">${p.alt || ''}</span>${p.alt ? 'm' : '⛰ 待填'}</div>
+                <div class="point-info" onclick="openAndFlyTo(${i})" style="cursor:pointer;flex:1;" title="点击打开详情 → 在弹窗里改名/改海拔">
+                    <div class="point-name">${escapeHtml(p.name)}</div>
+                    <div class="point-coord">${label} · ${p.alt ? escapeHtml(String(p.alt)) + 'm' : '⛰ 待填'}</div>
                 </div>
                 ${stayControl}
                 <div class="point-actions">
@@ -1727,6 +1717,24 @@ function openPoiDetail(i, position) {
                     <span class="d-tag">📍 ${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</span>
                     ${dayInfo && dayInfo.tag ? `<span class="d-tag">${_tagEmoji(dayInfo.tag)} ${_tagLabel(dayInfo.tag)}</span>` : ''}
                 </div>
+                <!-- V21.6: 在弹窗里直接改名/改海拔 -->
+                <div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <input id="dNameInput" type="text" value="${escapeHtml(p.name.replace(/^D\d+\s*·\s*/, ''))}"
+                        placeholder="地点名称"
+                        style="flex:1;min-width:0;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;"
+                        onfocus="this.style.background='rgba(255,255,255,.25)'"
+                        onblur="this.style.background='rgba(255,255,255,.15)'">
+                    <input id="dAltInput" type="text" value="${p.alt || ''}"
+                        placeholder="海拔 m"
+                        inputmode="decimal"
+                        style="flex:0 0 80px;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;text-align:center;"
+                        onfocus="this.style.background='rgba(255,255,255,.25)'"
+                        onblur="this.style.background='rgba(255,255,255,.15)'">
+                    <button onclick="saveDetailEdit(${i})"
+                        style="flex:0 0 auto;padding:6px 14px;border-radius:6px;border:none;background:#fff;color:#0c4a6e;font-size:13px;font-weight:600;cursor:pointer;">
+                        💾 保存
+                    </button>
+                </div>
             </div>
             <div class="d-body">
                 <div class="d-wiki">${(dayInfo && dayInfo.wiki) ? escapeHtml(dayInfo.wiki) : escapeHtml(p.note || '该地点暂无详细介绍')}</div>
@@ -1774,6 +1782,45 @@ function closePoiDetail() {
         _detailOverlay.remove();
         _detailOverlay = null;
     }
+}
+
+// V21.6: 弹窗里直接改名 + 改海拔
+function saveDetailEdit(i) {
+    const p = state.waypoints[i];
+    if (!p) return;
+    const nameEl = document.getElementById('dNameInput');
+    const altEl = document.getElementById('dAltInput');
+    if (!nameEl || !altEl) return;
+
+    const newName = nameEl.value.replace(/\s+/g, ' ').trim();
+    if (!newName) { showToast('名称不能为空', 'error'); return; }
+
+    // 海拔 (可空)
+    const altRaw = altEl.value.replace(/[^\d.]/g, '');
+    let newAlt = null;
+    if (altRaw && altRaw !== '.') {
+        const num = parseFloat(altRaw);
+        if (isNaN(num) || num < 0 || num > 9000) {
+            showToast('海拔需在 0-9000 之间', 'error'); return;
+        }
+        newAlt = Math.round(num);
+    }
+
+    // 保留前缀 "D5 · "
+    const dayMatch = p.name.match(/^(D\d+\s*·\s*)(.+)$/);
+    const prefix = dayMatch ? dayMatch[1] : '';
+    p.name = prefix + newName;
+    if (newAlt == null) delete p.alt;
+    else p.alt = newAlt;
+
+    renderPoints();
+    drawRoute();
+    saveToLocal();
+    _triggerAutoSync();
+    showToast(`✓ 已更新为 "${newName}"${newAlt ? ' / ' + newAlt + 'm' : ''}`, 'success');
+
+    // 关闭弹窗, 让用户立刻在左侧列表看到结果
+    closePoiDetail();
 }
 
 function _tagEmoji(tag) {
