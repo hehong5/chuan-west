@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-10</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-13</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-10');
+        console.log('🗺️ 川西旅行规划 v20260719-13');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -1143,6 +1143,7 @@ function openPoiDetail(i, position) {
                 #poiDetailBox .d-btn:hover { background:#e2e8f0; }
                 #poiDetailBox .d-btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
                 #poiDetailBox .d-btn.primary:hover { background:#1d4ed8; }
+                #poiDetailBox .d-btn.big { font-size:13px; padding:9px 16px; font-weight:600; }
                 #poiDetailBox .d-section { margin-top:18px; padding-top:14px; border-top:1px solid #e2e8f0; }
                 #poiDetailBox .d-section h4 { margin:0 0 10px 0; font-size:13px; color:#475569; display:flex; align-items:center; justify-content:space-between; }
                 #poiDetailBox .d-tabbar { display:flex; gap:6px; }
@@ -1159,6 +1160,11 @@ function openPoiDetail(i, position) {
                 #poiDetailBox .d-poi-dist { font-size:11px; color:#0891b2; font-weight:600; white-space:nowrap; }
                 #poiDetailBox .d-loading { text-align:center; padding:20px; color:#94a3b8; font-size:12px; }
                 #poiDetailBox .d-empty { text-align:center; padding:18px; color:#94a3b8; font-size:12px; }
+                #poiDetailBox .d-3col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+                @media (max-width:640px) { #poiDetailBox .d-3col { grid-template-columns:1fr; } }
+                #poiDetailBox .d-col { background:#f8fafc; border-radius:8px; padding:10px; min-width:0; }
+                #poiDetailBox .d-col-title { font-size:12px; font-weight:600; color:#334155; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; }
+                #poiDetailBox .d-col-badge { font-size:10px; background:#e2e8f0; color:#64748b; padding:2px 6px; border-radius:8px; font-weight:normal; }
                 #poiDetailBox .d-foot { padding:11px 22px; background:#f8fafc; border-radius:0 0 14px 14px; font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; }
                 #poiDetailBox .d-foot a { color:#2563eb; text-decoration:none; }
             </style>
@@ -1175,22 +1181,23 @@ function openPoiDetail(i, position) {
                 <div class="d-wiki">${(dayInfo && dayInfo.wiki) ? escapeHtml(dayInfo.wiki) : escapeHtml(p.note || '该地点暂无详细介绍')}</div>
 
                 <div class="d-actions">
+                    <a class="d-btn primary big" target="_blank" href="https://baike.baidu.com/item/${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}">📖 打开百科</a>
                     <a class="d-btn primary" target="_blank" href="https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${encodeURIComponent(p.name)}&src=mindmap&coordinate=gaode&callnative=1">🧭 高德导航</a>
-                    <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(p.name + ' 攻略')}">🔍 百度搜索攻略</a>
-                    <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(p.name)}">📕 小红书攻略</a>
-                    <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(p.name + ' 旅游 攻略')}&tbm=isch">🖼 Google 图片</a>
+                    <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 攻略 景点介绍')}">🔍 百度攻略</a>
+                    <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}">📕 小红书</a>
+                    <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 旅游 攻略')}&tbm=isch">🖼 Google 图片</a>
                 </div>
 
                 <div class="d-section">
                     <h4>
-                        <span>📌 周边推荐</span>
+                        <span>📌 周边 10km 自动推荐</span>
                         <div class="d-tabbar" id="poiTabBar">
                             <button class="d-tab active" data-cat="scenic" onclick="switchDetailPoiCat(this, ${i})">🏞 景点</button>
                             <button class="d-tab" data-cat="food" onclick="switchDetailPoiCat(this, ${i})">🍜 美食</button>
                             <button class="d-tab" data-cat="hotel" onclick="switchDetailPoiCat(this, ${i})">🏨 住宿</button>
                         </div>
                     </h4>
-                    <div id="poiListInDetail"><div class="d-loading">🔄 加载周边中...</div></div>
+                    <div id="poiListInDetail"><div class="d-loading">🔄 自动加载 景点 / 美食 / 住宿 三类中...</div></div>
                 </div>
             </div>
             <div class="d-foot">
@@ -1206,8 +1213,8 @@ function openPoiDetail(i, position) {
     _detailOverlay.innerHTML = html;
     document.body.appendChild(_detailOverlay);
 
-    // 默认加载景点
-    _searchDetailNearby(p, i, 'scenic');
+    // 默认加载景点 + 美食 + 住宿 (3 列并发搜索)
+    _searchDetailNearby(p, i, null);
 }
 
 function closePoiDetail() {
@@ -1250,63 +1257,97 @@ function switchDetailPoiCat(tabEl, i) {
     tabEl.classList.add('active');
     const cat = tabEl.dataset.cat;
     const p = state.waypoints[i];
-    _searchDetailNearby(p, i, cat);
+    // 单列模式：把不相关列隐藏
+    ['scenic','food','hotel'].forEach(c => {
+        const el = document.querySelector('.d-col[data-cat="' + c + '"]');
+        if (el) el.style.display = (c === cat) ? '' : 'none';
+    });
 }
 
-// 周边推荐（弹窗内嵌版, 复用 v7 setCity+search 策略）
+// 同时搜三类(景点/美食/住宿)，并排展示
+let _searchCancel = 0; // 每次进入弹窗 +1，过期回调忽略
 function _searchDetailNearby(p, i, cat) {
     const container = document.getElementById('poiListInDetail');
     if (!container) return;
-    container.innerHTML = '<div class="d-loading">🔄 加载 ' + _tagEmoji(cat) + ' 中...</div>';
+    const myToken = ++_searchCancel;
 
-    // 先 Geocode 拿 city
-    geocodeKeyword(p.name.replace(/^D\d+\s*·\s*/, '')).then(geo => {
-        let city = (geo && geo.city) ? geo.city : null;
-        let center = (geo && geo.lng) ? [geo.lng, geo.lat] : [p.lng, p.lat];
+    const baseName = p.name.replace(/^D\d+\s*·\s*/, '');
+    const cats = ['scenic', 'food', 'hotel'];
+    const catKw = { scenic: '景区 景点', food: '餐厅 美食 特色', hotel: '酒店 民宿 客栈' };
 
-        const ps = new AMap.PlaceSearch({ pageSize: 8, autoFitView: false });
-        const catKw = cat === 'food' ? '餐厅 美食' : cat === 'hotel' ? '酒店 民宿' : '景区 景点';
-        const kw = (p.name.replace(/^D\d+\s*·\s*/, '') + ' ' + catKw);
+    // 第一次进入（三类一起出）才渲染 3 列布局；之后点 tab 只重渲染单列
+    const initial = (cat === undefined || cat === null);
 
-        let calledBack = false;
-        const onResult = (status, result) => {
-            if (calledBack) return;
-            calledBack = true;
-            try { ps.destroy && ps.destroy(); } catch(e){}
-            if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
-                const pois = result.poiList.pois.slice(0, 8);
-                container.innerHTML = pois.map(poi => {
-                    const poiLng = poi.location && (typeof poi.location.lng === 'function' ? poi.location.lng() : poi.location.lng);
-                    const poiLat = poi.location && (typeof poi.location.lat === 'function' ? poi.location.lat() : poi.location.lat);
-                    const dist = poiLng != null && poiLat != null
-                        ? _formatDistance(_haversine(p.lng, p.lat, poiLng, poiLat))
-                        : '—';
-                    return `
-                        <div class="d-poi" onclick="window.open('https://uri.amap.com/marker?position=${poiLng},${poiLat}&name=${encodeURIComponent(poi.name)}&src=mindmap&coordinate=gaode&callnative=1')">
-                            <div class="d-poi-info">
-                                <div class="d-poi-name"><span class="d-poi-cat ${cat === 'food' ? 'food' : cat === 'hotel' ? 'hotel' : ''}">${_catLabel(poi.type || cat)}</span>${escapeHtml(poi.name)}</div>
-                                <div class="d-poi-addr">${escapeHtml((poi.address || '').substring(0, 32))}</div>
-                            </div>
-                            <div class="d-poi-dist">${dist}</div>
-                        </div>
-                    `;
-                }).join('');
+    // 占位：3 个区块
+    container.innerHTML = `
+        <div class="d-3col">
+            ${cats.map(c => `
+                <div class="d-col" data-cat="${c}">
+                    <div class="d-col-title">${_tagEmoji(c)} ${c === 'scenic' ? '景点' : c === 'food' ? '美食' : '住宿'} <span class="d-col-badge" id="badge-${c}">加载中…</span></div>
+                    <div class="d-col-body" id="col-${c}"><div class="d-loading">🔄</div></div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    geocodeKeyword(baseName).then(geo => {
+        if (myToken !== _searchCancel) return;
+        const city = (geo && geo.city) ? geo.city : null;
+        const center = (geo && geo.lng != null) ? [geo.lng, geo.lat] : [p.lng, p.lat];
+
+        const catsToRun = initial ? cats : [cat];
+        catsToRun.forEach(c => {
+            const colEl = document.getElementById('col-' + c);
+            const badgeEl = document.getElementById('badge-' + c);
+            if (!colEl) return;
+
+            const ps = new AMap.PlaceSearch({ pageSize: 8, autoFitView: false });
+            const kw = baseName + ' ' + catKw[c];
+            let done = false;
+
+            const finalize = (status, result) => {
+                if (done) return;
+                done = true;
+                try { ps.destroy && ps.destroy(); } catch(e){}
+                if (myToken !== _searchCancel) return;
+                if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                    const pois = result.poiList.pois.slice(0, 8);
+                    if (badgeEl) badgeEl.textContent = pois.length + ' 个';
+                    colEl.innerHTML = pois.map(poi => _renderPoiRow(poi, p, c)).join('');
+                } else {
+                    if (badgeEl) badgeEl.textContent = '0';
+                    colEl.innerHTML = '<div class="d-empty">无推荐<br>请点击下方按钮查看地图</div>';
+                }
+            };
+
+            if (city) {
+                ps.setCity(city);
+                ps.search(kw, finalize);
             } else {
-                container.innerHTML = '<div class="d-empty">暂无周边 ' + _tagEmoji(cat) + ' 数据，可点击上方"高德导航"直达地图查看</div>';
+                ps.searchNearBy(kw, center, 10000, '', finalize);
             }
-        };
 
-        if (city) {
-            ps.setCity(city);
-            ps.search(kw, onResult);
-        } else {
-            ps.searchNearBy(kw, center, 10000, '', onResult);
-        }
-
-        setTimeout(() => {
-            if (!calledBack) onResult('timeout', null);
-        }, 8000);
+            setTimeout(() => finalize('timeout', null), 10000);
+        });
     });
+}
+
+function _renderPoiRow(poi, fromP, cat) {
+    const poiLng = poi.location && (typeof poi.location.lng === 'function' ? poi.location.lng() : poi.location.lng);
+    const poiLat = poi.location && (typeof poi.location.lat === 'function' ? poi.location.lat() : poi.location.lat);
+    const dist = (poiLng != null && poiLat != null)
+        ? _formatDistance(_haversine(fromP.lng, fromP.lat, poiLng, poiLat))
+        : '—';
+    const safeName = escapeHtml(poi.name).replace(/'/g, "\\'");
+    return `
+        <div class="d-poi" onclick="window.open('https://uri.amap.com/marker?position=${poiLng},${poiLat}&name=${encodeURIComponent(poi.name)}&src=mindmap&coordinate=gaode&callnative=1','_blank')">
+            <div class="d-poi-info">
+                <div class="d-poi-name">${escapeHtml(poi.name)}</div>
+                <div class="d-poi-addr">${escapeHtml((poi.address || '').substring(0, 30))}</div>
+            </div>
+            <div class="d-poi-dist">${dist}</div>
+        </div>
+    `;
 }
 
 function _catLabel(type) {
