@@ -1426,12 +1426,16 @@ function _drawRouteSingleSegment(pts, onDone) {
             const straight = [];
             let totalDist = 0, totalTime = 0;
             for (let i = 0; i < pts.length - 1; i++) {
-                const a = path[i], b = path[i+1];
-                const c = new AMap.LngLat(a.lng, a.lat);
-                const d = new AMap.LngLat(b.lng, b.lat);
-                const distKm = _lngLatPairKm(a, b) * 1.4;
+                const a = pts[i], b = pts[i+1];
+                const lngA = typeof a.lng === 'function' ? a.lng() : a.lng;
+                const latA = typeof a.lat === 'function' ? a.lat() : a.lat;
+                const lngB = typeof b.lng === 'function' ? b.lng() : b.lng;
+                const latB = typeof b.lat === 'function' ? b.lat() : b.lat;
+                const c = new AMap.LngLat(lngA, latA);
+                const d = new AMap.LngLat(lngB, latB);
+                const distKm = _haversine(lngA, latA, lngB, latB) * 1.4;
                 const timeS = distKm / 60 * 3600;
-                legs.push({ from: i, to: i + 1, path: [c,d], geoKm: _lngLatPairKm(a,b), distM: Math.round(distKm*1000), timeS: Math.round(timeS) });
+                legs.push({ from: i, to: i + 1, path: [c,d], geoKm: _haversine(lngA, latA, lngB, latB), distM: Math.round(distKm*1000), timeS: Math.round(timeS) });
                 straight.push(c, d);
                 totalDist += distKm;
                 totalTime += timeS;
