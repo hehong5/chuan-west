@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-20</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-20');
+        console.log('🗺️ 川西旅行规划 v20260719-21');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -346,6 +346,13 @@
         .gear-status-btn.loaded { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
         .gear-del { border: none; background: transparent; color: #cbd5e1; cursor: pointer; font-size: 14px; padding: 0 4px; }
         .gear-del:hover { color: #ef4444; }
+
+        /* V21: 新手引导 */
+        .onboard-dot { width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0; transition: all 0.2s; }
+        .onboard-dot.active { width: 20px; background: #8b5cf6; border-radius: 4px; }
+        @media (max-width: 768px) {
+            #onboardBubble { max-width: 90vw !important; }
+        }
 
         /* V18: 拖动抓手 - 加大点击区域 + 明确视觉 */
         .point-action-btn.drag-handle {
@@ -900,7 +907,31 @@
         </div>
     </div>
 
-    <!-- 地图区域 -->
+    <!-- V21: 新手引导遮罩 -->
+<div id="onboardOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;transition:opacity 0.3s;">
+    <div id="onboardSpot" style="position:absolute;border:3px solid #8b5cf6;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.55),0 0 30px rgba(139,92,246,0.6);transition:all 0.4s cubic-bezier(0.4,0,0.2,1);pointer-events:none;"></div>
+    <div id="onboardBubble" style="position:absolute;background:white;border-radius:14px;padding:20px 22px;max-width:320px;box-shadow:0 10px 40px rgba(0,0,0,0.3);transition:all 0.4s cubic-bezier(0.4,0,0.2,1);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span id="onboardStep" style="font-size:12px;color:#8b5cf6;font-weight:600;letter-spacing:1px;">第 1/4 步</span>
+            <button onclick="finishOnboard(true)" style="border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px;padding:0;">跳过 ✕</button>
+        </div>
+        <div id="onboardIcon" style="font-size:32px;margin-bottom:8px;">🗺</div>
+        <h3 id="onboardTitle" style="margin:0 0 6px 0;font-size:17px;color:#1e293b;">认识 4 个标签</h3>
+        <p id="onboardBody" style="margin:0;font-size:13px;color:#475569;line-height:1.7;">🗺 路线规划（起点终点） / 📍 周边探索（POI 搜索） / 🤖 AI 建议 / 🎒 装备清单</p>
+        <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;align-items:center;">
+            <div id="onboardDots" style="display:flex;gap:5px;flex:1;">
+                <span class="onboard-dot active"></span><span class="onboard-dot"></span><span class="onboard-dot"></span><span class="onboard-dot"></span>
+            </div>
+            <button onclick="prevOnboard()" id="onboardPrevBtn" style="border:none;background:#f1f5f9;color:#475569;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">← 上一步</button>
+            <button onclick="nextOnboard()" id="onboardNextBtn" style="border:0;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;">下一步 →</button>
+        </div>
+    </div>
+</div>
+
+<!-- V21: 帮助按钮 (右下角悬浮) -->
+<button id="helpFab" onclick="startOnboard(true)" style="display:none;position:fixed;right:20px;bottom:20px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white;border:none;font-size:22px;box-shadow:0 4px 16px rgba(139,92,246,0.4);cursor:pointer;z-index:999;transition:transform 0.2s;" title="新手指引" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">❓</button>
+
+<!-- 地图区域 -->
     <div class="map-container">
         <div id="map"></div>
 
@@ -3384,12 +3415,153 @@ function renderGear() {
 
 function initGear() { renderGear(); }
 
+// ====== V21: 新手引导 ======
+const ONBOARD_KEY = 'travelmind_onboard_done';
+const onboardSteps = [
+    {
+        title: '认识 4 个标签',
+        icon: '🗺',
+        body: '🗺 <b>路线规划</b>（起点终点+途经点）<br>📍 <b>周边探索</b>（景点/美食/酒店）<br>🤖 <b>AI 建议</b>（行程优化）<br>🎒 <b>装备清单</b>（带啥物品）',
+        targetSel: '.sidebar-tabs',
+        bubblePos: 'right',
+    },
+    {
+        title: '点击地图选途经点',
+        icon: '🗺',
+        body: '<b>在地图上点任意位置</b>，自动加入途经点列表。<br>👆 点 2 次以上，自动连成驾车路线。<br>💡 点列表项可重新飞到地图查看。',
+        targetSel: '#map',
+        bubblePos: 'right',
+    },
+    {
+        title: '总公里 / 时长 / 停留',
+        icon: '📊',
+        body: '路线画好后，顶部统计条自动显示：<br>🛣 <b>总公里</b>　|　⏱ <b>总时长（含停留）</b><br>🌙 <b>停留天数</b> = 路上时间 + 景点停留<br>每个途经点可微调 +1/-1 天。',
+        targetSel: '#statsBar',
+        bubblePos: 'right',
+    },
+    {
+        title: '保存路线 + AI 装备',
+        icon: '💾',
+        body: '滚到底部 → <b>💾 保存当前路线</b>（自定义名字）。<br>切到 <b>🎒 装备清单</b> → 粘贴物品清单 → <b>🤖 AI 解析入库</b>，自动归类 + 标记 采购/装车状态。',
+        targetSel: '#savedRoutesList',
+        bubblePos: 'right',
+    },
+];
+let onboardStep = 0;
+
+function startOnboard(force) {
+    if (!force && localStorage.getItem(ONBOARD_KEY)) return;  // 已完成过
+    onboardStep = 0;
+    const overlay = document.getElementById('onboardOverlay');
+    overlay.style.display = 'block';
+
+    // V21: 窄屏 sidebar 隐藏时先打开它
+    const sidebar = document.getElementById('sidebar');
+    const wasHidden = !sidebar.classList.contains('open') && window.innerWidth <= 768;
+    if (wasHidden) sidebar.classList.add('open');
+
+    setTimeout(() => renderOnboard(), 50);
+}
+
+function renderOnboard() {
+    const step = onboardSteps[onboardStep];
+    const overlay = document.getElementById('onboardOverlay');
+    const spot = document.getElementById('onboardSpot');
+    const bubble = document.getElementById('onboardBubble');
+    const target = document.querySelector(step.targetSel);
+
+    // 1. 高亮框定位 - 先让目标滚到可见
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+            const r = target.getBoundingClientRect();
+            spot.style.left = (r.left - 6) + 'px';
+            spot.style.top = (r.top - 6) + 'px';
+            spot.style.width = (r.width + 12) + 'px';
+            spot.style.height = (r.height + 12) + 'px';
+        }, 350);
+    } else {
+        spot.style.left = '50%'; spot.style.top = '40%';
+        spot.style.width = '200px'; spot.style.height = '100px';
+    }
+
+    // 2. 气泡定位
+    const margin = 16;
+    if (target) {
+        const r = target.getBoundingClientRect();
+        let bx, by;
+        if (step.bubblePos === 'right') {
+            bx = r.right + margin;
+            by = r.top + r.height / 2;
+            bubble.style.transform = 'translateY(-50%)';
+            // 右侧空间不够?
+            if (bx + 320 > window.innerWidth) {
+                bx = r.left - 320 - margin;
+                if (bx < margin) { bx = margin; by = r.bottom + margin; bubble.style.transform = ''; }
+            }
+        } else {
+            bx = window.innerWidth / 2 - 160;
+            by = r.bottom + margin;
+            bubble.style.transform = '';
+        }
+        bubble.style.left = bx + 'px';
+        bubble.style.top = by + 'px';
+    } else {
+        bubble.style.left = '50%';
+        bubble.style.top = '50%';
+        bubble.style.transform = 'translate(-50%,-50%)';
+    }
+
+    // 3. 文本
+    document.getElementById('onboardStep').textContent = `第 ${onboardStep + 1}/${onboardSteps.length} 步`;
+    document.getElementById('onboardIcon').textContent = step.icon;
+    document.getElementById('onboardTitle').textContent = step.title;
+    document.getElementById('onboardBody').innerHTML = step.body;
+    document.querySelectorAll('#onboardDots .onboard-dot').forEach((el, i) => {
+        el.classList.toggle('active', i === onboardStep);
+    });
+    document.getElementById('onboardPrevBtn').style.visibility = onboardStep === 0 ? 'hidden' : 'visible';
+    document.getElementById('onboardNextBtn').textContent = onboardStep === onboardSteps.length - 1 ? '✓ 完成' : '下一步 →';
+}
+
+function nextOnboard() {
+    if (onboardStep >= onboardSteps.length - 1) {
+        finishOnboard(false);
+    } else {
+        onboardStep++;
+        renderOnboard();
+    }
+}
+function prevOnboard() {
+    if (onboardStep > 0) { onboardStep--; renderOnboard(); }
+}
+function finishOnboard(skip) {
+    document.getElementById('onboardOverlay').style.display = 'none';
+    if (!skip) localStorage.setItem(ONBOARD_KEY, '1');
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('open');
+    }
+    showHelpFab();
+}
+function showHelpFab() {
+    const fab = document.getElementById('helpFab');
+    if (fab) fab.style.display = 'block';
+}
+
 // ====== 启动 ======
 window.addEventListener('load', () => {
     initMap();
     loadFromLocal();
     initSavedRoutes();
     initGear();
+    showHelpFab();  // V21: 帮助按钮永久显示
+
+    // V21: 第一次自动启动引导(等 renderPoints 后才能找到 #statsBar)
+    if (!localStorage.getItem(ONBOARD_KEY)) {
+        setTimeout(() => {
+            if (state.waypoints.length > 0) startOnboard(false);
+        }, 800);
+    }
 
     // 起点终点输入自动补全
     setupAutocomplete('startInput', (lng, lat, name) => {
