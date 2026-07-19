@@ -1019,34 +1019,60 @@ function searchPoi() {
 }
 
 function doSearch(keyword, type) {
-    const center = state.map.getCenter();
+    // 优先使用定位点；没有定位点时用地图中心
+    const center = state._locCenter ||
+                   [state.map.getCenter().lng, state.map.getCenter().lat];
 
     // 调试输出
-    console.log('[搜索] center=', center.lng, center.lat, 'radius=', state.currentRadius, 'type=', type, 'keyword=', keyword);
+    console.log('[搜索] center=', center, 'radius=', state.currentRadius, 'type=', type, 'keyword=', keyword);
+
+    // 如果已有正在进行的搜索，先取消
+    if (state._searchAbort && state._searchAbort.abort) {
+        try { state._searchAbort.abort(); } catch(e) {}
+    }
 
     showLoading('搜索中...');
 
-    state.placeSearch.searchNearBy(
+    // 使用新实例，而非复用（避免请求堵塞）
+    const ps = new AMap.PlaceSearch({
+        pageSize: 15,
+        autoFitView: false,
+    });
+    state._searchAbort = ps;
+
+    ps.searchNearBy(
         keyword || '',
-        [center.lng, center.lat],
+        center,
         state.currentRadius,
         type || '',
         (status, result) => {
             hideLoading();
-            console.log('[搜索结果] status=', status, 'result=', result);
+            console.log('[搜索结果] status=', status, 'info=', result && result.info);
             if (status === 'complete' && result && result.poiList && result.poiList.pois) {
-                // 限制结果数量，避免大量渲染卡顿
                 const pois = result.poiList.pois.slice(0, 15);
                 renderPoiList(pois);
                 drawPoiMarkers(pois);
                 showToast(`找到 ${pois.length} 个结果${result.poiList.pois.length > 15 ? '（仅显示前15个）' : ''}`, 'success');
             } else {
-                showToast('未找到结果（' + (result && result.info ? result.info : status) + '）', 'error');
+                showToast('未找到结果：' + (result && result.info ? result.info : status), 'warning');
                 document.getElementById('poiList').innerHTML = '';
                 clearPoiMarkers();
             }
+            // 销毁实例，释放资源
+            try { ps.destroy && ps.destroy(); } catch(e) {}
+            state._searchAbort = null;
         }
     );
+
+    // 超时保险（高德 V2.0 在某些情况下回调不触发）
+    setTimeout(() => {
+        if (state._searchAbort === ps) {
+            hideLoading();
+            showToast('搜索超时，请重试', 'warning');
+            try { ps.destroy && ps.destroy(); } catch(e) {}
+            state._searchAbort = null;
+        }
+    }, 8000);
 }
 
 function renderPoiList(pois) {
@@ -1154,6 +1180,7 @@ function locateMe() {
 
                     state.map.setCenter([lng, lat]);
                     state.map.setZoom(13);
+                    setLocCenter(lng, lat); // 记录定位点，供搜索使用
 
                     // 添加定位标记（用内联SVG，避开外部图片加载）
                     if (state._locMarker) state.map.remove(state._locMarker);
@@ -1195,6 +1222,7 @@ function fallbackGeolocation(reason) {
             const lat = pos.coords.latitude;
             state.map.setCenter([lng, lat]);
             state.map.setZoom(13);
+            setLocCenter(lng, lat);
 
             if (state._locMarker) state.map.remove(state._locMarker);
             state._locMarker = new AMap.Marker({
@@ -1214,6 +1242,11 @@ function fallbackGeolocation(reason) {
         },
         { enableHighAccuracy: true, timeout: 10000 }
     );
+}
+
+// 保存定位点，供搜索使用
+function setLocCenter(lng, lat) {
+    state._locCenter = [lng, lat];
 }
 
 // ====== AI 智能优化 ======
