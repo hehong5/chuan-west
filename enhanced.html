@@ -11,7 +11,7 @@
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
     </script>
-    <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.Autocomplete,AMap.MarkerCluster,AMap.ToolBar,AMap.Scale,AMap.MoveAnimation"></script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1449,16 +1449,95 @@ function setupAutocomplete(inputId, callback) {
     const input = document.getElementById(inputId);
     if (!input) return;
 
-    AMap.plugin('AMap.Autocomplete', () => {
-        const auto = new AMap.Autocomplete({ input });
-        AMap.plugin('AMap.PlaceSearch', () => {
-            const placeSearch = new AMap.PlaceSearch({});
-            auto.on('select', e => {
-                const poi = e.poi;
-                if (poi && poi.location) {
-                    callback(poi.location.lng, poi.location.lat, poi.name);
+    // 直接用 PlaceSearch 替代 Autocomplete，避免插件依赖问题
+    const dropdownId = inputId + '_dropdown';
+
+    // 添加下拉容器
+    const dropdown = document.createElement('div');
+    dropdown.id = dropdownId;
+    dropdown.style.cssText = `
+        position: absolute;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-height: 240px;
+        overflow-y: auto;
+        z-index: 9999;
+        display: none;
+        min-width: 200px;
+        margin-top: 2px;
+    `;
+    input.parentElement.style.position = 'relative';
+    input.parentElement.appendChild(dropdown);
+
+    let debounceTimer = null;
+
+    // 监听输入（300ms 防抖）
+    input.addEventListener('input', () => {
+        const keyword = input.value.trim();
+        clearTimeout(debounceTimer);
+        dropdown.style.display = 'none';
+        if (!keyword || keyword.length < 2) return;
+
+        debounceTimer = setTimeout(() => {
+            const ps = new AMap.PlaceSearch({ pageSize: 8 });
+            ps.search(keyword, (status, result) => {
+                if (status === 'complete' && result.poiList && result.poiList.pois.length > 0) {
+                    renderDropdown(result.poiList.pois, input, dropdown, callback);
                 }
             });
+        }, 300);
+    });
+
+    // 回车确认第一个结果
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const first = dropdown.querySelector('[data-idx="0"]');
+            if (first) first.click();
+        }
+        if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    // 点击外部关闭
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+function renderDropdown(pois, input, dropdown, callback) {
+    const rect = input.getBoundingClientRect();
+    const parentRect = input.parentElement.getBoundingClientRect();
+    dropdown.style.top = (input.offsetTop + input.offsetHeight) + 'px';
+    dropdown.style.left = input.offsetLeft + 'px';
+    dropdown.style.width = input.offsetWidth + 'px';
+
+    dropdown.innerHTML = pois.map((p, i) => `
+        <div data-idx="${i}" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;">
+            <div style="font-weight:500;color:#1e293b;">${escapeHtml(p.name)}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">${escapeHtml(p.address || '')}</div>
+        </div>
+    `).join('');
+
+    dropdown.style.display = 'block';
+
+    // 绑定点击
+    dropdown.querySelectorAll('[data-idx]').forEach(el => {
+        el.addEventListener('mouseenter', () => el.style.background = '#f1f5f9');
+        el.addEventListener('mouseleave', () => el.style.background = 'white');
+        el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.idx);
+            const p = pois[idx];
+            if (p && p.location) {
+                input.value = p.name;
+                callback(p.location.lng, p.location.lat, p.name);
+                dropdown.style.display = 'none';
+            }
         });
     });
 }
