@@ -6,14 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-2</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-3</title>
 
     <!-- 高德地图 JS API 2.0 -->
     <script type="text/javascript">
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-2');
+        console.log('🗺️ 川西旅行规划 v20260719-3');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -1017,7 +1017,6 @@ function doSearch(keyword) {
     const center = state._locCenter ||
                    [state.map.getCenter().lng, state.map.getCenter().lat];
 
-    // 用关键词组合，不带竖线的复合 type（高德 V2.0 不支持）
     let finalKeyword = keyword;
     if (state.currentSearchType === 'scenic') {
         finalKeyword = keyword ? (keyword + ' 旅游景点 景区') : '旅游景点 景区';
@@ -1027,62 +1026,64 @@ function doSearch(keyword) {
         finalKeyword = keyword ? (keyword + ' 酒店 民宿 客栈') : '酒店 民宿 客栈';
     }
 
-    console.log('[搜索v3] center=', center, 'radius=', state.currentRadius, 'keyword=', finalKeyword);
+    console.log('[搜索v4] center=', center, 'radius=', state.currentRadius, 'keyword=', finalKeyword);
 
-    // 复用单例 PlaceSearch，避免重复创建导致 WebGL CONTEXT_LOST
-    if (!state._placeSearchSingleton) {
-        state._placeSearchSingleton = new AMap.PlaceSearch({
-            pageSize: 15,
-            autoFitView: false,
-        });
-    }
-    const ps = state._placeSearchSingleton;
-
-    // 上一个请求未完成则直接放弃（不去 abort，避免触发错误回调）
+    // 高德 V2.0 PlaceSearch 单例 + 复用会导致第二个请求回调不触发
+    // 解决: 每次都 new, 但用 setTimeout 串行化, 避免并发触发内部错误
     if (state._searchInFlight) {
-        console.log('[搜索v3] 上一个请求未完成，跳过');
+        console.log('[搜索v4] 有请求在跑, 排队');
+        setTimeout(() => doSearch(keyword), 500);
         return;
     }
     state._searchInFlight = true;
 
     showLoading('搜索中...');
 
+    const ps = new AMap.PlaceSearch({
+        pageSize: 15,
+        autoFitView: false,
+    });
+
+    let calledBack = false;
+    const onResult = (status, result) => {
+        if (calledBack) return; // 防止超时和回调都触发
+        calledBack = true;
+        state._searchInFlight = false;
+        hideLoading();
+        console.log('[搜索v4结果] status=', status, 'info=', result && result.info, 'count=', result && result.poiList && result.poiList.pois && result.poiList.pois.length);
+        if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+            const pois = result.poiList.pois.slice(0, 15);
+            renderPoiList(pois);
+            drawPoiMarkers(pois);
+            showToast(`找到 ${pois.length} 个结果`, 'success');
+        } else {
+            const info = result && result.info ? result.info : '';
+            let msg = '该区域暂无结果';
+            if (status === 'no_data') msg = '该区域 10km 内无相关地点，试试扩大半径或换关键词';
+            else if (info) msg = '搜索失败：' + info;
+            showToast(msg, 'warning');
+            document.getElementById('poiList').innerHTML =
+                '<div class="empty-state"><p>😔 周边没找到</p><p style="font-size:12px;color:#94a3b8;margin-top:8px;">可手动拖动地图到城市区域，或在搜索框输入具体地名</p></div>';
+            clearPoiMarkers();
+        }
+        try { ps.destroy && ps.destroy(); } catch(e) {}
+    };
+
     ps.searchNearBy(
         finalKeyword,
         center,
         state.currentRadius,
         '',
-        (status, result) => {
-            state._searchInFlight = false;
-            hideLoading();
-            console.log('[搜索v3结果] status=', status, 'count=', result && result.poiList && result.poiList.pois && result.poiList.pois.length);
-            if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
-                const pois = result.poiList.pois.slice(0, 15);
-                renderPoiList(pois);
-                drawPoiMarkers(pois);
-                showToast(`找到 ${pois.length} 个结果`, 'success');
-            } else {
-                // 偏远地区/无结果时的友好提示
-                const info = result && result.info ? result.info : '';
-                let msg = '该区域暂无结果';
-                if (status === 'no_data') msg = '该区域 10km 内无相关地点，试试扩大半径或换关键词';
-                else if (info) msg = '搜索失败：' + info;
-                showToast(msg, 'warning');
-                document.getElementById('poiList').innerHTML =
-                    '<div class="empty-state"><p>😔 周边没找到</p><p style="font-size:12px;color:#94a3b8;margin-top:8px;">可手动拖动地图到城市区域，或在搜索框输入具体地名</p></div>';
-                clearPoiMarkers();
-            }
-        }
+        onResult
     );
 
-    // 超时保险
+    // 12 秒超时（高德偏远地区偶尔真会慢）
     setTimeout(() => {
-        if (state._searchInFlight) {
-            state._searchInFlight = false;
-            hideLoading();
-            showToast('搜索超时（偏远地区可能无数据），请尝试其他区域', 'warning');
+        if (!calledBack) {
+            console.warn('[搜索v4] 12 秒超时未回调');
+            onResult('timeout', null);
         }
-    }, 8000);
+    }, 12000);
 }
 
 function renderPoiList(pois) {
