@@ -6,14 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-7</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-8</title>
 
     <!-- 高德地图 JS API 2.0 -->
     <script type="text/javascript">
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-7');
+        console.log('🗺️ 川西旅行规划 v20260719-8');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -619,6 +619,16 @@
         <!-- 路线规划 Tab -->
         <div class="tab-content">
             <div class="tab-panel active" id="panel-route">
+                <!-- 一键导入线路方案 -->
+                <div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #fbbf24;">
+                    <div style="font-weight:600;color:#92400e;margin-bottom:8px;font-size:13px;">📥 一键导入预设线路</div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-primary" style="flex:1;font-size:12px;padding:8px;" onclick="importRoute('plan1')">线路一（稻城亚丁 16 天）</button>
+                        <button class="btn btn-secondary" style="flex:1;font-size:12px;padding:8px;" onclick="importRoute('plan2')">线路二（木里+泸沽湖 17 天）</button>
+                    </div>
+                    <div style="font-size:11px;color:#78350f;margin-top:6px;line-height:1.4;">导入会自动清空当前路线，并跳转到 <span style="color:#dc2626;font-weight:600;">当前激活线路的第一天</span>，点 Day 1 详情按钮查看每日景点/海拔。</div>
+                </div>
+
                 <div class="route-input">
                     <div class="input-label">📍 起点</div>
                     <input type="text" class="input" id="startInput" placeholder="搜索起点（如：成都）">
@@ -745,6 +755,72 @@ const state = {
     aiResult: null,
 };
 
+// ====== 预设线路方案（来源：川西格聂南线双方案自驾规划.md） ======
+// 每点包含: name（地标名）, lng/lat（精确坐标）, alt（海拔,米）, tag（住宿/景点/景区分类）, note（当日核心）
+// 导入后地图自动飞到当前激活线路的第一天, 点 waypoint 上的 Day 按钮查看每日详情
+const PRESET_PLANS = {
+    // 线路一: 稻城亚丁版 (16天, 3600km)
+    plan1: {
+        title: '线路一（稻城亚丁 16 天）',
+        activeDay: 3, // 默认聚焦 Day 3 亚丁长线
+        days: [
+            { d: 'D1', name: '西昌', lng: 102.2641, lat: 27.8964, alt: 1500, note: '雅砻江峡谷起点，海拔适应起点' },
+            { d: 'D2', name: '木里县城', lng: 101.2803, lat: 27.9317, alt: 2300, note: '盐源→磨盘山垭口→乔瓦镇' },
+            { d: 'D3', name: 'G227 玛娜茶金', lng: 100.6600, lat: 28.7500, alt: 4380, note: '支路上玛娜茶金观景台，平视亚丁三神山' },
+            { d: 'D4', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, note: '亚丁门户，连住2晚' },
+            { d: 'D5', name: '亚丁长线(洛绒牛场)', lng: 100.3025, lat: 28.4292, alt: 4500, note: '牛奶海 4500m / 五色海 4700m，长线徒步7-8h' },
+            { d: 'D6', name: '稻城县城', lng: 100.2985, lat: 29.0371, alt: 3700, note: '短线珍珠海→波瓦山→尊胜塔林' },
+            { d: 'D7', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, note: '海子山兴伊措→长青春科尔寺，最高住宿点' },
+            { d: 'D8', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, note: '铁匠山→格聂之心→新冷古寺' },
+            { d: 'D9', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, note: '格聂南坡冰川，正对雪山' },
+            { d: 'D10', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, note: '热梯河谷出山，海拔骤降，洗澡修整' },
+            { d: 'D11', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, note: '盖玉镇火龙沟，克莱因蓝海子(石子路SUV)' },
+            { d: 'D12', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, note: 'G215接甘白路北上' },
+            { d: 'D13', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, note: '宁玛派母寺，第二金刚座' },
+            { d: 'D14', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, note: '32万木刻经版，9-11:30/14:30-17:30(中午关)' },
+            { d: 'D15', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, note: '大圆满法修证中心，红墙金顶' },
+            { d: 'D16', name: '新路海(玉龙拉措)', lng: 99.0500, lat: 31.9000, alt: 4040, note: '雀儿山冰川融水，云杉林倒影' },
+            { d: 'D17', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, note: 'G317穿雀儿山隧道' },
+            { d: 'D18', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, note: '必须"喇荣沟进沟预约"，0点抢票，限500/日' },
+            { d: 'D19', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, note: '经壤塘，曾克寺' },
+            { d: 'D20', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, note: '自驾进入，最高观景台 4520m' },
+            { d: 'D21', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, note: '红原草原南下，卓克基官寨' },
+            { d: 'D22', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, note: '汶马+都汶+成都绕城+雅西高速返程' },
+        ],
+    },
+
+    // 线路二: 木里+泸沽湖版 (17天, 3900km)
+    plan2: {
+        title: '线路二（木里+泸沽湖 17 天）',
+        activeDay: 1, // 默认聚焦 D1 泸沽湖
+        days: [
+            { d: 'D1', name: '泸沽湖(大落水)', lng: 100.7680, lat: 27.6816, alt: 2690, note: '经盐源翻磨盘山，摩梭石板烧' },
+            { d: 'D2', name: '里格半岛', lng: 100.7430, lat: 27.6988, alt: 2690, note: '环湖60km，日出+猪槽船+走婚桥' },
+            { d: 'D3', name: '木里大寺', lng: 101.1833, lat: 28.2000, alt: 2900, note: '屋脚→瓦厂→木里大寺，泸亚线' },
+            { d: 'D4', name: '康坞大寺', lng: 101.2500, lat: 27.9833, alt: 2600, note: '依山而建，壁画精美(免费)' },
+            { d: 'D5', name: '寸冬海子', lng: 101.1500, lat: 27.8500, alt: 3500, note: '千岛漂浮草甸，下午4-6点光线最佳' },
+            { d: 'D6', name: '玛娜茶金观景台', lng: 100.6600, lat: 28.7500, alt: 4380, note: '平视亚丁三神山，日照金山' },
+            { d: 'D7', name: '香格里拉镇(日瓦)', lng: 100.3208, lat: 28.4817, alt: 2900, note: '过蒙自大峡谷，俄牙同' },
+            { d: 'D8', name: '理塘(勒通古镇)', lng: 100.2697, lat: 29.9917, alt: 4014, note: '翻波瓦山→稻城→理塘(不进亚丁景区)' },
+            { d: 'D9', name: '格聂之眼', lng: 99.9167, lat: 29.8167, alt: 4400, note: '铁匠山→格聂之心→新冷古寺' },
+            { d: 'D10', name: '则巴村', lng: 99.7500, lat: 29.5500, alt: 3800, note: '格聂南坡冰川' },
+            { d: 'D11', name: '巴塘', lng: 99.0907, lat: 30.0051, alt: 2580, note: '热梯河谷出山' },
+            { d: 'D12', name: '巴巴沟蓝松湖', lng: 99.2200, lat: 30.6500, alt: 3800, note: '盖玉镇火龙沟' },
+            { d: 'D13', name: '白玉县城', lng: 98.8253, lat: 31.2093, alt: 3050, note: 'G215接甘白路' },
+            { d: 'D14', name: '噶陀寺', lng: 98.5000, lat: 31.3500, alt: 4000, note: '宁玛派母寺' },
+            { d: 'D15', name: '德格印经院', lng: 98.5808, lat: 31.8056, alt: 3270, note: '藏区三大印经院之首' },
+            { d: 'D16', name: '竹庆寺(佐钦寺)', lng: 98.9167, lat: 32.0833, alt: 3650, note: '大圆满法修证中心' },
+            { d: 'D17', name: '新路海', lng: 99.0500, lat: 31.9000, alt: 4040, note: '雀儿山冰川融水' },
+            { d: 'D18', name: '甘孜县', lng: 99.9986, lat: 31.6207, alt: 3390, note: 'G317' },
+            { d: 'D19', name: '色达五明佛学院', lng: 100.3347, lat: 32.2706, alt: 3890, note: '喇荣沟进沟预约' },
+            { d: 'D20', name: '阿坝县', lng: 101.7058, lat: 32.9023, alt: 3290, note: '经壤塘' },
+            { d: 'D21', name: '莲宝叶则·扎尕尔措', lng: 101.4000, lat: 33.2333, alt: 4520, note: '晨9点前最佳' },
+            { d: 'D22', name: '马尔康', lng: 102.2167, lat: 31.9000, alt: 2600, note: '红原草原' },
+            { d: 'D23', name: '西昌(返)', lng: 102.2641, lat: 27.8964, alt: 1500, note: '雅西高速返程' },
+        ],
+    },
+};
+
 // ====== 初始化地图 ======
 function initMap() {
     state.map = new AMap.Map('map', {
@@ -837,15 +913,19 @@ function renderPoints() {
         if (i === state.waypoints.length - 1) cls += ' end';
 
         const label = i === 0 ? '起点' : i === state.waypoints.length - 1 ? '终点' : '途经';
+        const alt = p.alt ? `<span style="color:#0891b2;font-weight:600;">⛰ ${p.alt}m</span> · ` : '';
+        const note = p.note ? `<div style="font-size:11px;color:#64748b;margin-top:3px;line-height:1.4;">${escapeHtml(p.note)}</div>` : '';
 
         return `
             <div class="${cls}" draggable="true" data-index="${i}">
                 <div class="point-index">${i + 1}</div>
                 <div class="point-info">
                     <div class="point-name">${escapeHtml(p.name)}</div>
-                    <div class="point-coord">${label} · ${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</div>
+                    <div class="point-coord">${label} · ${alt}${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</div>
+                    ${note}
                 </div>
                 <div class="point-actions">
+                    <button class="point-action-btn" onclick="flyToWaypoint(${i})" title="飞到此点">📍</button>
                     <button class="point-action-btn" onclick="removeWaypoint(${i})" title="删除">✕</button>
                 </div>
             </div>
@@ -883,6 +963,13 @@ function attachDragHandlers() {
             saveToLocal();
         });
     });
+}
+
+// ====== 飞到指定途经点 ======
+function flyToWaypoint(i) {
+    const p = state.waypoints[i];
+    if (!p) return;
+    state.map.setZoomAndCenter(11, [p.lng, p.lat]);
 }
 
 // ====== 在地图上绘制Marker ======
@@ -986,6 +1073,67 @@ function drawRoute() {
 function addWaypoint() {
     state.clickMode = true;
     showMapTip('点击地图任意位置添加途经点');
+}
+
+// ====== 一键导入预设线路方案 ======
+function importRoute(planId) {
+    const plan = PRESET_PLANS[planId];
+    if (!plan) {
+        showToast('线路方案不存在', 'error');
+        return;
+    }
+
+    // 二次确认覆盖
+    if (state.waypoints.length > 0) {
+        if (!confirm(`当前已有 ${state.waypoints.length} 个途经点，要被【${plan.title}】覆盖吗？`)) {
+            return;
+        }
+    }
+
+    // 清空当前路线（与 clearAll 一致但显式）
+    state.waypoints = [];
+    state.startPoint = null;
+    state.endPoint = null;
+    if (state.routePath) { try { state.map.remove(state.routePath); } catch(e){} state.routePath = null; }
+    if (state.driving) { try { state.driving.clear(); } catch(e){} state.driving = null; }
+    clearMapMarkers();
+    document.getElementById('startInput').value = '';
+    document.getElementById('endInput').value = '';
+
+    // 把每天的站点加为途经点
+    plan.days.forEach(day => {
+        state.waypoints.push({
+            name: `${day.d} · ${day.name}`,
+            lng: day.lng,
+            lat: day.lat,
+            alt: day.alt,
+            note: day.note,
+        });
+    });
+
+    // 渲染地图 + 路线
+    renderPoints();
+    drawRoute();
+
+    // 保存到 localStorage
+    if (typeof saveToLocal === 'function') saveToLocal();
+
+    // 飞到"激活当天"
+    const idx = Math.min(plan.activeDay || 0, plan.days.length - 1);
+    const focus = plan.days[idx];
+    state.map.setZoomAndCenter(8, [focus.lng, focus.lat]);
+
+    // 高亮激活途经点
+    setTimeout(() => {
+        const items = document.querySelectorAll('.point-item');
+        items.forEach((el, i) => {
+            el.style.outline = (i === idx) ? '3px solid #ef4444' : '';
+            el.style.outlineOffset = (i === idx) ? '2px' : '';
+        });
+        items[idx] && items[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+
+    showToast(`✓ 已导入【${plan.title}】，${plan.days.length} 个途经点, 已飞到 D${idx+1} ${focus.name}`, 'success');
 }
 
 // ====== POI 搜索 ======
