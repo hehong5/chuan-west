@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-16</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-17</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-16');
+        console.log('🗺️ 川西旅行规划 v20260719-17');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -808,7 +808,8 @@ const state = {
 
 // ====== 预设线路方案（来源：川西格聂南线双方案自驾规划.md / V3 合并路线） ======
 // V3: 路线1 末段（稻城亚丁→格聂→新都桥→西昌）+ 路线2 木里+泸沽湖中段
-// 新都桥连住 2-3 天，其它途经点尽量贴合原数据，只精简了色达/莲宝叶则/马尔康节点
+// 新都桥连住 2-3 天，其它途经点尽量贴合原数据，精简了色达/马尔康节点
+// V17: 把莲宝叶则加回行程（位置 D16.5, 甘孜→色达→阿坝 460km 绕路支线）
 // 每点: name 地标, lng/lat 坐标, alt 海拔, tag 分类, note 简介, wiki 详情 (带 .md 原文摘录), gallery 图文摘要
 const PRESET_PLANS = {
     planV3: {
@@ -848,6 +849,9 @@ const PRESET_PLANS = {
               note: '32 万木刻经版，9-11:30/14:30-17:30(中午关)', wiki: '德格印经院始建于 1729 年，藏区三大印经院之首，32 万经版、830+ 典籍，门票 50 元。**9:00-11:30 / 14:30-17:30 中午关**。靠自然光作业、顺时针参观。冬季常免票。' },
             { d: 'D16', name: '新路海(玉龙拉措)→甘孜',    lng: 99.0500, lat: 31.9000, alt: 4040, tag: 'scenic',
               note: '雀儿山冰川融水，云杉林倒影', wiki: '新路海（玉龙拉措）雀儿山冰川融水的冰蚀湖，"康巴第一圣湖"，免费。穿雀儿山隧道后沿 G317 北上抵甘孜县（3390m）。' },
+            { d: 'D16.5', name: '莲宝叶则·石头山(阿坝县)',   lng: 101.3800, lat: 32.7500, alt: 4200, tag: 'scenic',
+              note: '甘孜→色达→阿坝县→莲宝叶则，约 460km/8h（绕路支线）', wiki: '莲宝叶则·石头山位于阿坝县西北（毗邻青海），巴颜喀拉山南段支脉，主峰 5141m。核心景观扎尕尔措（4200m）、珠姆措、措拉玛，第四纪冰川地貌"川北昆仑"。从甘孜北上经色达转阿坝约 460km/8h，**全天四驱 SUV 必备**，垭口坡度 18%。4520 观景台需提前预约入园。**门票需实名预约**，GPS 无信号须下离线图。',
+              gallery: '莲宝叶则 / 扎尕尔措 / 珠姆措 / 石头山' },
             { d: 'D17', name: '新都桥(住1·摄影天堂)',      lng: 101.3950, lat: 30.0354, alt: 3460, tag: 'town',
               note: 'G317→G215→新都桥，约 420km/7h', wiki: '新都桥海拔 3460m，"摄影天堂""光与影的世界"。金秋最惊艳。藏寨散落、溪流蜿蜒。D17-D18 连住 2 晚。' },
             { d: 'D18', name: '新都桥(住2·周边深入)',      lng: 101.4200, lat: 30.0700, alt: 3700, tag: 'scenic',
@@ -1388,11 +1392,12 @@ function openPoiDetail(i, position) {
                 <div class="d-wiki">${(dayInfo && dayInfo.wiki) ? escapeHtml(dayInfo.wiki) : escapeHtml(p.note || '该地点暂无详细介绍')}</div>
 
                 <div class="d-actions">
-                    <a class="d-btn primary big" target="_blank" href="https://baike.baidu.com/item/${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}">📖 打开百科</a>
-                    <a class="d-btn primary" target="_blank" href="https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${encodeURIComponent(p.name)}&src=mindmap&coordinate=gaode&callnative=1">🧭 高德导航</a>
-                    <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 攻略 景点介绍')}">🔍 百度攻略</a>
-                    <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}">📕 小红书</a>
-                    <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 旅游 攻略')}&tbm=isch">🖼 Google 图片</a>
+                    <a class="d-btn primary big" target="_blank" href="https://baike.baidu.com/item/${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}" rel="noopener">📖 打开百科</a>
+                    <a class="d-btn primary" target="_blank" href="https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${encodeURIComponent(p.name)}&src=mindmap&coordinate=gaode&callnative=1" rel="noopener">🧭 高德导航</a>
+                    <a class="d-btn" target="_blank" href="https://baike.baidu.com/search?word=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}" rel="noopener">🔍 百度百科搜</a>
+                    <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 攻略 景点介绍')}" rel="noopener">🔍 百度攻略</a>
+                    <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}" rel="noopener">📕 小红书</a>
+                    <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 旅游 攻略')}&tbm=isch" rel="noopener">🖼 Google 图片</a>
                 </div>
 
                 <div class="d-section">
@@ -2410,17 +2415,52 @@ async function aiOptimize() {
     switchTab('ai');
 
     try {
-        const prompt = `你是川西自驾游专家。请基于以下路线点给出专业建议：
+        const waypointText = state.waypoints.map((p, i) =>
+            `${i + 1}. ${p.name}${p.alt ? ' (海拔 ' + p.alt + 'm)' : ''}`
+        ).join('\n');
 
-路线点：${state.waypoints.map((p, i) => `${i + 1}. ${p.name} (${p.lng.toFixed(2)}, ${p.lat.toFixed(2)})`).join('\n')}
+        const prompt = `你是资深川西/川藏线自驾游规划师，擅长高原自驾生存学、地形气候分析与应急准备。
+请针对下列路线给出**详尽、专业、可执行**的攻略。
 
-请用JSON格式输出（不要其他文字）：
+【路线途经点】
+${waypointText}
+
+【输出格式: 严格 JSON, 不要任何额外文字或 markdown 代码块】
 {
-  "summary": "路线整体评价（50字内）",
-  "suggestions": ["优化建议1", "优化建议2", "优化建议3"],
-  "highAltitudeWarning": "高反预防建议（针对海拔>3500米的景点）",
-  "bestSeason": "最佳出行季节",
-  "tips": ["实用贴士1", "实用贴士2", "实用贴士3"]
+  "summary": "100 字内整体评价（涵盖强度/海拔梯度/风景类型/季节建议）",
+  "suggestions": ["5 条具体优化建议（按优先级排列，含距离/时长/分段住宿建议）"],
+  "highAltitudeWarning": "针对本路线所有 >3500m 点位的高反预防（提前准备/分段适应/药物/症状处理/海拔上限/儿童老人注意事项）",
+  "bestSeason": "最佳出行月份 + 应避开时段（如冰雪/雨季）+ 节庆提示",
+  "tips": ["6 条贴士：含装备/驾驶/通讯/现金/语言/文化禁忌"],
+  "gear": {
+    "title": "🎒 自驾必带物品清单",
+    "must": ["证件类（驾照/行驶证/身份证/边防证（如需））", "高反药物（红景天/葡萄糖/头痛药）", "..."],
+    "vehicle": ["车辆类：防滑链/拖车绳/应急启动电源/全尺寸备胎/胎压表"],
+    "camping": ["露营（如适用）：-20℃ 睡袋/防潮垫/头灯"],
+    "electronics": ["电子类：充电宝 20000mAh+/车载逆变器/对讲机/离线地图/卫星电话（远途）"],
+    "clothing": ["衣物类：冲锋衣/羽绒服（即使 7 月也备）/防水鞋/手套/墨镜/防晒帽"],
+    "food": ["补给：矿泉水 2L/人/天、巧克力/能量棒、自热饭、便携氧气罐"],
+    "medical": ["医疗：创可贴/碘伏/抗高反药/感冒药/肠胃药/云南白药喷雾"]
+  },
+  "charging": {
+    "title": "🔋 沿线充电 / 加油 攻略",
+    "stations": ["主要加油站/充电桩位置（如：新都桥/理塘/稻城/亚丁有 92#，高原充电桩主要在县城酒店）"],
+    "range": "电动 SUV 实测续航下降 30-50%（高海拔低温），建议混动/油车为主",
+    "tip": "低油量焦虑线段提示：如理塘→稻城 150km 无 95#、格聂之眼下山 80km 无人区"
+  },
+  "road": {
+    "title": "🛣 路况 / 危险路段 提醒",
+    "warning": ["危险路段：如折多山 4298m 冬季暗冰、觉巴山/东达山落石、格聂南线 60km 砂石路、雅砻江峡谷临崖"],
+    "season": "季节性路况：6-8 月雨季塌方、11-4 月垭口冰雪（链子必备）",
+    "tip": "驾驶技巧：避免夜间行车（无灯+落石+动物）、S 弯鸣笛、保持车距"
+  },
+  "accommodation": {
+    "title": "🏨 住宿攻略",
+    "strategy": "高原住宿策略：分段适应（第 1 晚 <3000m，第 2 晚 3000-3500m，第 3 晚再上 4000m）",
+    "options": "住宿形式选择：县城酒店（标间/氧气）vs 藏家民宿（体验+海拔低）vs 自驾露营（需备案）",
+    "booking": "预订节奏：旺季（5月/10月）提前 2 周；稻城/亚丁/新都桥 7-8 月几乎订满",
+    "altitudes": "各点住宿海拔提醒（如：理塘 4014m 不洗澡/亚丁村 3700m 头微痛为正常）"
+  }
 }`;
 
         // 直接调用 DeepSeek（注意：生产环境应该用后端代理）
@@ -2433,11 +2473,11 @@ async function aiOptimize() {
             body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: [
-                    { role: 'system', content: '你是资深川西自驾游规划师，输出严格JSON格式。' },
+                    { role: 'system', content: '你是资深川西自驾游规划师，输出严格JSON格式（不要markdown代码块）。内容详尽、结构化、可执行。' },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.7,
-                max_tokens: 1500,
+                max_tokens: 4000,
             }),
         });
 
@@ -2464,37 +2504,81 @@ async function aiOptimize() {
     } catch (err) {
         hideLoading();
         showToast('AI 请求失败：' + err.message, 'error');
-        renderAiText('⚠️ AI 服务暂时不可用。\n\n基础建议：\n1. 川西自驾建议避开雨季（7-8月）\n2. 海拔>3500米注意高反\n3. 提前加油，部分路段加油站稀少');
+        renderAiText('⚠️ AI 服务暂时不可用 (网络/API 限流)，以下是预设基础攻略:\n\n【路线强度】川西自驾全程约 4000+ km，建议 20-25 天节奏。\n\n【必带】身份证/驾照/行驶证、高反药(红景天提前 7 天)、防滑链(11-4 月)、冲锋衣、充电宝 20000mAh+。\n\n【加油】稻城/理塘/新都桥 95# 油充足; 格聂之眼/格聂南线 60km 无人区需满油进; 莲宝叶则需在阿坝县城补满。\n\n【路况】雨季(7-8 月)塌方多、冬季垭口暗冰、折多山/觉巴山/雀儿山落石路段鸣笛通过、避免夜间行车。\n\n【住宿】分段适应(第 1 晚<3000m, 第 2 晚 3000-3500m, 第 3 晚再上 4000m); 理塘 4014m 当晚不洗澡不饮酒。\n\n【充电】高原电动 SUV 实测续航 -40%, 推荐混动; 充电桩主要在县城酒店。');
     }
 }
 
 function renderAiResult(r) {
     const c = document.getElementById('aiContent');
+
+    // 辅助函数: 数组 → ul 列表
+    const ul = (arr) => Array.isArray(arr) && arr.length
+        ? `<ul>${arr.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : '';
+
+    // 辅助函数: 章节卡片
+    const section = (title, html) => html
+        ? `<div class="ai-result"><h4>${title}</h4>${html}</div>` : '';
+
+    // gear 章节的特殊渲染（分组）
+    let gearHtml = '';
+    if (r.gear && typeof r.gear === 'object') {
+        const groups = [
+            { k: 'must',        label: '🔴 必带 (证件/药品)' },
+            { k: 'vehicle',     label: '🚙 车辆装备' },
+            { k: 'electronics', label: '🔌 电子设备' },
+            { k: 'clothing',    label: '🧥 衣物类' },
+            { k: 'food',        label: '🍞 食品补给' },
+            { k: 'medical',     label: '💊 医疗用品' },
+            { k: 'camping',     label: '⛺ 露营 (可选)' },
+        ];
+        const inner = groups
+            .filter(g => Array.isArray(r.gear[g.k]) && r.gear[g.k].length)
+            .map(g => `<div style="margin-top:8px;"><strong style="color:#0ea5e9;">${g.label}</strong>${ul(r.gear[g.k])}</div>`)
+            .join('');
+        gearHtml = inner;
+    }
+
+    // 充电 渲染
+    let chargingHtml = '';
+    if (r.charging && typeof r.charging === 'object') {
+        chargingHtml =
+            (r.charging.range ? `<p><strong>⚡ 续航实测:</strong> ${escapeHtml(r.charging.range)}</p>` : '') +
+            (r.charging.stations ? `<p><strong>🛢 加油/充电点:</strong></p>${ul(r.charging.stations)}` : '') +
+            (r.charging.tip ? `<p><strong>⚠️ 低油量焦虑线段:</strong> ${escapeHtml(r.charging.tip)}</p>` : '');
+    }
+
+    // 路况
+    let roadHtml = '';
+    if (r.road && typeof r.road === 'object') {
+        roadHtml =
+            ul(r.road.warning) +
+            (r.road.season ? `<p><strong>🌧 季节性:</strong> ${escapeHtml(r.road.season)}</p>` : '') +
+            (r.road.tip ? `<p><strong>🚗 驾驶技巧:</strong> ${escapeHtml(r.road.tip)}</p>` : '');
+    }
+
+    // 住宿
+    let accomHtml = '';
+    if (r.accommodation && typeof r.accommodation === 'object') {
+        accomHtml =
+            (r.accommodation.strategy ? `<p><strong>📊 策略:</strong> ${escapeHtml(r.accommodation.strategy)}</p>` : '') +
+            (r.accommodation.options ? `<p><strong>🏨 形式选择:</strong> ${escapeHtml(r.accommodation.options)}</p>` : '') +
+            (r.accommodation.booking ? `<p><strong>📅 预订:</strong> ${escapeHtml(r.accommodation.booking)}</p>` : '') +
+            (r.accommodation.altitudes ? `<p><strong>⛰ 海拔注意:</strong> ${escapeHtml(r.accommodation.altitudes)}</p>` : '');
+    }
+
     c.innerHTML = `
         <div class="ai-result">
-            <h4>📊 路线评价</h4>
+            <h4>📊 路线整体评价</h4>
             <p>${escapeHtml(r.summary || '')}</p>
         </div>
-        ${r.suggestions ? `
-        <div class="ai-result">
-            <h4>💡 优化建议</h4>
-            <ul>${r.suggestions.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
-        </div>` : ''}
-        ${r.highAltitudeWarning ? `
-        <div class="ai-result">
-            <h4>⚠️ 高反预防</h4>
-            <p>${escapeHtml(r.highAltitudeWarning)}</p>
-        </div>` : ''}
-        ${r.bestSeason ? `
-        <div class="ai-result">
-            <h4>🌸 最佳季节</h4>
-            <p>${escapeHtml(r.bestSeason)}</p>
-        </div>` : ''}
-        ${r.tips ? `
-        <div class="ai-result">
-            <h4>🎒 实用贴士</h4>
-            <ul>${r.tips.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
-        </div>` : ''}
+        ${section('💡 优化建议 (按优先级)', ul(r.suggestions))}
+        ${section('⚠️ 高反预防', `<p>${escapeHtml(r.highAltitudeWarning || '')}</p>`)}
+        ${section('🌸 最佳出行季节', `<p>${escapeHtml(r.bestSeason || '')}</p>`)}
+        ${section('🎒 实用贴士', ul(r.tips))}
+        ${section(r.gear?.title || '🎒 自驾必带物品清单', gearHtml)}
+        ${section(r.charging?.title || '🔋 充电/加油攻略', chargingHtml)}
+        ${section(r.road?.title || '🛣 路况/危险路段提醒', roadHtml)}
+        ${section(r.accommodation?.title || '🏨 住宿攻略', accomHtml)}
     `;
 }
 
