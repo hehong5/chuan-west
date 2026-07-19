@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.3</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.4</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-21.3');
+        console.log('🗺️ 川西旅行规划 v20260719-21.4');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -272,6 +272,14 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            outline: 1px dashed transparent;
+            border-radius: 3px;
+            padding: 0 3px;
+            transition: outline 0.15s;
+        }
+        .point-name:hover, .point-name:focus {
+            outline-color: #c4b5fd;
+            background: #faf5ff;
         }
         .point-coord {
             font-size: 11px;
@@ -972,20 +980,20 @@
 <!-- V21: 新手引导遮罩 -->
 <div id="onboardOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;transition:opacity 0.3s;">
     <div id="onboardSpot" style="position:absolute;border:3px solid #8b5cf6;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.55),0 0 30px rgba(139,92,246,0.6);transition:all 0.4s cubic-bezier(0.4,0,0.2,1);pointer-events:none;"></div>
-    <div id="onboardBubble" style="position:absolute;background:white;border-radius:14px;padding:20px 22px;max-width:320px;box-shadow:0 10px 40px rgba(0,0,0,0.3);transition:all 0.4s cubic-bezier(0.4,0,0.2,1);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <div id="onboardBubble" style="position:fixed;background:white;border-radius:14px;padding:18px 20px;width:min(360px,calc(100vw - 32px));box-shadow:0 10px 40px rgba(0,0,0,0.4);z-index:10000;left:50%;transform:translateX(-50%);bottom:24px;max-height:calc(100vh - 48px);overflow:visible;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <span id="onboardStep" style="font-size:12px;color:#8b5cf6;font-weight:600;letter-spacing:1px;">第 1/4 步</span>
             <button onclick="finishOnboard(true)" style="border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px;padding:0;">跳过 ✕</button>
         </div>
-        <div id="onboardIcon" style="font-size:32px;margin-bottom:8px;">🗺</div>
+        <div id="onboardIcon" style="font-size:32px;margin-bottom:6px;">🗺</div>
         <h3 id="onboardTitle" style="margin:0 0 6px 0;font-size:17px;color:#1e293b;">认识 4 个标签</h3>
         <p id="onboardBody" style="margin:0;font-size:13px;color:#475569;line-height:1.7;">🗺 路线规划（起点终点） / 📍 周边探索（POI 搜索） / 🤖 AI 建议 / 🎒 装备清单</p>
-        <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;align-items:center;">
+        <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;align-items:center;">
             <div id="onboardDots" style="display:flex;gap:5px;flex:1;">
                 <span class="onboard-dot active"></span><span class="onboard-dot"></span><span class="onboard-dot"></span><span class="onboard-dot"></span>
             </div>
-            <button onclick="prevOnboard()" id="onboardPrevBtn" style="border:none;background:#f1f5f9;color:#475569;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">← 上一步</button>
-            <button onclick="nextOnboard()" id="onboardNextBtn" style="border:0;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;">下一步 →</button>
+            <button onclick="prevOnboard()" id="onboardPrevBtn" style="border:none;background:#f1f5f9;color:#475569;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;">← 上一步</button>
+            <button onclick="nextOnboard()" id="onboardNextBtn" style="border:0;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;pointer-events:auto;">下一步 →</button>
         </div>
     </div>
 </div>
@@ -1192,6 +1200,37 @@ function removeWaypoint(index) {
     saveToLocal();
 }
 
+// ====== V21.4: 左侧直接编辑途径点名字/海拔 ======
+function saveWaypointEdit(index, newName) {
+    const p = state.waypoints[index];
+    if (!p) return;
+    const trimmed = newName.replace(/\s+/g, ' ').trim();
+    if (!trimmed) { renderPoints(); return; }   // 空名重渲染 (放弃改动)
+    if (trimmed === p.name) return;
+    p.name = trimmed;
+    renderPoints();      // 重渲染让 marker 名字更新
+    drawRoute();
+    saveToLocal();
+    _triggerAutoSync();
+    showToast(`✓ 已改名为 "${trimmed}"`, 'success');
+}
+function saveAltEdit(index, newAlt) {
+    const p = state.waypoints[index];
+    if (!p) return;
+    const trimmed = newAlt.replace(/[^\d.]/g, '');  // 只允许数字和小数点
+    if (trimmed === '' || trimmed === '.') {
+        delete p.alt;
+    } else {
+        const num = parseFloat(trimmed);
+        if (isNaN(num) || num < 0 || num > 9000) { renderPoints(); return; }
+        p.alt = Math.round(num);
+    }
+    renderPoints();
+    drawRoute();
+    saveToLocal();
+    _triggerAutoSync();
+}
+
 // ====== 移动途经点 (V18: 上下移按钮) ======
 // dir: -1 = 上移, +1 = 下移
 function moveWaypoint(index, dir) {
@@ -1272,18 +1311,28 @@ function renderPoints() {
                </span>`;
 
         return `
-            <div class="${cls}" data-index="${i}" onclick="openAndFlyTo(${i})" title="点击：跳到地图 + 查看详情">
+            <div class="${cls}" data-index="${i}" title="✏️ 点击名称直接改名/改海拔">
                 <div class="point-index">${i + 1}</div>
-                <div class="point-info">
-                    <div class="point-name">${escapeHtml(p.name)}</div>
-                    <div class="point-coord">${label}${p.alt ? ` · ⛰ ${p.alt}m` : ''}</div>
+                <div class="point-info" onclick="openAndFlyTo(${i})" style="cursor:pointer;flex:1;">
+                    <div class="point-name" contenteditable="true"
+                        onmousedown="event.stopPropagation();"
+                        onclick="event.stopPropagation();"
+                        onblur="saveWaypointEdit(${i}, this.innerText.trim())"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+                        title="点击直接改名 (按 Enter 保存)">${escapeHtml(p.name)}</div>
+                    <div class="point-coord">${label} · <span contenteditable="true"
+                        onmousedown="event.stopPropagation();"
+                        onclick="event.stopPropagation();"
+                        onblur="saveAltEdit(${i}, this.innerText.trim())"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+                        title="点击改海拔数字 (按 Enter 保存)" style="display:inline-block;min-width:50px;outline:1px dashed transparent;border-radius:3px;padding:0 2px;">${p.alt || ''}</span>${p.alt ? 'm' : '⛰ 待填'}</div>
                 </div>
                 ${stayControl}
                 <div class="point-actions">
                     ${showDrag ? `<button class="point-action-btn" onclick="event.stopPropagation(); moveWaypoint(${i}, -1)" title="上移一位">▲</button>` : ''}
                     ${showDrag ? `<button class="point-action-btn" onclick="event.stopPropagation(); moveWaypoint(${i}, 1)" title="下移一位">▼</button>` : ''}
                     ${showDrag ? `<button class="point-action-btn drag-handle" data-index="${i}" title="长按 0.25 秒拖动排序">⋮⋮</button>` : ''}
-                    <button class="point-action-btn" onclick="event.stopPropagation(); flyToWaypoint(${i});" title="飞到此点">📍</button>
+                    <button class="point-action-btn" onclick="event.stopPropagation(); openAndFlyTo(${i});" title="在地图上查看 + 搜周边">📍</button>
                     <button class="point-action-btn" onclick="event.stopPropagation(); removeWaypoint(${i});" title="删除">✕</button>
                 </div>
             </div>
@@ -3937,51 +3986,7 @@ function renderOnboard() {
         spot.style.width = '200px'; spot.style.height = '100px';
     }
 
-    // 2. 气泡定位 (V21.1: 智能选边 + 视口夹紧)
-    const margin = 12;
-    const bubbleW = Math.min(320, window.innerWidth - margin * 2);
-    const bubbleH = 180;  // 估算高度
-    if (target) {
-        const r = target.getBoundingClientRect();
-        const cx = r.left + r.width / 2;
-        const cy = r.top + r.height / 2;
-        const rightSpace = window.innerWidth - r.right;
-        const leftSpace = r.left;
-        const bottomSpace = window.innerHeight - r.bottom;
-        const topSpace = r.top;
-        bubble.style.transform = '';
-
-        let bx, by;
-        // 决策: 右 > 左 > 下 > 上
-        if (rightSpace >= bubbleW + margin) {
-            bx = r.right + margin; by = cy - bubbleH / 2;
-        } else if (leftSpace >= bubbleW + margin) {
-            bx = r.left - bubbleW - margin; by = cy - bubbleH / 2;
-        } else if (bottomSpace >= bubbleH + margin) {
-            bx = Math.max(margin, Math.min(window.innerWidth - bubbleW - margin, cx - bubbleW / 2));
-            by = r.bottom + margin;
-        } else if (topSpace >= bubbleH + margin) {
-            bx = Math.max(margin, Math.min(window.innerWidth - bubbleW - margin, cx - bubbleW / 2));
-            by = r.top - bubbleH - margin;
-        } else {
-            // 兜底: 屏幕底部居中
-            bx = (window.innerWidth - bubbleW) / 2;
-            by = window.innerHeight - bubbleH - margin;
-        }
-        // 视口夹紧
-        bx = Math.max(margin, Math.min(window.innerWidth - bubbleW - margin, bx));
-        by = Math.max(margin, Math.min(window.innerHeight - bubbleH - margin, by));
-
-        bubble.style.left = bx + 'px';
-        bubble.style.top = by + 'px';
-        bubble.style.maxWidth = bubbleW + 'px';
-    } else {
-        bubble.style.left = '50%';
-        bubble.style.top = '50%';
-        bubble.style.transform = 'translate(-50%,-50%)';
-        bubble.style.maxWidth = bubbleW + 'px';
-    }
-
+    // 2. 气泡始终在屏幕底部居中 (CSS 已固定)
     // 3. 文本
     document.getElementById('onboardStep').textContent = `第 ${onboardStep + 1}/${onboardSteps.length} 步`;
     document.getElementById('onboardIcon').textContent = step.icon;
@@ -3992,6 +3997,20 @@ function renderOnboard() {
     });
     document.getElementById('onboardPrevBtn').style.visibility = onboardStep === 0 ? 'hidden' : 'visible';
     document.getElementById('onboardNextBtn').textContent = onboardStep === onboardSteps.length - 1 ? '✓ 完成' : '下一步 →';
+    // V21.4: 重新算气泡高度 (高亮定位的回调之后)
+    setTimeout(resizeOnboardBubble, 100);
+}
+
+function resizeOnboardBubble() {
+    const bubble = document.getElementById('onboardBubble');
+    if (!bubble) return;
+    const rect = bubble.getBoundingClientRect();
+    // 如果 bottom 触底, 自动往上挪
+    const overflowBottom = rect.bottom > window.innerHeight - 8;
+    if (overflowBottom) {
+        bubble.style.bottom = 'auto';
+        bubble.style.top = Math.max(8, window.innerHeight - rect.height - 24) + 'px';
+    }
 }
 
 function nextOnboard() {
