@@ -1003,18 +1003,13 @@ function setRadius(r) {
 
 function searchPoi() {
     const keyword = document.getElementById('searchKeyword').value.trim();
-    const typeMap = {
-        scenic: '风景名胜|旅游景点',
-        food: '餐饮服务',
-        hotel: '酒店宾馆',
-    };
 
     // 防抖：取消上一次未完成的请求
     if (state._searchTimer) {
         clearTimeout(state._searchTimer);
     }
     state._searchTimer = setTimeout(() => {
-        doSearch(keyword, typeMap[state.currentSearchType] || '');
+        doSearch(keyword, '');
     }, 300);
 }
 
@@ -1023,17 +1018,30 @@ function doSearch(keyword, type) {
     const center = state._locCenter ||
                    [state.map.getCenter().lng, state.map.getCenter().lat];
 
-    // 调试输出
-    console.log('[搜索] center=', center, 'radius=', state.currentRadius, 'type=', type, 'keyword=', keyword);
+    // 高德 V2.0 不支持复合 type 查询（如 "风景名胜|旅游景点"），
+    // 会导致回调永不触发！改用关键词组合搜索
+    const scenicKeywords = '风景名胜 旅游景点 景区 景点';
+    const foodKeywords = '餐厅 饭店 美食 餐饮';
+    const hotelKeywords = '酒店 宾馆 客栈 民宿';
 
-    // 如果已有正在进行的搜索，先取消
+    let finalKeyword = keyword;
+    if (state.currentSearchType === 'scenic') {
+        finalKeyword = keyword ? (keyword + ' ' + scenicKeywords) : scenicKeywords;
+    } else if (state.currentSearchType === 'food') {
+        finalKeyword = keyword ? (keyword + ' ' + foodKeywords) : foodKeywords;
+    } else if (state.currentSearchType === 'hotel') {
+        finalKeyword = keyword ? (keyword + ' ' + hotelKeywords) : hotelKeywords;
+    }
+
+    console.log('[搜索] center=', center, 'radius=', state.currentRadius, 'type=', type, 'keyword=', finalKeyword);
+
+    // 取消上一次
     if (state._searchAbort && state._searchAbort.abort) {
         try { state._searchAbort.abort(); } catch(e) {}
     }
 
     showLoading('搜索中...');
 
-    // 使用新实例，而非复用（避免请求堵塞）
     const ps = new AMap.PlaceSearch({
         pageSize: 15,
         autoFitView: false,
@@ -1041,30 +1049,29 @@ function doSearch(keyword, type) {
     state._searchAbort = ps;
 
     ps.searchNearBy(
-        keyword || '',
+        finalKeyword,
         center,
         state.currentRadius,
-        type || '',
+        '', // 留空，只靠关键词匹配
         (status, result) => {
             hideLoading();
-            console.log('[搜索结果] status=', status, 'info=', result && result.info);
+            console.log('[搜索结果] status=', status, 'info=', result && result.info, 'count=', result && result.poiList && result.poiList.pois && result.poiList.pois.length);
             if (status === 'complete' && result && result.poiList && result.poiList.pois) {
                 const pois = result.poiList.pois.slice(0, 15);
                 renderPoiList(pois);
                 drawPoiMarkers(pois);
-                showToast(`找到 ${pois.length} 个结果${result.poiList.pois.length > 15 ? '（仅显示前15个）' : ''}`, 'success');
+                showToast(`找到 ${pois.length} 个结果`, 'success');
             } else {
                 showToast('未找到结果：' + (result && result.info ? result.info : status), 'warning');
                 document.getElementById('poiList').innerHTML = '';
                 clearPoiMarkers();
             }
-            // 销毁实例，释放资源
             try { ps.destroy && ps.destroy(); } catch(e) {}
             state._searchAbort = null;
         }
     );
 
-    // 超时保险（高德 V2.0 在某些情况下回调不触发）
+    // 超时保险
     setTimeout(() => {
         if (state._searchAbort === ps) {
             hideLoading();
