@@ -4414,12 +4414,39 @@ function loadFromLocal() {
     try {
         const data = JSON.parse(localStorage.getItem('travelmind_route') || '{}');
         if (data.waypoints && data.waypoints.length > 0) {
+            // V22.10.2: 为旧数据补充 note/wiki 字段
+            data.waypoints = data.waypoints.map(wp => _enrichWaypoint(wp));
             state.waypoints = data.waypoints;
             renderPoints();
             drawRoute();
             showToast('已恢复上次路线', 'success');
         }
     } catch (e) {}
+}
+
+// V22.10.2: 从预设路线中查找匹配地点，补充 note/wiki/alt 字段
+function _enrichWaypoint(wp) {
+    if (wp.note && wp.wiki && wp.alt) return wp; // 已有完整数据
+
+    // 提取纯名称（去掉 D1 · 前缀）
+    const cleanName = wp.name.replace(/^D\d+\s*·\s*/, '').trim();
+
+    // 在所有预设方案中查找匹配
+    for (const planId in PRESET_PLANS) {
+        const plan = PRESET_PLANS[planId];
+        for (const day of plan.days) {
+            if (day.name === cleanName || cleanName.includes(day.name) || day.name.includes(cleanName)) {
+                return {
+                    ...wp,
+                    alt: wp.alt || day.alt,
+                    tag: wp.tag || day.tag,
+                    note: wp.note || day.note,
+                    wiki: wp.wiki || day.wiki,
+                };
+            }
+        }
+    }
+    return wp;
 }
 
 // ====== V19: 我的路线 - 多路线保存/加载/删除 ======
@@ -4987,6 +5014,8 @@ function _cloudGetAllData() {
 function _cloudApplyData(data) {
     if (!data) return false;
     if (data.currentRoute && data.currentRoute.waypoints) {
+        // V22.10.2: 为旧数据补充 note/wiki/alt 字段
+        data.currentRoute.waypoints = data.currentRoute.waypoints.map(wp => _enrichWaypoint(wp));
         localStorage.setItem('travelmind_route', JSON.stringify(data.currentRoute));
         state.waypoints = data.currentRoute.waypoints;
         renderPoints();
