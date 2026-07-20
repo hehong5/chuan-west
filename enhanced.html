@@ -154,7 +154,7 @@
 
         /* ===== 左侧面板 ===== */
         .sidebar {
-            width: 420px;
+            width: 450px;
             background: white;
             border-right: 1px solid var(--border);
             display: flex;
@@ -265,13 +265,12 @@
         .point-item.start .point-index { background: var(--success); }
         .point-item.end .point-index { background: var(--danger); }
 
-        .point-info { flex: 1; min-width: 0; }
+        .point-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .point-name {
             font-size: 14px;
             font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            word-break: break-word;
+            line-height: 1.3;
             outline: 1px dashed transparent;
             border-radius: 3px;
             padding: 0 3px;
@@ -693,11 +692,18 @@
             font-weight: 600;
             box-shadow: 0 1px 4px rgba(0,0,0,0.15);
             white-space: nowrap;
-            max-width: 160px;
+            max-width: 240px;
             overflow: hidden;
             text-overflow: ellipsis;
             cursor: pointer;
             pointer-events: auto;
+            position: relative;
+            z-index: 100;
+        }
+        .marker-name-label:hover {
+            background: #f0f9ff;
+            border-color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.25);
         }
         .marker-name-label.start { color: #047857; border-color: #6ee7b7; background: #ecfdf5; }
         .marker-name-label.end   { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
@@ -1514,7 +1520,7 @@ function drawMarkers() {
         if (isStart) labelContent.classList.add('start');
         else if (isEnd) labelContent.classList.add('end');
         // 截断过长的名称
-        labelContent.textContent = (p.name || `途经点 ${i + 1}`).slice(0, 14);
+        labelContent.textContent = (p.name || `途经点 ${i + 1}`).slice(0, 20);
         labelContent.title = p.name || `途经点 ${i + 1}`; // 鼠标悬停看完整名
         // 点击名称标签 = 直接打开详情
         labelContent.onclick = (e) => {
@@ -1892,6 +1898,10 @@ async function generateItineraryWithAI(i) {
     const altitude = p.alt || '未知';
     const coords = `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
 
+    // 获取前后途经点信息用于时间规划
+    const prevPoint = i > 0 ? state.waypoints[i - 1] : null;
+    const nextPoint = i < state.waypoints.length - 1 ? state.waypoints[i + 1] : null;
+
     // 显示加载状态
     statusEl.style.display = 'block';
     btn.disabled = true;
@@ -1904,20 +1914,24 @@ async function generateItineraryWithAI(i) {
 - 名称：${placeName}
 - 海拔：${altitude}m
 - 坐标：${coords}
+${prevPoint ? `- 上一站：${prevPoint.name}` : '- 起点站'}
+${nextPoint ? `- 下一站：${nextPoint.name}` : '- 终点站'}
+- 途经点序号：第 ${i + 1} 站，共 ${state.waypoints.length} 站
 
 请生成以下内容（用纯文本格式，不要JSON）：
-1. 最佳游玩时间（季节、时段）
-2. 推荐游玩时长
-3. 主要景点和游览顺序
-4. 拍照打卡点推荐
-5. 高原反应注意事项
-6. 餐饮和住宿建议
-7. 交通出行建议（自驾/包车）
-8. 门票和费用信息
-9. 周边可串联的景点
-10. 实用小贴士
+1. 【时间规划】根据整体路线安排，建议几点到达该地、游玩多久、几点离开前往下一站
+2. 最佳游玩时间（季节、时段）
+3. 推荐游玩时长
+4. 主要景点和游览顺序（含具体时间安排）
+5. 拍照打卡点推荐
+6. 高原反应注意事项
+7. 餐饮和住宿建议
+8. 交通出行建议（自驾/包车）
+9. 门票和费用信息
+10. 周边可串联的景点
+11. 实用小贴士
 
-请用简洁有条理的方式输出，适合自驾旅行者参考。`;
+⚠️ 重要：请在【时间规划】部分，结合整条路线的节奏，给出明确的到达时间和离开时间建议。`;
 
     try {
         const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -4298,6 +4312,11 @@ window.addEventListener('load', () => {
     initSavedRoutes();
     initGear();
     showHelpFab();  // V21: 帮助按钮永久显示
+
+    // V22.2: 每 5 秒自动保存到 localStorage
+    setInterval(() => {
+        if (typeof saveToLocal === 'function') saveToLocal();
+    }, 5000);
 
     // V21: 第一次自动启动引导(等 renderPoints 后才能找到 #statsBar)
     if (!localStorage.getItem(ONBOARD_KEY)) {
