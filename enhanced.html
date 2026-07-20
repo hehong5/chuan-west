@@ -4569,6 +4569,8 @@ function loadSavedRoute(id) {
     if (!confirm(`加载【${r.name}】？\n当前路线会被覆盖（${state.waypoints.length} 个点）。`)) return;
 
     state.waypoints = JSON.parse(JSON.stringify(r.waypoints));
+    // V22.10.4: 加载已保存路线时重新编号 D 编号
+    renumberDays();
     renderPoints();
     drawRoute();
     saveToLocal();
@@ -5085,12 +5087,24 @@ function _cloudApplyData(data) {
     if (data.currentRoute && data.currentRoute.waypoints) {
         // V22.10.2: 为旧数据补充 note/wiki/alt 字段
         data.currentRoute.waypoints = data.currentRoute.waypoints.map(wp => _enrichWaypoint(wp));
-        localStorage.setItem('travelmind_route', JSON.stringify(data.currentRoute));
+        // V22.10.4: 重新编号 D 编号（兼容旧版本保存的路线）
         state.waypoints = data.currentRoute.waypoints;
+        renumberDays();
+        data.currentRoute.waypoints = state.waypoints;
+        localStorage.setItem('travelmind_route', JSON.stringify(data.currentRoute));
         renderPoints();
         drawRoute();
     }
     if (Array.isArray(data.savedRoutes)) {
+        // V22.10.4: 保存路线里的 waypoints 也重新编号
+        data.savedRoutes = data.savedRoutes.map(route => {
+            if (route.waypoints) {
+                state.waypoints = route.waypoints.map(wp => _enrichWaypoint(wp));
+                renumberDays();
+                route.waypoints = [...state.waypoints];
+            }
+            return route;
+        });
         localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(data.savedRoutes));
         renderSavedRoutes();
     }
