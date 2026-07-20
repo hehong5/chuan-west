@@ -1552,12 +1552,16 @@ function renderPoints() {
                 <button onclick="event.stopPropagation();adjustStay(${i}, 1)" style="border:none;background:transparent;color:#16a34a;cursor:pointer;font-weight:700;padding:0 2px;" title="加 1 天">+</button>
                </span>`;
 
+        // 提取简介：优先用 note，其次用 wiki 前50字
+        const noteText = p.note || (p.wiki ? p.wiki.slice(0, 50) : '');
+        const noteDisplay = noteText ? escapeHtml(noteText.slice(0, 25)) + (noteText.length > 25 ? '...' : '') : '';
+
         return `
             <div class="${cls}" data-index="${i}">
                 <div class="point-index">${i + 1}</div>
                 <div class="point-info" onclick="openAndFlyTo(${i})" style="cursor:pointer;flex:1;" title="点击打开详情 → 在弹窗里改名/改海拔">
                     <div class="point-name">${escapeHtml(p.name)}</div>
-                    <div class="point-coord">${p.alt ? escapeHtml(String(p.alt)) + 'm · ' : ''}${p.note ? escapeHtml(p.note.slice(0, 20)) + (p.note.length > 20 ? '...' : '') : '⛰ 待填海拔'}</div>
+                    <div class="point-coord">${p.alt ? escapeHtml(String(p.alt)) + 'm' : '⛰ 待填'}${noteDisplay ? ' · ' + noteDisplay : ''}</div>
                 </div>
                 ${stayControl}
                 <div class="point-actions">
@@ -4387,8 +4391,19 @@ function escapeHtml(s) {
 
 function saveToLocal() {
     try {
+        // 保存完整数据，包含所有字段
         localStorage.setItem('travelmind_route', JSON.stringify({
-            waypoints: state.waypoints,
+            waypoints: state.waypoints.map(wp => ({
+                name: wp.name,
+                lng: wp.lng,
+                lat: wp.lat,
+                alt: wp.alt,
+                tag: wp.tag,
+                note: wp.note,
+                wiki: wp.wiki,
+                stayDays: wp.stayDays,
+                itinerary: wp.itinerary,
+            })),
             timestamp: Date.now(),
         }));
     } catch (e) {}
