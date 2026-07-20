@@ -3242,9 +3242,9 @@ function _fitToRouteOrMarkers() {
     }
 }
 
-// ====== V22.9: 搜索框自动补全 ======
+// ====== V22.9.1: 搜索框自动补全 ======
 let _viaSuggestTimer = null;
-let _viaSuggestAC = null;
+let _viaSuggestPS = null;
 
 function handleViaInput(value) {
     if (_viaSuggestTimer) clearTimeout(_viaSuggestTimer);
@@ -3263,19 +3263,19 @@ function handleViaFocus() {
 }
 
 async function searchViaSuggestions(keyword) {
-    if (!_viaSuggestAC) {
-        _viaSuggestAC = new AMap.AutoComplete({ city: '全国', datatype: 'all' });
+    if (!_viaSuggestPS) {
+        _viaSuggestPS = new AMap.PlaceSearch({ pageSize: 8, autoFitView: false });
     }
-    _viaSuggestAC.search(keyword, (status, result) => {
+    _viaSuggestPS.search(keyword, (status, result) => {
         const container = document.getElementById('viaSuggestions');
         if (!container) return;
         
-        if (status === 'complete' && result && result.tips && result.tips.length > 0) {
-            const tips = result.tips.slice(0, 8);
-            container.innerHTML = tips.map(tip => `
-                <div class="sug-item" onclick="selectViaSuggestion('${escapeHtml(tip.name)}', ${tip.location ? `'${tip.location.lng},${tip.location.lat}'` : 'null'})">
-                    <div class="sug-name">${escapeHtml(tip.name)}</div>
-                    ${tip.address ? `<div class="sug-address">${escapeHtml(tip.address)}</div>` : ''}
+        if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+            const pois = result.poiList.pois.slice(0, 8);
+            container.innerHTML = pois.map(poi => `
+                <div class="sug-item" onclick="selectViaSuggestion('${escapeHtml(poi.name)}', ${poi.location ? `'${poi.location.lng},${poi.location.lat}'` : 'null'}, '${escapeHtml(poi.address || '')}')">
+                    <div class="sug-name">${escapeHtml(poi.name)}</div>
+                    <div class="sug-address">${escapeHtml(poi.address || poi.pname || '')}</div>
                 </div>
             `).join('');
             container.style.display = 'block';
@@ -3285,16 +3285,14 @@ async function searchViaSuggestions(keyword) {
     });
 }
 
-function selectViaSuggestion(name, location) {
+function selectViaSuggestion(name, location, address) {
     const input = document.getElementById('viaInput');
     if (input) {
         input.value = name;
-        // 存储坐标到 input 的 data 属性
         input.dataset.selLng = location ? location.split(',')[0] : '';
         input.dataset.selLat = location ? location.split(',')[1] : '';
     }
     hideViaSuggestions();
-    // 直接执行添加
     addViaSearch();
 }
 
@@ -3304,6 +3302,7 @@ function hideViaSuggestions() {
 }
 
 function escapeHtml(str) {
+    if (!str) return '';
     return str.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
