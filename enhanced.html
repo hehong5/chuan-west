@@ -1020,15 +1020,19 @@ Day3: 理塘 → 格聂之眼 → 巴塘
         </div>
 
         <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6;">
-            💡 <b>V22.1 团队码方案</b>：每个设备分配一个 <b>4 位数字</b>，相同码 = 同一房间。<br>
-            🔄 开启"☁️ 云端同步"后，数据自动同步到云端，队友无需手动导入/导出。
+            💡 <b>V22.9.2 云端同步流程</b>：<br>
+            1️⃣ 设备A：开启「☁️ 云端同步」→ 点击「💾 上传」<br>
+            2️⃣ 把 4 位团队码发给队友<br>
+            3️⃣ 设备B：输入相同团队码 → 开启「☁️ 云端同步」→ 点击「⬇️ 下载」
         </div>
 
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:11px;color:#475569;margin-bottom:14px;line-height:1.6;">
             <b>📌 本机的 4 位团队码：</b>
             <code id="cloudDbUid" style="font-family:monospace;color:#1e40af;background:white;padding:2px 6px;border-radius:4px;font-size:11px;"></code>
             <button onclick="navigator.clipboard.writeText(localStorage.getItem(DB_KEY_USERID)||'');showToast('团队码已复制', 'success')" style="margin-left:6px;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">📋 复制</button>
-            <div style="margin-top:6px;color:#94a3b8;">队友打开页面后, 也输入这 4 位数字即可加入同一房间</div>
+            <div style="margin-top:6px;color:#94a3b8;">
+                💡 <b>换设备同步</b>：新设备输入此码 → 开启「☁️ 云端同步」→ 点击「⬇️ 下载」即可
+            </div>
         </div>
 
         <div id="cloudStatus" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px;background:#f8fafc;border-radius:6px;min-height:20px;"></div>
@@ -1948,7 +1952,7 @@ function openPoiDetail(i, position) {
             </style>
             <div class="d-head">
                 <button class="d-close" onclick="closePoiDetail()" title="关闭">×</button>
-                <div style="font-size:11px;opacity:.85;letter-spacing:1px;">${dayInfo ? escapeHtml(dayInfo.d) : ''} · 海拔 ${p.alt || '—'}m</div>
+                <div style="font-size:11px;opacity:.85;letter-spacing:1px;">${dayInfo ? escapeHtml(dayInfo.d) : ''} · 海拔 ${p.alt ? p.alt + 'm' : '—'}</div>
                 <h2 style="margin:6px 0 0 0; font-size:20px; line-height:1.3;">${escapeHtml(p.name.replace(/^D\d+\s*·\s*/, ''))}</h2>
                 <div>
                     <span class="d-tag">📍 ${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</span>
@@ -1999,12 +2003,20 @@ function openPoiDetail(i, position) {
                 <div class="d-section" id="detailItinerarySection">
                     <h4>
                         <span>📝 行程安排与游玩策略</span>
-                        <div style="display:flex;gap:6px;">
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
                             <button class="d-tab" style="background:#7c3aed;color:#fff;border-color:#7c3aed;" onclick="generateItineraryWithAI(${i})" id="aiGenBtn${i}">🤖 AI 生成</button>
                         </div>
                     </h4>
                     <div id="aiGenStatus${i}" style="display:none;text-align:center;padding:10px;color:#7c3aed;font-size:12px;">
                         <span>🤖 DeepSeek 思考中...</span>
+                    </div>
+                    <div style="margin-bottom:10px;display:flex;gap:6px;align-items:flex-start;">
+                        <input type="text" id="aiQuestion${i}" placeholder="向AI提问，例如：适合带小孩去吗？有什么美食推荐？"
+                            style="flex:1;min-width:0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none;"
+                            onfocus="this.style.borderColor='#7c3aed'"
+                            onblur="this.style.borderColor='#e2e8f0'"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();askAIAboutPlace(${i});}">
+                        <button class="d-btn" onclick="askAIAboutPlace(${i})" id="aiAskBtn${i}" style="background:#7c3aed;color:#fff;border-color:#7c3aed;white-space:nowrap;">💬 提问</button>
                     </div>
                     <textarea id="itineraryText${i}" placeholder="在此输入该地点的详细行程安排、游玩策略、注意事项等..."
                         style="width:100%;min-height:120px;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.6;resize:vertical;box-sizing:border-box;"
@@ -2584,6 +2596,80 @@ function geocodePlace(keyword) {
             }
         });
     });
+}
+
+// ====== V22.9.2: AI提问功能 ======
+async function askAIAboutPlace(i) {
+    const p = state.waypoints[i];
+    if (!p) return;
+
+    const questionInput = document.getElementById('aiQuestion' + i);
+    const btn = document.getElementById('aiAskBtn' + i);
+    const ta = document.getElementById('itineraryText' + i);
+    if (!questionInput || !btn || !ta) return;
+
+    const question = questionInput.value.trim();
+    if (!question) {
+        showToast('请输入问题', 'error');
+        return;
+    }
+
+    const placeName = p.name.replace(/^D\d+\s*·\s*/, '').trim();
+    const altitude = p.alt || '未知';
+    const existingContent = ta.value.trim();
+
+    btn.disabled = true;
+    btn.textContent = '⏳ 思考中...';
+
+    const prompt = `你是一位资深川西自驾游规划师。请回答关于「${placeName}」的问题。
+
+景点信息：
+- 名称：${placeName}
+- 海拔：${altitude}m
+- 坐标：${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}
+${existingContent ? `- 已有的行程信息：\n${existingContent}` : ''}
+
+用户问题：${question}
+
+请用简洁有条理的方式回答。如果涉及高原反应、安全、季节等问题请特别提醒。`;
+
+    try {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer sk-2ac968719b7b49bf9eb363a5c468764f',
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: '你是资深川西自驾游规划师，擅长高原旅行路线规划和景点攻略。请用详细、有条理的方式回答。' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000,
+            }),
+        });
+
+        if (!response.ok) throw new Error('API 请求失败');
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content || '';
+
+        if (content) {
+            const answer = `\n\n【问答】${question}\n${content}`;
+            ta.value = existingContent ? existingContent + answer : answer;
+            saveItinerary(i);
+            questionInput.value = '';
+            showToast('✓ AI 回答已添加', 'success');
+        }
+    } catch (err) {
+        console.error('AI 提问失败:', err);
+        showToast('⚠️ AI 回答失败，请重试', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '💬 提问';
+    }
 }
 
 // ====== V21.8: DeepSeek AI 生成行程安排 ======
@@ -4771,7 +4857,8 @@ async function dbPull() {
                     const cloudData = await r.json();
                     if (cloudData && cloudData.length > 0) {
                         const payload = JSON.parse(cloudData[0].data);
-                        const { _savedAt, _code, ...data } = payload;
+                        const _savedAt = cloudData[0].updated_at || Date.now();
+                        const { _code, ...data } = payload;
                         // 保存到本地备份
                         localStorage.setItem(_roomKey(code), cloudData[0].data);
                         if (_cloudApplyData(data)) {
