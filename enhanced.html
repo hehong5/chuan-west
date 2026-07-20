@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.1</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.2</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.1');
+        console.log('🗺️ 川西旅行规划 v20260720-22.2');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -757,6 +757,50 @@
                     <div style="font-size:11px;color:#78350f;margin-top:8px;line-height:1.4;">路线亮点：西昌→木里大寺→<b>泸沽湖连住 1 晚</b>→<b>香格里拉镇入亚丁</b>→稻城→理塘→<b>格聂之眼</b>→白玉→德格→<b>新都桥连住 2 晚</b>→康定→雅西高速→西昌。导入后地图自动跳到 D5（泸沽湖）。</div>
                 </div>
 
+                <!-- 🆕 V22.2: AI 智能解析路线导入 -->
+                <div style="background:linear-gradient(135deg,#eef2ff 0%,#e0e7ff 100%);border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #a5b4fc;">
+                    <div style="font-weight:600;color:#4338ca;margin-bottom:8px;font-size:13px;display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:16px;">🤖</span> AI 智能解析路线
+                    </div>
+                    <div style="font-size:11px;color:#4338ca;margin-bottom:10px;line-height:1.4;">
+                        📄 拖入或点击选择文件（.txt/.md/.docx），或直接粘贴旅行规划文本，AI 将自动识别地点生成路线。
+                    </div>
+                    
+                    <!-- 文本输入区 -->
+                    <div style="margin-bottom:10px;">
+                        <textarea id="aiRouteInput" class="input" rows="5" 
+                            placeholder="📋 在此粘贴旅行计划文本，例如：
+Day1: 成都 → 雅安 → 康定
+Day2: 康定 → 新都桥 → 理塘
+Day3: 理塘 → 格聂之眼 → 巴塘
+...（或粘贴完整攻略文本）"
+                            style="width:100%;resize:vertical;font-size:12px;line-height:1.5;"
+                            onpaste="setTimeout(() => { if(this.value.trim()) document.getElementById('aiParseBtn').click(); }, 100);"></textarea>
+                    </div>
+
+                    <!-- 按钮组 -->
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button id="aiParseBtn" class="btn btn-ai" style="flex:1;font-size:12px;padding:10px;" onclick="parseRouteWithAI()">
+                            🔮 AI 解析并生成路线
+                        </button>
+                        <button class="btn btn-secondary" style="font-size:12px;padding:10px;" onclick="document.getElementById('aiFileInput').click()">
+                            📂 选择文件
+                        </button>
+                        <button class="btn btn-secondary" style="font-size:12px;padding:10px;" onclick="document.getElementById('aiRouteInput').value='';showToast('已清空', 'success')">
+                            🗑️ 清空
+                        </button>
+                    </div>
+                    
+                    <!-- 隐藏的文件输入 -->
+                    <input type="file" id="aiFileInput" accept=".txt,.md,.doc,.docx,.json,.yaml,.yml" style="display:none;" onchange="handleAFileUpload(this)">
+                    
+                    <!-- 解析状态 -->
+                    <div id="aiParseStatus" style="display:none;margin-top:10px;padding:10px;border-radius:6px;font-size:12px;text-align:center;"></div>
+                    
+                    <!-- 解析预览 -->
+                    <div id="aiParsePreview" style="display:none;margin-top:10px;background:white;border-radius:6px;padding:10px;max-height:200px;overflow-y:auto;"></div>
+                </div>
+
                 <div class="route-input">
                     <div class="input-label">📍 起点</div>
                     <input type="text" class="input" id="startInput" placeholder="搜索起点（如：成都）">
@@ -1067,84 +1111,11 @@ const state = {
     aiResult: null,
 };
 
-// ====== 和风天气 API 配置 (V22.4) ======
+// ====== 和风天气 API 配置 (V22.3) ======
 const QWEATHER_CONFIG = {
-    key: '83a7fe83974c425d877fb263b55c99d7',        // API Key
-    apiHost: 'kw5g7erce5.re.qweatherapi.com',         // 你的 API Host
+    projectId: '2MTGWQ9V92',
+    apiHost: 'kw5g7erce5.re.qweatherapi.com',
 };
-
-// 高德天气图标映射
-const AWEATHER_ICONS = {
-    'sunny': '☀️', 'cloudy': '☁️', 'partlycloudy': '⛅', 'overcast': '☁️',
-    'rainy': '🌧️', 'storm': '⛈️', 'shower': '🌦️', 'sleet': '🌨️',
-    'snow': '❄️', 'fog': '🌫️', 'dust': '💨', 'sandstorm': '🌪️',
-    'haze': '🌫️', 'windy': '🌬️', 'unknown': '🌡️',
-};
-
-function getAmapWeatherIcon(type) {
-    const t = String(type).toLowerCase();
-    if (t.includes('雨')) return '🌧️';
-    if (t.includes('雪')) return '❄️';
-    if (t.includes('阴')) return '☁️';
-    if (t.includes('晴')) return '☀️';
-    if (t.includes('雾') || t.includes('霾')) return '🌫️';
-    if (t.includes('风')) return '🌬️';
-    if (t.includes('多云')) return '⛅';
-    if (t.includes('雷')) return '⛈️';
-    return '🌡️';
-}
-
-function getWeatherIcon(code) {
-    return getAmapWeatherIcon(code);
-}
-
-// 获取和风天气数据
-async function fetchWeather(lat, lng) {
-    try {
-        const apiKey = QWEATHER_CONFIG.key;
-        const apiHost = QWEATHER_CONFIG.apiHost;
-        
-        // 获取实时天气
-        const nowUrl = `https://${apiHost}/v7/weather/now?location=${lng},${lat}&key=${apiKey}`;
-        const nowRes = await fetch(nowUrl);
-        const nowData = await nowRes.json();
-        
-        console.log('和风天气实时响应:', nowData);
-
-        // 获取3天预报
-        const forecastUrl = `https://${apiHost}/v7/weather/3d?location=${lng},${lat}&key=${apiKey}`;
-        const forecastRes = await fetch(forecastUrl);
-        const forecastData = await forecastRes.json();
-        
-        console.log('和风天气预报响应:', forecastData);
-
-        return {
-            ok: nowData.code === '200' || nowData.code === '204',
-            now: (nowData.code === '200' || nowData.code === '204') ? nowData.now : null,
-            daily: forecastData.code === '200' ? forecastData.daily : null
-        };
-    } catch (e) {
-        console.error('天气获取失败:', e);
-        return { ok: false, now: null, daily: null };
-    }
-}
-
-// 调试：测试和风天气 API
-async function testWeatherAPI() {
-    const apiKey = QWEATHER_CONFIG.key;
-    const apiHost = QWEATHER_CONFIG.apiHost;
-    const url = `https://${apiHost}/v7/weather/now?location=104.06,30.67&key=${apiKey}`;
-    console.log('测试和风天气 API:', url);
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        console.log('API响应:', data);
-        return data;
-    } catch (e) {
-        console.error('API测试失败:', e);
-        return null;
-    }
-}
 
 // 天气图标映射
 const WEATHER_ICONS = {
@@ -1190,7 +1161,7 @@ const WEATHER_ICONS = {
     '714': '🌫️', '715': '🌫️', '716': '🌫️', '717': '🌫️',
     '718': '🌫️', '719': '🌫️', '720': '🌫️', '721': '🌫️',
     '722': '🌫️', '723': '🌫️', '724': '🌫️', '725': '🌫️',
-    '726': '🌫️', '727': '🌫️', '728': '�雾', '729': '🌫️',
+    '726': '🌫️', '727': '🌫️', '728': '🌫️', '729': '🌫️',
     '730': '🌫️', '731': '🌫️', '732': '☁️', '733': '☁️',
     '734': '☁️', '735': '☁️', '800': '🌙', '801': '🌙☁️',
     '802': '🌙⛅', '803': '🌙☁️', '804': '☁️', '805': '☁️',
@@ -1204,6 +1175,28 @@ const WEATHER_ICONS = {
 
 function getWeatherIcon(code) {
     return WEATHER_ICONS[String(code)] || '🌡️';
+}
+
+// 获取天气数据
+async function fetchWeather(lat, lng) {
+    try {
+        const nowUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/now?location=${lng},${lat}&key=${QWEATHER_CONFIG.projectId}`;
+        const nowRes = await fetch(nowUrl);
+        const nowData = await nowRes.json();
+
+        const forecastUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/3d?location=${lng},${lat}&key=${QWEATHER_CONFIG.projectId}`;
+        const forecastRes = await fetch(forecastUrl);
+        const forecastData = await forecastRes.json();
+
+        return {
+            ok: true,
+            now: nowData.code === '200' ? nowData.now : null,
+            daily: forecastData.code === '200' ? forecastData.daily : null
+        };
+    } catch (e) {
+        console.error('天气获取失败:', e);
+        return { ok: false, now: null, daily: null };
+    }
 }
 
 // 渲染天气 HTML
@@ -2094,6 +2087,285 @@ function copyItinerary(i) {
         showToast('✓ 已复制到剪贴板', 'success');
     }).catch(() => {
         showToast('复制失败', 'error');
+    });
+}
+
+// ====== V22.2: 处理文件上传 ======
+function handleAFileUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('aiParseStatus');
+    const previewEl = document.getElementById('aiParsePreview');
+    const inputEl = document.getElementById('aiRouteInput');
+
+    showParseStatus('📂 正在读取文件: ' + file.name, 'loading');
+    previewEl.style.display = 'none';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        inputEl.value = content;
+        showParseStatus('✓ 文件已读取，正在准备 AI 解析...', 'success');
+        // 自动触发解析
+        setTimeout(() => parseRouteWithAI(), 500);
+    };
+    reader.onerror = function() {
+        showParseStatus('❌ 文件读取失败', 'error');
+    };
+    reader.readAsText(file);
+}
+
+// ====== V22.2: 显示解析状态 ======
+function showParseStatus(msg, type) {
+    const el = document.getElementById('aiParseStatus');
+    if (!el) return;
+    el.style.display = 'block';
+    el.style.background = type === 'loading' ? '#fef3c7' : type === 'error' ? '#fee2e2' : '#d1fae5';
+    el.style.color = type === 'loading' ? '#92400e' : type === 'error' ? '#991b1b' : '#065f46';
+    el.style.border = '1px solid ' + (type === 'loading' ? '#fde68a' : type === 'error' ? '#fecaca' : '#a7f3d0');
+    el.innerHTML = type === 'loading' ? '⏳ ' + msg : type === 'error' ? '❌ ' + msg : '✅ ' + msg;
+}
+
+// ====== V22.2: AI 解析路线核心函数 ======
+async function parseRouteWithAI() {
+    const inputEl = document.getElementById('aiRouteInput');
+    const statusEl = document.getElementById('aiParseStatus');
+    const previewEl = document.getElementById('aiParsePreview');
+    const parseBtn = document.getElementById('aiParseBtn');
+    
+    const rawText = inputEl.value.trim();
+    if (!rawText) {
+        showParseStatus('请先输入或粘贴旅行计划文本', 'error');
+        return;
+    }
+
+    // 禁用按钮
+    parseBtn.disabled = true;
+    parseBtn.innerHTML = '⏳ AI 解析中...';
+    showParseStatus('🤖 DeepSeek AI 正在分析文本，识别地点...', 'loading');
+    previewEl.style.display = 'none';
+
+    try {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer sk-2ac968719b7b49bf9eb363a5c468764f',
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    { 
+                        role: 'system', 
+                        content: `你是资深旅行规划师，擅长从用户文本中提取地点并生成结构化路线。
+请分析用户提供的旅行计划文本，提取所有地点名称。
+地点应按照旅行顺序排列。
+
+注意事项：
+1. 地点可以是城市名、县名、景点名、酒店名等
+2. 忽略加油站、服务区等非目的地
+3. 忽略纯描述性文字、距离、时间等
+4. 同一地点只保留一个（如多个提到"成都"只保留第一个）
+5. 起点和终点要明确
+
+输出格式（严格JSON，不要任何其他内容）：
+{
+  "route": ["地点1", "地点2", "地点3", ...],
+  "summary": "一句话总结路线：起点到终点，共X个地点"
+}
+
+示例输入：Day1: 成都 -> 雅安 -> 康定，住康定
+示例输出：{"route": ["成都", "雅安", "康定"], "summary": "成都出发，经雅安到康定，共3个地点"}`
+                    },
+                    { 
+                        role: 'user', 
+                        content: '请分析以下旅行计划，提取地点：\n\n' + rawText
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('API 请求失败: ' + response.status);
+        }
+
+        const data = await response.json();
+        const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+        
+        if (!content) {
+            throw new Error('AI 返回内容为空');
+        }
+
+        // 解析 JSON
+        let parsed;
+        try {
+            // 尝试提取 JSON（可能有 markdown 代码块）
+            let jsonStr = content.trim();
+            if (jsonStr.startsWith('```')) {
+                jsonStr = jsonStr.replace(/```(?:json)?\n?/g, '').trim();
+            }
+            parsed = JSON.parse(jsonStr);
+        } catch (parseErr) {
+            console.error('JSON 解析失败:', parseErr, content);
+            throw new Error('AI 返回格式错误，无法解析');
+        }
+
+        const places = parsed.route || [];
+        const summary = parsed.summary || '';
+
+        if (places.length === 0) {
+            throw new Error('未识别到任何地点');
+        }
+
+        // 显示预览
+        previewEl.innerHTML = `
+            <div style="font-size:12px;color:#4338ca;margin-bottom:8px;">
+                <b>🔮 AI 解析结果</b>：${summary}
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:8px;">
+                识别到 ${places.length} 个地点：
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                ${places.map((p, idx) => `
+                    <span style="background:#e0e7ff;color:#3730a3;padding:3px 8px;border-radius:12px;font-size:11px;">
+                        ${idx + 1}. ${p}
+                    </span>
+                `).join('')}
+            </div>
+            <div style="margin-top:10px;display:flex;gap:6px;">
+                <button onclick="applyAIParsedRoute(${JSON.stringify(places).replace(/"/g, '&quot;')})" 
+                    style="flex:1;padding:8px;background:#4f46e5;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;">
+                    ✅ 确认并生成路线
+                </button>
+                <button onclick="document.getElementById('aiParsePreview').style.display='none'" 
+                    style="padding:8px 12px;background:#e2e8f0;color:#64748b;border:none;border-radius:6px;cursor:pointer;font-size:12px;">
+                    取消
+                </button>
+            </div>
+        `;
+        previewEl.style.display = 'block';
+        showParseStatus(`✓ 识别到 ${places.length} 个地点，请确认`, 'success');
+
+    } catch (err) {
+        console.error('AI 解析失败:', err);
+        showParseStatus('❌ 解析失败: ' + err.message, 'error');
+        showToast('AI 解析失败: ' + err.message, 'error');
+    } finally {
+        // 恢复按钮
+        parseBtn.disabled = false;
+        parseBtn.innerHTML = '🔮 AI 解析并生成路线';
+    }
+}
+
+// ====== V22.2: 应用 AI 解析的路线 ======
+async function applyAIParsedRoute(places) {
+    if (!places || places.length === 0) {
+        showToast('没有地点可添加', 'error');
+        return;
+    }
+
+    showToast(`🔍 正在定位 ${places.length} 个地点...`, 'info');
+
+    // 清空现有路线，保留起点（如果有的话）
+    const hadStart = state.waypoints.length > 0;
+    const startPoint = hadStart ? state.waypoints[0] : null;
+    
+    // 重新开始
+    state.waypoints = [];
+    if (startPoint) {
+        state.waypoints.push(startPoint);
+    }
+
+    // 显示加载状态
+    const previewEl = document.getElementById('aiParsePreview');
+    previewEl.innerHTML = `
+        <div style="text-align:center;padding:20px;">
+            <div style="font-size:14px;color:#4338ca;margin-bottom:10px;">🔍 正在通过高德地图定位 ${places.length} 个地点...</div>
+            <div id="geoProgress" style="font-size:12px;color:#64748b;">准备中...</div>
+        </div>
+    `;
+    previewEl.style.display = 'block';
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < places.length; i++) {
+        const place = places[i];
+        const progressEl = document.getElementById('geoProgress');
+        if (progressEl) {
+            progressEl.textContent = `(${i + 1}/${places.length}) 正在定位: ${place}`;
+        }
+
+        try {
+            // 使用高德地理编码 API
+            const result = await geocodePlace(place);
+            if (result) {
+                state.waypoints.push({
+                    name: place,
+                    lng: result.lng,
+                    lat: result.lat,
+                });
+                successCount++;
+            } else {
+                failCount++;
+                console.warn(`无法定位: ${place}`);
+            }
+        } catch (err) {
+            failCount++;
+            console.warn(`定位失败: ${place}`, err);
+        }
+
+        // 避免请求过快
+        await new Promise(r => setTimeout(r, 300));
+    }
+
+    // 更新 UI
+    renderPoints();
+    drawRoute();
+    saveToLocal();
+
+    // 清空输入
+    document.getElementById('aiRouteInput').value = '';
+    previewEl.style.display = 'none';
+    document.getElementById('aiParseStatus').style.display = 'none';
+
+    // 飞到地图中心
+    if (state.waypoints.length > 0) {
+        fitToRoute();
+    }
+
+    // 统计
+    if (successCount > 0) {
+        showToast(`✅ 成功添加 ${successCount} 个地点${failCount > 0 ? `，${failCount} 个未找到` : ''}`, 'success');
+    } else {
+        showToast('❌ 所有地点都定位失败', 'error');
+    }
+}
+
+// ====== V22.2: 高德地理编码 ======
+function geocodePlace(keyword) {
+    return new Promise((resolve) => {
+        if (!window.AMap || !window.AMap.Geocoder) {
+            // 降级：使用简单的搜索
+            resolve(null);
+            return;
+        }
+
+        const geocoder = new AMap.Geocoder();
+        geocoder.getLocation(keyword, (status, result) => {
+            if (status === 'complete' && result.geocodes && result.geocodes.length > 0) {
+                const loc = result.geocodes[0].location;
+                resolve({
+                    lng: loc.lng,
+                    lat: loc.lat
+                });
+            } else {
+                resolve(null);
+            }
+        });
     });
 }
 
@@ -4241,7 +4513,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v22.1',
+        version: 'v22.2',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
