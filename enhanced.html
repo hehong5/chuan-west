@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.8</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.9</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.8');
+        console.log('🗺️ 川西旅行规划 v20260720-22.9');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
     <!-- mammoth.js for Word docx parsing -->
@@ -1300,7 +1300,7 @@ const PRESET_PLANS = {
               note: '32 万木刻经版，9-11:30/14:30-17:30(中午关)', wiki: '德格印经院始建于 1729 年，藏区三大印经院之首，32 万经版、830+ 典籍，门票 50 元。**9:00-11:30 / 14:30-17:30 中午关**。靠自然光作业、顺时针参观。冬季常免票。' },
             { d: 'D16', name: '新路海',                     lng: 99.0500, lat: 31.9000, alt: 4040, tag: 'scenic',
               note: '雀儿山冰川融水，云杉林倒影', wiki: '新路海（玉龙拉措）雀儿山冰川融水的冰蚀湖，"康巴第一圣湖"，免费。穿雀儿山隧道后沿 G317 北上抵甘孜县（3390m）。' },
-            { d: 'D16.5', name: '莲宝叶则',                   lng: 101.3800, lat: 32.7500, alt: 4200, tag: 'scenic',
+            { d: 'D16.5', name: '莲宝叶则',                   lng: 101.0120, lat: 32.7230, alt: 4200, tag: 'scenic',
               note: '甘孜→色达→阿坝县→莲宝叶则，约 460km/8h（绕路支线）', wiki: '莲宝叶则·石头山位于阿坝县西北（毗邻青海），巴颜喀拉山南段支脉，主峰 5141m。核心景观扎尕尔措（4200m）、珠姆措、措拉玛，第四纪冰川地貌"川北昆仑"。从甘孜北上经色达转阿坝约 460km/8h，**全天四驱 SUV 必备**，垭口坡度 18%。4520 观景台需提前预约入园。**门票需实名预约**，GPS 无信号须下离线图。',
               gallery: '莲宝叶则 / 扎尕尔措 / 珠姆措 / 石头山' },
             { d: 'D17', name: '新都桥',                     lng: 101.3950, lat: 30.0354, alt: 3460, tag: 'town',
@@ -3124,9 +3124,14 @@ function _renderPointLegs() {
 }
 
 
+// 检查路径是否是直线（失败段fallback）
+function _isStraightPath(pts) {
+    // 直线只有2个点，且与途经点坐标一致
+    return pts.length === 2;
+}
+
 function _renderRouteResult(res) {
     hideLoading();
-    const color = res.ok ? '#2563eb' : '#94a3b8'; // 灰=部分段走直线, 蓝=全程驾车可达
     const pathArr = res.paths || [];
     document.getElementById('statDistance').textContent = (res.distance / 1000).toFixed(1);
     const driveH = (res.time / 3600);
@@ -3144,18 +3149,39 @@ function _renderRouteResult(res) {
         if (elMax) elMax.innerHTML = `${maxKm}<span style="font-size:11px;color:#64748b;">km/${maxH}h</span>`;
     }
 
-    if (state.routePath) {
-        try { state.map.remove(state.routePath); } catch(e){}
+    // 清除旧路径
+    if (state.routePath) { try { state.map.remove(state.routePath); } catch(e){} state.routePath = null; }
+
+    // V22.9: 分段绘制 - 成功段蓝色实线，失败段灰色虚线
+    if (state._legs && state._legs.length > 0) {
+        let lastEnd = null;
+        state._legs.forEach((l, idx) => {
+            if (!l.path || l.path.length < 2) return;
+            const isStraight = _isStraightPath(l.path);
+            const polyline = new AMap.Polyline({
+                path: l.path,
+                strokeColor: isStraight ? '#94a3b8' : '#2563eb',
+                strokeWeight: isStraight ? 4 : 6,
+                strokeOpacity: isStraight ? 0.5 : 0.85,
+                strokeStyle: isStraight ? 'dashed' : 'solid',
+                showDir: !isStraight,
+            });
+            state.map.add(polyline);
+            // 收集所有 polyline 用于 fitView
+            if (!state.routePath) state.routePath = polyline;
+        });
+    } else if (pathArr.length > 0) {
+        // 兜底：整条路径
+        state.routePath = new AMap.Polyline({
+            path: pathArr,
+            strokeColor: res.ok ? '#2563eb' : '#94a3b8',
+            strokeWeight: 6,
+            strokeOpacity: res.ok ? 0.85 : 0.6,
+            strokeStyle: res.ok ? 'solid' : 'dashed',
+            showDir: true,
+        });
+        state.map.add(state.routePath);
     }
-    state.routePath = new AMap.Polyline({
-        path: pathArr,
-        strokeColor: color,
-        strokeWeight: 6,
-        strokeOpacity: res.ok ? 0.85 : 0.6,
-        strokeStyle: res.ok ? 'solid' : 'dashed',
-        showDir: true,
-    });
-    state.map.add(state.routePath);
 
     // 任何段失败时提示
     if (!res.ok && res.info) {
@@ -4746,7 +4772,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v22.8',
+        version: 'v22.9',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
