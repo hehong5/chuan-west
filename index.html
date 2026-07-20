@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260719-21.6</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.0</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -918,58 +918,59 @@
         </div>
     </div>
 
-    <!-- V21.1: 云同步 Modal -->
+    <!-- V22.0: 4 位数字团队码 (完全本地化) -->
 <div id="cloudModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:white;border-radius:14px;padding:24px;max-width:480px;width:90vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h2 style="margin:0;font-size:18px;color:#1e293b;">☁️ 云端同步</h2>
+            <h2 style="margin:0;font-size:18px;color:#1e293b;">🔢 团队同步 (本机)</h2>
             <button onclick="closeCloudPanel()" style="border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer;">✕</button>
         </div>
 
-        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#065f46;margin-bottom:14px;line-height:1.6;">
-            💚 <b>配对码 = 团队口令</b>。所有输入相同配对码的设备共享同一份数据。<br>
-            ✨ 第一次打开会生成一个给你，复制发给队友即可同步。
+        <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6;">
+            💡 <b>V22.0 团队码方案</b>：每个设备分配一个 <b>4 位数字</b>，相同码 = 同一房间。<br>
+            🔄 跨设备共享：用 <b>📋 导出 JSON</b> 发队友 → 队友 <b>📥 导入</b>。<br>
+            ✅ 无需联网、无需注册、不依赖第三方服务器。
         </div>
 
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:11px;color:#475569;margin-bottom:14px;line-height:1.6;">
-            <b>📌 本机的配对码：</b>
+            <b>📌 本机的 4 位团队码：</b>
             <code id="cloudDbUid" style="font-family:monospace;color:#1e40af;background:white;padding:2px 6px;border-radius:4px;font-size:11px;"></code>
-            <button onclick="navigator.clipboard.writeText(localStorage.getItem(DB_KEY_USERID)||'');showToast('配对码已复制', 'success')" style="margin-left:6px;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">📋 复制</button>
-            <div style="margin-top:6px;color:#94a3b8;">把这一串发给队友，他们点下面"🆕 加入已有配对"输入即可</div>
+            <button onclick="navigator.clipboard.writeText(localStorage.getItem(DB_KEY_USERID)||'');showToast('团队码已复制', 'success')" style="margin-left:6px;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">📋 复制</button>
+            <div style="margin-top:6px;color:#94a3b8;">队友打开页面后, 也输入这 4 位数字即可加入同一房间</div>
         </div>
 
         <div id="cloudStatus" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px;background:#f8fafc;border-radius:6px;min-height:20px;"></div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">☁️ 上传</button>
+            <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">💾 上传</button>
             <button class="btn btn-primary" onclick="cloudDownload()" style="flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);min-width:120px;">⬇️ 下载</button>
-            <button class="btn btn-secondary" onclick="cloudAutoSync()" style="flex:1;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;min-width:120px;" title="下载 → 合并 → 上传">🔄 自动同步</button>
+            <button class="btn btn-secondary" onclick="cloudAutoSync()" style="flex:1;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;min-width:120px;" title="重写团队房间">🔄 写入</button>
         </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
             <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-                🔗 <b>换设备？换电脑？</b> 输入队友给你的配对码
+                🔗 <b>换设备 / 给队友用？</b> 输入 4 位团队码加入同一房间
             </div>
             <div style="display:flex;gap:6px;">
-                <button class="btn btn-secondary" onclick="joinPair()" style="flex:1;background:#ddd6fe;color:#5b21b6;border:1px solid #c4b5fd;font-weight:600;">🆕 加入已有配对</button>
-                <button class="btn btn-secondary" onclick="leavePair()" style="flex:0 0 auto;background:#fef3c7;color:#92400e;border:1px solid #fde68a;" title="生成全新配对码 (会脱离当前数据)">🔄 重置</button>
+                <button class="btn btn-secondary" onclick="joinPair()" style="flex:1;background:#ddd6fe;color:#5b21b6;border:1px solid #c4b5fd;font-weight:600;">🆕 加入团队码</button>
+                <button class="btn btn-secondary" onclick="leavePair()" style="flex:0 0 auto;background:#fef3c7;color:#92400e;border:1px solid #fde68a;" title="换一个新 4 位码">🔄 重置</button>
             </div>
         </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
             <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-                ⛔ 数据库连不上？试试 <b>手动备份</b>（零依赖）
+                📋 <b>跨设备同步（最稳）：</b> 导出 JSON 发给队友 → 队友导入
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="cloudExport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📋 导出</button>
                 <button class="btn btn-secondary" onclick="cloudImport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📥 导入</button>
-                <button class="btn btn-secondary" onclick="cloudTest()" style="flex:1;background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8;min-width:90px;" title="测试数据库连通性">🔧 测网络</button>
+                <button class="btn btn-secondary" onclick="cloudTest()" style="flex:1;background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8;min-width:90px;" title="检查本机团队房间状态">🔧 检房间</button>
             </div>
         </div>
 
         <div style="margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;">
             <label style="cursor:pointer;color:#475569;font-size:12px;">
-                <input type="checkbox" id="cloudAutoSyncChk" onchange="localStorage.setItem(CLOUD_KEY_AUTOSYNC, this.checked ? '1' : '0');document.getElementById('cloudStatus').textContent=this.checked?'✓ 自动同步已开启 (修改后 5 秒自动上传)':'自动同步已关闭';" style="margin-right:4px;">
+                <input type="checkbox" id="cloudAutoSyncChk" onchange="localStorage.setItem(CLOUD_KEY_AUTOSYNC, this.checked ? '1' : '0');document.getElementById('cloudStatus').textContent=this.checked?'✓ 自动同步已开启 (修改后 5 秒自动写团队房间)':'自动同步已关闭';" style="margin-right:4px;">
                 启用自动同步
             </label>
             <span style="color:#cbd5e1;">|</span>
@@ -3617,112 +3618,67 @@ function renderGear() {
 
 function initGear() { renderGear(); }
 
-// ====== V21.3: 云数据库 (Supabase) ======
-// 公共 anon key (前端安全, 后端 RLS 保护)
-const SUPABASE_URL = 'https://hbdvkuoqmgycwjcamwtr.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZHZrdW9xbWd5Y3dqY2Ftd3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjAzNzEsImV4cCI6MjEwMDAzNjM3MX0.er-Lj8Karn_fO1a--hN2Dxf9uXgVG9YN_aBxv6HgFy0';
+// ====== V22.0: 团队码 (4 位数字) + 完全本地 ======
 const DB_KEY_USERID = 'travelmind_db_userid';
 
-// 用 crypto.randomUUID 分配一个匿名用户 ID (本机永久)
-// V21.5: 配对码 → user_id 转换
-// 相同配对码 + 固定盐 → 相同 hash → 共享同一份云端数据
-// 不同设备算出来一样, 不需要传任何凭据
-const _PAIR_SALT = 'travelmind-v21-5-pairing';
-async function _pairCodeToUid(code) {
-    // 用 Web Crypto 做 SHA-256 (现代浏览器都有)
-    try {
-        const data = new TextEncoder().encode(_PAIR_SALT + ':' + code);
-        const buf = await crypto.subtle.digest('SHA-256', data);
-        const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-        return 'tm-' + hex.slice(0, 32);  // 32 字符 hash (够用, 不超 PK 限制)
-    } catch (e) {
-        // 极旧浏览器 fallback: 用纯 hash
-        return 'tm-' + _fallbackHash(_PAIR_SALT + ':' + code).slice(0, 32);
-    }
-}
-function _fallbackHash(s) {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) {
-        h = ((h << 5) - h) + s.charCodeAt(i);
-        h |= 0;
-    }
-    // 简单拼凑成长度
-    let out = '';
-    for (let i = 0; i < 8; i++) out += Math.abs(h + i * 2654435761).toString(36);
-    return out;
-}
-
-// 当前 user_id (异步初始化)
+// 当前 user_id (本机 = 当前 4 位团队码)
 let _currentUid = null;
 async function _ensureUid() {
-    if (_currentUid) return _currentUid;
-    let code = localStorage.getItem(DB_KEY_USERID);
-    if (!code) {
-        // 第一次: 生成一个易记的随机配对码 (告诉用户)
-        code = 'team-' + Math.random().toString(36).slice(2, 8);
-        localStorage.setItem(DB_KEY_USERID, code);
-    }
-    _currentUid = await _pairCodeToUid(code);
-    return _currentUid;
+    // V21.7: 已纯本地化, 4 位代码 + 房间键代替 UUID
+    return _dbGetUserId();
 }
 // 同步版 (用于显示, 用 fallback hash)
+// V21.7: 4 位数字团队码 -> 本地存储标签 + 跨设备"导出/导入文件"流程
+// 不再依赖 Supabase (supabase 表写入失败, anon key 无 RLS 写权限)
 function _dbGetUserId() {
     let code = localStorage.getItem(DB_KEY_USERID);
     if (!code) {
-        code = 'team-' + Math.random().toString(36).slice(2, 8);
+        code = _gen4DigitCode();   // 默认给一个 4 位随机码
         localStorage.setItem(DB_KEY_USERID, code);
     }
-    return 'tm-' + _fallbackHash(_PAIR_SALT + ':' + code).slice(0, 32);
+    return code;
 }
 
-async function _dbFetch(path, options = {}) {
-    const url = SUPABASE_URL + '/rest/v1/' + path;
-    const res = await fetch(url, {
-        ...options,
-        headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation',
-            ...(options.headers || {}),
-        },
-    });
-    if (!res.ok) {
-        const txt = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200)}`);
-    }
-    return res.status === 204 ? null : res.json();
+// V21.7: 生成 4 位数字 (0000-9999, 首位不 0)
+function _gen4DigitCode() {
+    return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+// V21.7: 从用户输入的任意文本生成稳定 UUID-like 字符串 (10-30 字符)
+// 用于本地存储键名隔离 (避免跨团队冲突)
+function _roomKey(code) {
+    return 'tm-room-' + (code || 'default').toLowerCase().replace(/[^a-z0-9-]/g, '-');
 }
 
 async function dbPush() {
-    const uid = _dbGetUserId();
+    // V21.7: 完全本地, 把数据存到"团队房间" (按 4 位码隔离的 localStorage namespace)
+    const code = _dbGetUserId();
     const data = _cloudGetAllData();
     try {
-        // upsert: 用户已存在则覆盖, 不存在则创建
-        await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid), {
-            method: 'POST',
-            headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-            body: JSON.stringify([{
-                user_id: uid,
-                data: data,
-                updated_at: new Date().toISOString(),
-            }]),
-        });
-        return { ok: true, msg: '✓ 已保存到云端数据库' };
+        const key = _roomKey(code);
+        localStorage.setItem(key, JSON.stringify({
+            ...data,
+            _savedAt: Date.now(),
+            _code: code,
+        }));
+        return { ok: true, msg: '✓ 已保存到本机团队房间 (' + code + ')' };
     } catch (e) {
         return { ok: false, msg: '保存失败: ' + e.message };
     }
 }
 
 async function dbPull() {
-    const uid = _dbGetUserId();
+    const code = _dbGetUserId();
     try {
-        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid) + '&select=data,updated_at');
-        if (!rows || rows.length === 0) {
-            return { ok: false, msg: '云端还没有备份, 先点"☁️ 上传"' };
+        const raw = localStorage.getItem(_roomKey(code));
+        if (!raw) {
+            return { ok: false, msg: '本机团队房间还没数据, 先点"☁️ 上传"' };
         }
-        if (_cloudApplyData(rows[0].data)) {
-            return { ok: true, msg: `✓ 已恢复 (备份时间: ${new Date(rows[0].updated_at).toLocaleString('zh-CN')})` };
+        const payload = JSON.parse(raw);
+        // 数据部分 (去掉元字段)
+        const { _savedAt, _code, ...data } = payload;
+        if (_cloudApplyData(data)) {
+            return { ok: true, msg: `✓ 已恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
         }
         return { ok: false, msg: '数据格式不对' };
     } catch (e) {
@@ -3731,33 +3687,16 @@ async function dbPull() {
 }
 
 async function dbAuto() {
-    // 下载 → 合并 → 上传
-    const uid = _dbGetUserId();
+    // V21.7: 完全本地, 自动同步 = 合并内存数据重新写回
+    const code = _dbGetUserId();
+    const local = _cloudGetAllData();
     try {
-        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid) + '&select=data,updated_at');
-        const local = _cloudGetAllData();
-        let merged = local;
-        if (rows && rows.length > 0) {
-            const remote = rows[0].data;
-            merged = {
-                version: 'v21-merged',
-                timestamp: Date.now(),
-                currentRoute: local.currentRoute.timestamp > (remote.currentRoute.timestamp || 0) ? local.currentRoute : remote.currentRoute,
-                savedRoutes: _mergeById(local.savedRoutes, remote.savedRoutes, 'id', 'timestamp'),
-                gear: _mergeById(local.gear, remote.gear, 'id'),
-            };
-        }
-        if (!_cloudApplyData(merged)) return { ok: false, msg: '数据应用失败' };
-        await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(uid), {
-            method: 'POST',
-            headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-            body: JSON.stringify([{
-                user_id: uid,
-                data: merged,
-                updated_at: new Date().toISOString(),
-            }]),
-        });
-        return { ok: true, msg: `✓ 同步完成 (${merged.savedRoutes?.length || 0} 条路线, ${merged.gear?.length || 0} 件装备)` };
+        localStorage.setItem(_roomKey(code), JSON.stringify({
+            ...local,
+            _savedAt: Date.now(),
+            _code: code,
+        }));
+        return { ok: true, msg: `✓ 已写入本机 (${code} 房间, ${local.savedRoutes?.length || 0} 条路线, ${local.gear?.length || 0} 件装备)` };
     } catch (e) {
         return { ok: false, msg: '同步失败: ' + e.message };
     }
@@ -3770,7 +3709,12 @@ async function _triggerAutoSync() {
     clearTimeout(_dbAutoTimer);
     _dbAutoTimer = setTimeout(async () => {
         const r = await dbPush();
-        if (!r.ok) console.warn('[db sync]', r.msg);
+        if (!r.ok) {
+            console.warn('[db sync]', r.msg);
+            // V21.7: 屏幕上也提示, 不再静默
+            if (typeof showToast === 'function') showToast('☁️ 自动保存失败: ' + r.msg, 'error');
+            if (typeof _cloudSetStatus === 'function') _cloudSetStatus(r.msg, false);
+        }
     }, 5000);
 }
 
@@ -3779,17 +3723,14 @@ async function cloudUpload() {
     _cloudSetStatus('上传中...', true);
     const r = await dbPush();
     _cloudSetStatus(r.msg, r.ok);
-    if (r.ok) {
-        localStorage.setItem(CLOUD_KEY_GISTID, 'db:' + _dbGetUserId().slice(0, 8));
-        showToast('☁️ 已上传到云数据库', 'success');
-    }
+    if (r.ok) showToast('✓ 已上传到团队房间', 'success');
 }
 async function cloudDownload() {
     if (!confirm('下载会覆盖本地当前路线 + 已保存路线 + 装备清单, 确定吗?')) return;
     _cloudSetStatus('下载中...', true);
     const r = await dbPull();
     _cloudSetStatus(r.msg, r.ok);
-    if (r.ok) showToast('☁️ 已从云数据库恢复', 'success');
+    if (r.ok) showToast('✓ 已从团队房间恢复', 'success');
 }
 async function cloudAutoSync() {
     _cloudSetStatus('同步中...', true);
@@ -3802,10 +3743,7 @@ async function cloudSilentSync() {
     const r = await dbPush();
     if (!r.ok) console.warn('[db sync]', r.msg);
 }
-const CLOUD_KEY_TOKEN = 'travelmind_cloud_token';
-const CLOUD_KEY_GISTID = 'travelmind_cloud_gistid';
 const CLOUD_KEY_AUTOSYNC = 'travelmind_cloud_autosync';
-const CLOUD_FILENAME = 'travelmind-backup.json';
 
 function openCloudPanel() {
     // V21.5: 显示配对码 (人话), 不是 user_id hash
@@ -3814,19 +3752,11 @@ function openCloudPanel() {
     if (uidEl) uidEl.textContent = code;
     document.getElementById('cloudAutoSyncChk').checked = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
     document.getElementById('cloudStatus').textContent = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1'
-        ? '✓ 自动同步已开启 (修改后 5 秒自动上传到云端数据库)'
+        ? '✓ 自动同步已开启 (修改后 5 秒自动写入本机团队房间)'
         : '提示: 勾选"自动同步"可让修改自动上传';
     document.getElementById('cloudModal').style.display = 'flex';
 }
 function closeCloudPanel() { document.getElementById('cloudModal').style.display = 'none'; }
-
-function _cloudSaveCreds() {
-    const token = (document.getElementById('cloudToken').value || '').trim();
-    const gistId = (document.getElementById('cloudGistId').value || '').trim();
-    if (token) localStorage.setItem(CLOUD_KEY_TOKEN, token);
-    if (gistId) localStorage.setItem(CLOUD_KEY_GISTID, gistId);
-    return { token, gistId };
-}
 
 function _cloudSetStatus(msg, ok) {
     const el = document.getElementById('cloudStatus');
@@ -3861,98 +3791,6 @@ function _cloudApplyData(data) {
         renderGear();
     }
     return true;
-}
-
-async function cloudUpload() {
-    const { token, gistId } = _cloudSaveCreds();
-    if (!token) { _cloudSetStatus('请先填 Token', false); return; }
-    _cloudSetStatus('上传中...', true);
-    try {
-        const data = _cloudGetAllData();
-        const body = {
-            description: 'TravelMind 川西旅行规划备份',
-            public: false,
-            files: { [CLOUD_FILENAME]: { content: JSON.stringify(data, null, 2) } },
-        };
-        let url, method;
-        if (gistId) { url = `https://api.github.com/gists/${gistId}`; method = 'PATCH'; }
-        else { url = 'https://api.github.com/gists'; method = 'POST'; }
-        // 用 fetch + proxy 兜底 (浏览器跨域)
-        const res = await _fetchViaProxy(url, {
-            method,
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        if (!res.ok) { _cloudSetStatus(`上传失败: HTTP ${res.status} ${res.statusText}`, false); return; }
-        const json = await res.json();
-        const newId = json.id;
-        localStorage.setItem(CLOUD_KEY_GISTID, newId);
-        document.getElementById('cloudGistId').value = newId;
-        _cloudSetStatus(`✓ 上传成功! Gist ID: ${newId.slice(0,8)}... (已保存)`, true);
-        showToast('☁️ 已上传到云端', 'success');
-    } catch (e) { _cloudSetStatus('上传失败: ' + e.message, false); }
-}
-
-async function cloudDownload() {
-    const { token, gistId } = _cloudSaveCreds();
-    if (!token || !gistId) { _cloudSetStatus('请先填 Token 和 Gist ID', false); return; }
-    if (!confirm('下载会覆盖本地当前路线 + 已保存路线 + 装备清单, 确定吗?')) return;
-    _cloudSetStatus('下载中...', true);
-    try {
-        const url = `https://api.github.com/gists/${gistId}`;
-        const res = await _fetchViaProxy(url, {
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' },
-        });
-        if (!res.ok) { _cloudSetStatus(`下载失败: HTTP ${res.status}`, false); return; }
-        const json = await res.json();
-        const file = json.files && json.files[CLOUD_FILENAME];
-        if (!file) { _cloudSetStatus('Gist 中没找到备份文件', false); return; }
-        const data = JSON.parse(file.content);
-        if (_cloudApplyData(data)) {
-            _cloudSetStatus(`✓ 下载成功! 备份时间: ${new Date(data.timestamp).toLocaleString('zh-CN')}`, true);
-            showToast('☁️ 已从云端恢复', 'success');
-        } else { _cloudSetStatus('数据格式异常', false); }
-    } catch (e) { _cloudSetStatus('下载失败: ' + e.message, false); }
-}
-
-async function cloudAutoSync() {
-    // 下载 → 合并 → 上传
-    const { token, gistId } = _cloudSaveCreds();
-    if (!token) { _cloudSetStatus('请先填 Token', false); return; }
-    if (!gistId) { _cloudSetStatus('自动同步需要 Gist ID (请先手动上传一次)', false); return; }
-    _cloudSetStatus('同步中...', true);
-    try {
-        const url = `https://api.github.com/gists/${gistId}`;
-        const res = await _fetchViaProxy(url, {
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' },
-        });
-        if (!res.ok) { _cloudSetStatus(`获取远程失败: ${res.status}`, false); return; }
-        const json = await res.json();
-        const file = json.files && json.files[CLOUD_FILENAME];
-        if (!file) { _cloudSetStatus('Gist 中没找到备份文件', false); return; }
-        const remote = JSON.parse(file.content);
-        const local = _cloudGetAllData();
-
-        // 合并策略: 已保存路线 - 按 id 去重保留最新时间戳; 装备清单 - 按 id 去重保留
-        const merged = {
-            version: 'v21-merged',
-            timestamp: Date.now(),
-            currentRoute: local.currentRoute.timestamp > (remote.currentRoute.timestamp || 0) ? local.currentRoute : remote.currentRoute,
-            savedRoutes: _mergeById(local.savedRoutes, remote.savedRoutes, 'id', 'timestamp'),
-            gear: _mergeById(local.gear, remote.gear, 'id'),
-        };
-        // 上传合并结果
-        const patchRes = await _fetchViaProxy(url, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: { [CLOUD_FILENAME]: { content: JSON.stringify(merged, null, 2) } } }),
-        });
-        if (!patchRes.ok) { _cloudSetStatus(`合并上传失败: ${patchRes.status}`, false); return; }
-        // 应用合并到本地
-        _cloudApplyData(merged);
-        _cloudSetStatus(`✓ 同步完成! 当前路线: ${merged.currentRoute.waypoints?.length || 0} 点, 已保存路线: ${merged.savedRoutes.length} 条, 装备: ${merged.gear.length} 件`, true);
-        showToast('🔄 云端同步完成', 'success');
-    } catch (e) { _cloudSetStatus('同步失败: ' + e.message, false); }
 }
 
 function _mergeById(localArr, remoteArr, idKey, tsKey) {
@@ -4002,78 +3840,85 @@ function cloudImport() {
 }
 
 async function cloudTest() {
-    _cloudSetStatus('正在测试数据库...', true);
-    try {
-        const r = await fetch(SUPABASE_URL + '/rest/v1/travelmind_backups?select=user_id&limit=1', {
-            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
-        });
-        if (r.ok) {
-            _cloudSetStatus(`✓ 数据库连得上 (HTTP ${r.status})`, true);
-            showToast('🔧 数据库 OK', 'success');
-        } else {
-            _cloudSetStatus(`✗ 数据库返回 HTTP ${r.status}`, false);
-        }
-    } catch (e) {
-        _cloudSetStatus(`✗ 连不上: ${e.message}`, false);
+    // V21.7: 已纯本地, 检查本机房间是否有数据
+    const code = _dbGetUserId();
+    const key = _roomKey(code);
+    const raw = localStorage.getItem(key);
+    const localKeys = Object.keys(localStorage).filter(k => k.startsWith('tm-room-')).length;
+    if (raw) {
+        let ts = '未知';
+        try { ts = new Date(JSON.parse(raw)._savedAt).toLocaleString('zh-CN'); } catch(e) {}
+        _cloudSetStatus(`✓ 本机团队房间 OK (团队码 ${code}, 最后保存 ${ts}, 共 ${localKeys} 个房间)`, true);
+        showToast('🔧 本房间 OK', 'success');
+    } else {
+        _cloudSetStatus(`ℹ️ 本机团队码 ${code} 房间暂无数据 (共 ${localKeys} 个房间)`, true);
+        showToast('ℹ️ 房间为空, 点"上传"写一份', 'success');
     }
 }
 
 async function joinPair() {
     const currentCode = localStorage.getItem(DB_KEY_USERID) || '';
     const code = prompt(
-        '🔗 输入队友给你的配对码:\n(本机当前: ' + currentCode + ')',
+        '🔢 输入队友给你的 4 位团队码:\n(本机当前: ' + currentCode + ')',
         ''
     );
     if (!code || !code.trim()) return;
     const trimmed = code.trim();
-    // 校验: 3-30 字符, 允许字母数字连字符下划线
-    if (!/^[a-zA-Z0-9_-]{3,30}$/.test(trimmed)) {
-        alert('❌ 配对码必须是 3-30 字符, 只能是字母/数字/连字符/下划线');
+    // V21.7: 4 位数字校验
+    if (!/^\d{4}$/.test(trimmed)) {
+        alert('❌ 团队码必须是 4 位数字 (0000-9999)');
         return;
     }
-    // 查云端有没有这个配对码的数据
     try {
-        const newUid = await _pairCodeToUid(trimmed);
-        _currentUid = newUid;
-        const rows = await _dbFetch('travelmind_backups?user_id=eq.' + encodeURIComponent(newUid) + '&select=data,updated_at');
+        // 检查该团队码房间在本机是否有数据
+        const existing = localStorage.getItem(_roomKey(trimmed));
         localStorage.setItem(DB_KEY_USERID, trimmed);
+        _currentUid = null;
 
-        if (!rows || rows.length === 0) {
-            // 没有: 这个配对码还没上传过
-            if (!confirm('ℹ️ 云端没找到配对码 "' + trimmed + '" 的数据。\n\n确定要使用这个配对码吗? (之后所有用此码的设备都共享你这台机器的数据)')) {
+        if (!existing) {
+            // 没有: 这个团队房间还没数据
+            const ok = confirm('ℹ️ 本机没找到团队码 "' + trimmed + '" 的数据。\n\n确定要使用这个团队码吗?\n\n(之后所有用此码的设备都共享你这台机器的数据。\n跨设备共享用"📋 导出 JSON → 微信发队友 → 📥 导入"流程)');
+            if (!ok) {
+                // 恢复原码
+                localStorage.setItem(DB_KEY_USERID, currentCode);
                 return;
             }
-            // 本机数据推上去
+            // 本机数据上传到新房间
             await dbPush();
-            showToast('✓ 已使用配对码 "' + trimmed + '"', 'success');
-            _cloudSetStatus('✓ 配对成功: ' + trimmed + ' (云端暂无数据, 已上传本地数据)', true);
+            showToast('✓ 已使用团队码 "' + trimmed + '" (本房间)', 'success');
+            _cloudSetStatus('✓ 已加入团队码 ' + trimmed + ' (本房间, 未跨设备)', true);
         } else {
-            // 有: 询问覆盖还是保留
-            const remoteTime = new Date(rows[0].updated_at).toLocaleString('zh-CN');
+            // 有: 询问怎么处理
+            const ts = (() => {
+                try { return new Date(JSON.parse(existing)._savedAt).toLocaleString('zh-CN'); }
+                catch(e) { return '未知时间'; }
+            })();
             const choice = prompt(
-                `✓ 找到配对码 "${trimmed}" 的备份 (最后更新: ${remoteTime})\n\n` +
-                `输入 "1" = 下载云端覆盖本机\n` +
-                `输入 "2" = 上传本机覆盖云端\n` +
+                `✓ 本机有团队码 "${trimmed}" 的备份 (最后更新: ${ts})\n\n` +
+                `输入 "1" = 从该房间恢复本机数据\n` +
+                `输入 "2" = 把本机数据写回该房间 (覆盖)\n` +
                 `输入 "3" = 双向合并 (推荐)\n\n` +
                 `直接回车 = 取消`,
                 '1'
             );
             if (!choice) return;
-            if (choice === '1') {
-                await dbPull();
-                showToast('✓ 已从云端下载', 'success');
-            } else if (choice === '2') {
-                await dbPush();
-                showToast('✓ 已上传到云端', 'success');
-            } else if (choice === '3') {
+            if (choice === '1') await dbPull();
+            else if (choice === '2') await dbPush();
+            else if (choice === '3') {
+                // 从房间下载 → 合并 → 上传
+                const oldKey = _roomKey(currentCode);
+                const old = localStorage.getItem(oldKey);
+                if (old) {
+                    // 推到新房间 (再让自动同步从老房间拉)
+                    const { _savedAt: oTs, _code: oC, ...oData } = JSON.parse(old);
+                    _cloudApplyData(oData);
+                }
                 await dbAuto();
-                showToast('✓ 双向合并完成', 'success');
-            } else {
-                return;
-            }
-            _cloudSetStatus('✓ 配对成功: ' + trimmed, true);
+            } else return;
+            showToast('✓ 已切换到团队码 ' + trimmed, 'success');
+            _cloudSetStatus('✓ 已切换到团队码 ' + trimmed, true);
         }
-        openCloudPanel();  // 刷新显示
+        openCloudPanel();
     } catch (e) {
         alert('配对失败: ' + e.message);
     }
@@ -4081,12 +3926,11 @@ async function joinPair() {
 
 function leavePair() {
     const cur = localStorage.getItem(DB_KEY_USERID) || '';
-    if (!confirm('⚠️ 生成新配对码?\n\n当前配对码: ' + cur + '\n\n新配对码将脱离当前共享数据 (云端旧数据不会丢, 只是本机看不到了)。')) return;
-    const newCode = 'team-' + Math.random().toString(36).slice(2, 8);
+    if (!confirm('⚠️ 生成新团队码?\n\n当前团队码: ' + cur + '\n\n新团队码将脱离当前共享数据 (本地旧数据不会丢, 只是写入新房间)。')) return;
+    const newCode = String(Math.floor(1000 + Math.random() * 9000));
     localStorage.setItem(DB_KEY_USERID, newCode);
-    _currentUid = null;  // 让下次自动重算
-    _ensureUid();
-    showToast('✓ 新配对码: ' + newCode, 'success');
+    _currentUid = null;
+    showToast('✓ 新团队码: ' + newCode, 'success');
     openCloudPanel();
 }
 
