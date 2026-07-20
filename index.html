@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.0</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.1</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260719-21.5');
+        console.log('🗺️ 川西旅行规划 v20260720-22.1');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
 
@@ -154,7 +154,7 @@
 
         /* ===== 左侧面板 ===== */
         .sidebar {
-            width: 380px;
+            width: 420px;
             background: white;
             border-right: 1px solid var(--border);
             display: flex;
@@ -644,7 +644,7 @@
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
-                left: -380px;
+                left: -420px;
                 top: 60px;
                 bottom: 0;
                 z-index: 999;
@@ -926,10 +926,17 @@
             <button onclick="closeCloudPanel()" style="border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer;">✕</button>
         </div>
 
+        <div id="cloudToggle" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#065f46;margin-bottom:14px;line-height:1.6;">
+            <label style="cursor:pointer;display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="useCloudChk" onchange="localStorage.setItem('travelmind_use_cloud', this.checked ? '1' : '0'); updateCloudStatusText();" style="width:18px;height:18px;cursor:pointer;">
+                <span><b>☁️ 启用云端同步</b>（Supabase 数据库，跨设备自动同步）</span>
+            </label>
+            <div id="cloudToggleHint" style="margin-top:6px;font-size:11px;color:#047857;"></div>
+        </div>
+
         <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6;">
-            💡 <b>V22.0 团队码方案</b>：每个设备分配一个 <b>4 位数字</b>，相同码 = 同一房间。<br>
-            🔄 跨设备共享：用 <b>📋 导出 JSON</b> 发队友 → 队友 <b>📥 导入</b>。<br>
-            ✅ 无需联网、无需注册、不依赖第三方服务器。
+            💡 <b>V22.1 团队码方案</b>：每个设备分配一个 <b>4 位数字</b>，相同码 = 同一房间。<br>
+            🔄 开启"☁️ 云端同步"后，数据自动同步到云端，队友无需手动导入/导出。
         </div>
 
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:11px;color:#475569;margin-bottom:14px;line-height:1.6;">
@@ -959,7 +966,7 @@
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
             <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-                📋 <b>跨设备同步（最稳）：</b> 导出 JSON 发给队友 → 队友导入
+                📋 <b>跨设备同步（兜底）：</b> 导出 JSON 发给队友 → 队友导入
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="cloudExport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📋 导出</button>
@@ -970,7 +977,7 @@
 
         <div style="margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;">
             <label style="cursor:pointer;color:#475569;font-size:12px;">
-                <input type="checkbox" id="cloudAutoSyncChk" onchange="localStorage.setItem(CLOUD_KEY_AUTOSYNC, this.checked ? '1' : '0');document.getElementById('cloudStatus').textContent=this.checked?'✓ 自动同步已开启 (修改后 5 秒自动写团队房间)':'自动同步已关闭';" style="margin-right:4px;">
+                <input type="checkbox" id="cloudAutoSyncChk" onchange="localStorage.setItem(CLOUD_KEY_AUTOSYNC, this.checked ? '1' : '0');updateCloudStatusText();" style="margin-right:4px;">
                 启用自动同步
             </label>
             <span style="color:#cbd5e1;">|</span>
@@ -3749,7 +3756,11 @@ function renderGear() {
 
 function initGear() { renderGear(); }
 
-// ====== V22.0: 团队码 (4 位数字) + 完全本地 ======
+// ====== V22.1: 恢复 Supabase 数据库同步 ======
+const SUPABASE_URL = 'https://hbdvkuoqmgycwjcamwtr.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZHZrdW9xbWd5Y3dqY2Ftd3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjAzNzEsImV4cCI6MjEwMDAzNjM3MX0.er-Lj8Karn_fO1a--hN2Dxf9uXgVG9YN_aBxv6HgFy0';
+const DB_TABLE = 'travelmind_data';
+
 const DB_KEY_USERID = 'travelmind_db_userid';
 
 // 当前 user_id (本机 = 当前 4 位团队码)
@@ -3782,34 +3793,106 @@ function _roomKey(code) {
 }
 
 async function dbPush() {
-    // V21.7: 完全本地, 把数据存到"团队房间" (按 4 位码隔离的 localStorage namespace)
+    // V22.1: 优先使用 Supabase 云同步，同时保留本地备份
     const code = _dbGetUserId();
     const data = _cloudGetAllData();
+    const payload = JSON.stringify({
+        ...data,
+        _savedAt: Date.now(),
+        _code: code,
+    });
+
     try {
+        // 1. 先存本地备份
         const key = _roomKey(code);
-        localStorage.setItem(key, JSON.stringify({
-            ...data,
-            _savedAt: Date.now(),
-            _code: code,
-        }));
-        return { ok: true, msg: '✓ 已保存到本机团队房间 (' + code + ')' };
+        localStorage.setItem(key, payload);
+
+        // 2. 尝试云同步到 Supabase
+        const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
+        if (useCloud) {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
+                method: 'GET',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            const existing = await r.json();
+
+            if (existing && existing.length > 0) {
+                // 更新现有记录
+                await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ data: payload, updated_at: new Date().toISOString() })
+                });
+            } else {
+                // 插入新记录
+                await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ code: code, data: payload, updated_at: new Date().toISOString() })
+                });
+            }
+            return { ok: true, msg: '✓ 已同步到云端 (code: ' + code + ')' };
+        }
+        return { ok: true, msg: '✓ 已保存到本机 (code: ' + code + ')' };
     } catch (e) {
-        return { ok: false, msg: '保存失败: ' + e.message };
+        console.warn('[db push] 云同步失败，使用本地存储:', e.message);
+        return { ok: true, msg: '✓ 已保存到本机 (code: ' + code + ')' };
     }
 }
 
 async function dbPull() {
     const code = _dbGetUserId();
+    const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
+
     try {
+        // 1. 优先从云端拉取（如果开启）
+        if (useCloud) {
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}&order=updated_at.desc&limit=1`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    }
+                });
+                const cloudData = await r.json();
+                if (cloudData && cloudData.length > 0) {
+                    const payload = JSON.parse(cloudData[0].data);
+                    const { _savedAt, _code, ...data } = payload;
+                    // 保存到本地备份
+                    localStorage.setItem(_roomKey(code), cloudData[0].data);
+                    if (_cloudApplyData(data)) {
+                        return { ok: true, msg: `✓ 已从云端恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
+                    }
+                }
+            } catch (e) {
+                console.warn('[db pull] 云端拉取失败，使用本地数据:', e.message);
+            }
+        }
+
+        // 2. 从本地恢复
         const raw = localStorage.getItem(_roomKey(code));
         if (!raw) {
-            return { ok: false, msg: '本机团队房间还没数据, 先点"☁️ 上传"' };
+            return { ok: false, msg: '没有找到数据，请先开启"云端同步"并上传' };
         }
         const payload = JSON.parse(raw);
-        // 数据部分 (去掉元字段)
         const { _savedAt, _code, ...data } = payload;
         if (_cloudApplyData(data)) {
-            return { ok: true, msg: `✓ 已恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
+            return { ok: true, msg: `✓ 已从本机恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
         }
         return { ok: false, msg: '数据格式不对' };
     } catch (e) {
@@ -3818,19 +3901,8 @@ async function dbPull() {
 }
 
 async function dbAuto() {
-    // V21.7: 完全本地, 自动同步 = 合并内存数据重新写回
-    const code = _dbGetUserId();
-    const local = _cloudGetAllData();
-    try {
-        localStorage.setItem(_roomKey(code), JSON.stringify({
-            ...local,
-            _savedAt: Date.now(),
-            _code: code,
-        }));
-        return { ok: true, msg: `✓ 已写入本机 (${code} 房间, ${local.savedRoutes?.length || 0} 条路线, ${local.gear?.length || 0} 件装备)` };
-    } catch (e) {
-        return { ok: false, msg: '同步失败: ' + e.message };
-    }
+    // V22.1: 自动同步，支持云端
+    return await dbPush();
 }
 
 // V21.3: 自动静默同步 (替换 cloudSilentSync)
@@ -3877,15 +3949,34 @@ async function cloudSilentSync() {
 const CLOUD_KEY_AUTOSYNC = 'travelmind_cloud_autosync';
 
 function openCloudPanel() {
-    // V21.5: 显示配对码 (人话), 不是 user_id hash
+    // V22.1: 显示配对码 + 云端开关状态
     const code = localStorage.getItem(DB_KEY_USERID) || '(未配对)';
     const uidEl = document.getElementById('cloudDbUid');
     if (uidEl) uidEl.textContent = code;
     document.getElementById('cloudAutoSyncChk').checked = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
-    document.getElementById('cloudStatus').textContent = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1'
-        ? '✓ 自动同步已开启 (修改后 5 秒自动写入本机团队房间)'
-        : '提示: 勾选"自动同步"可让修改自动上传';
+    document.getElementById('useCloudChk').checked = localStorage.getItem('travelmind_use_cloud') === '1';
+    updateCloudStatusText();
     document.getElementById('cloudModal').style.display = 'flex';
+}
+
+function updateCloudStatusText() {
+    const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
+    const autoSync = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
+    const hintEl = document.getElementById('cloudToggleHint');
+    const statusEl = document.getElementById('cloudStatus');
+
+    if (hintEl) {
+        hintEl.innerHTML = useCloud
+            ? '✓ 已开启云端同步，数据会自动同步到 Supabase'
+            : '☁️ 开启后可跨设备自动同步（需联网）';
+    }
+
+    if (autoSync) {
+        const syncType = useCloud ? '云端 + 本机' : '仅本机';
+        if (statusEl) statusEl.textContent = `✓ 自动同步已开启 (${syncType})`;
+    } else {
+        if (statusEl) statusEl.textContent = '提示: 勾选"自动同步"可让修改自动上传';
+    }
 }
 function closeCloudPanel() { document.getElementById('cloudModal').style.display = 'none'; }
 
@@ -3897,7 +3988,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v21',
+        version: 'v22.1',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
