@@ -2386,6 +2386,9 @@ async function applyAIParsedRoute(places) {
         return;
     }
 
+    // V22.10.6: 标记为 AI 生成的路线，确认天数后自动保存到云端
+    window._aiGeneratedFlag = true;
+
     _geoAbort = false;  // 重置中止标志
     showToast(`🔍 正在定位 ${places.length} 个地点...`, 'info');
 
@@ -2551,13 +2554,16 @@ function updateDayPreview(startIndex) {
 function confirmDaySetting(startIndex) {
     const input = document.getElementById('dayCountInput');
     const numDays = Math.max(1, Math.min(state.waypoints.length, parseInt(input.value) || 1));
-    
+
     // 计算每分配多少个点
     const totalPoints = state.waypoints.length;
     const perDay = Math.ceil((totalPoints - startIndex) / numDays);
     let currentDay = 1;
     let countInDay = 0;
-    
+
+    // V22.10.6: 记录是否是 AI 生成的路线（用于后续自动保存到云端）
+    const isFromAI = window._aiGeneratedFlag === true;
+
     for (let i = 0; i < state.waypoints.length; i++) {
         const p = state.waypoints[i];
         if (i < startIndex) {
@@ -2573,20 +2579,69 @@ function confirmDaySetting(startIndex) {
             }
         }
     }
-    
+
     closeDaySettingDialog();
     renderPoints();
     drawRoute();
     saveToLocal();
     fitToRoute();
     showToast(`✅ 已分配 ${numDays} 天行程`, 'success');
+
+    // V22.10.6: AI 生成的路线，自动保存为一条云端命名记录
+    if (isFromAI) {
+        window._aiGeneratedFlag = false;
+        const aiRouteName = `🤖 AI 规划 ${new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+        _autoSaveRoute(aiRouteName);
+    }
+}
+
+// V22.10.6: 自动保存路线到本地+云端（无 confirm 弹窗）
+function _autoSaveRoute(name) {
+    if (!state.waypoints || state.waypoints.length === 0) return;
+    const routes = getSavedRoutes();
+    const route = {
+        id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name: name,
+        waypoints: JSON.parse(JSON.stringify(state.waypoints)),
+        timestamp: Date.now(),
+        pointCount: state.waypoints.length,
+    };
+    // 去重：检查最近一条是否与本次完全相同
+    const last = routes[0];
+    if (last && JSON.stringify(last.waypoints) === JSON.stringify(route.waypoints)) {
+        showToast('☁️ 已自动同步到云端（与上次一致）', 'success');
+        return;
+    }
+    routes.unshift(route);
+    if (routes.length > 20) routes.length = 20;
+    setSavedRoutes(routes); // 内部已调用 _triggerAutoSync()
+    renderSavedRoutes();
+    const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
+    const autoSync = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
+    if (useCloud && autoSync) {
+        showToast(`☁️【${name}】已保存到云端`, 'success');
+    } else {
+        showToast(`💾【${name}】已保存到本地（开启云端同步后可跨设备）`, 'info');
+    }
 }
 
 // ====== V22.3: 关闭天数设置对话框 ======
 function closeDaySettingDialog() {
     const overlay = document.getElementById('daySettingOverlay');
     if (overlay) overlay.remove();
-    
+
+    // V22.10.6: 用户跳过天数设置时，也清掉 AI 标记（避免下次再误触发自动保存）
+    if (window._aiGeneratedFlag) {
+        window._aiGeneratedFlag = false;
+        // 但如果 AI 生成的地点已经成功，跳过时仍然自动保存一次（不分配 D）
+        if (state.waypoints.length > 0) {
+            const aiRouteName = `🤖 AI 规划 ${new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+            _autoSaveRoute(aiRouteName);
+            showToast(`✅ 已添加 ${state.waypoints.length} 个地点（未分配 D）`, 'success');
+            return;
+        }
+    }
+
     // 如果没确认就关闭，也显示结果（不分配 D）
     if (state.waypoints.length > 0) {
         showToast(`✅ 已添加 ${state.waypoints.length} 个地点（可手动设置 D 编号）`, 'success');
