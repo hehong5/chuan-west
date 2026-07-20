@@ -1494,9 +1494,42 @@ function adjustStay(index, delta) {
     // 起终点不参与停留
     if (index === 0 || index === state.waypoints.length - 1) return;
     p.stayDays = Math.max(0, Math.min(30, (p.stayDays || 0) + delta));
+    renumberDays();
     renderPoints();
     updateStayStats();
     saveToLocal();
+}
+
+// V22.10.3: 根据 stayDays 重新编号 D1·, D2· ... (每个途经点默认1天 + 停留天数)
+function renumberDays() {
+    let dayNum = 1;
+    state.waypoints.forEach((wp, i) => {
+        if (i === 0) {
+            // 起点：1天
+            wp.stayDays = wp.stayDays || 0;
+        } else if (i === state.waypoints.length - 1) {
+            // 终点：不参与编号
+        } else {
+            // 途经点：默认1天
+            if (wp.stayDays === undefined || wp.stayDays === null) wp.stayDays = 1;
+        }
+    });
+
+    // 重新设置 name 前缀
+    let dayCounter = 1;
+    state.waypoints.forEach((wp, i) => {
+        // 提取纯名称
+        const cleanName = wp.name.replace(/^D[\d.]+\s*·\s*/, '').trim();
+        if (i === 0) {
+            wp.name = `D${dayCounter} · ${cleanName}`;
+            dayCounter += 1 + (wp.stayDays || 0);
+        } else if (i === state.waypoints.length - 1) {
+            wp.name = `D${dayCounter} · ${cleanName}`;
+        } else {
+            wp.name = `D${dayCounter} · ${cleanName}`;
+            dayCounter += 1 + (wp.stayDays || 1);
+        }
+    });
 }
 
 // ====== V20: 刷新"停留总天数"统计 ======
@@ -3502,7 +3535,9 @@ function importRoute(planId) {
     document.getElementById('endInput').value = '';
 
     // 把每天的站点加为途经点
-    plan.days.forEach(day => {
+    plan.days.forEach((day, idx) => {
+        const isFirst = idx === 0;
+        const isLast = idx === plan.days.length - 1;
         state.waypoints.push({
             name: `${day.d} · ${day.name}`,
             lng: day.lng,
@@ -3511,6 +3546,8 @@ function importRoute(planId) {
             tag: day.tag,
             note: day.note,
             wiki: day.wiki,
+            // V22.10.3: 每个途经点默认1天（起终点0天），保持原 D 编号
+            stayDays: (isFirst || isLast) ? 0 : 1,
         });
     });
 
@@ -4417,6 +4454,8 @@ function loadFromLocal() {
             // V22.10.2: 为旧数据补充 note/wiki 字段
             data.waypoints = data.waypoints.map(wp => _enrichWaypoint(wp));
             state.waypoints = data.waypoints;
+            renumberDays(); // V22.10.3: 重新编号 D 编号
+            state.waypoints = data.waypoints;
             renderPoints();
             drawRoute();
             showToast('已恢复上次路线', 'success');
@@ -4425,13 +4464,31 @@ function loadFromLocal() {
 }
 
 // V22.10.2: 从预设路线中查找匹配地点，补充 note/wiki/alt 字段
+// V22.10.3: 增加常用地点的硬编码兜底（阿坝县、稻城亚丁区等不在预设中但有标准海拔）
+const COMMON_ALTS = {
+    '阿坝县': { alt: 3300, note: '川甘青交界，海拔较高', wiki: '阿坝县位于川甘青交界，平均海拔 3300m，是前往莲宝叶则、年宝玉则等景区的门户县城。' },
+    '色达': { alt: 4127, note: '佛学院所在地，色达喇荣五明佛学院', wiki: '色达县海拔 4127m，藏传佛教宁玛派圣地，喇荣五明佛学院有近万名僧尼在此修行。' },
+    '甘孜县': { alt: 3390, note: '雅砻江畔，G317 重要中转', wiki: '甘孜县海拔 3390m，雅砻江畔，G317 北线重要中转站。雅砻江穿城而过。' },
+    '德格': { alt: 3270, note: '德格印经院所在地', wiki: '德格县海拔 3270m，德格印经院始建于 1729 年，藏区三大印经院之首。' },
+    '白玉': { alt: 3050, note: '甘白路终点，金沙江上游', wiki: '白玉县海拔 3050m，金沙江上游，噶陀寺为宁玛派六大金刚道场之母寺。' },
+    '炉霍': { alt: 3250, note: 'G317 重镇，卡萨湖', wiki: '炉霍县海拔 3250m，G317 重要中转，虾拉沱村、宗塔草原为沿途亮点。' },
+    '道孚': { alt: 2965, note: '民居走廊', wiki: '道孚县海拔 2965m，藏族民居走廊，沿途可看白塔、碉楼。' },
+    '塔公': { alt: 3730, note: '塔公草原，木雅金塔', wiki: '塔公草原海拔 3730m，木雅金塔与雅拉雪山同框。' },
+    '八美': { alt: 3500, note: '墨石公园所在地', wiki: '八美镇海拔 3500m，墨石公园（中国唯一高原石林）就在此。' },
+    '丹巴': { alt: 1800, note: '甲居藏寨', wiki: '丹巴县海拔 1800m，"中国最美乡村"甲居藏寨所在地。' },
+    '小金': { alt: 2367, note: '四姑娘山门户', wiki: '小金县海拔 2367m，四姑娘山门户，夹金山、长坪沟徒步。' },
+    '马尔康': { alt: 2600, note: '阿坝州首府，卓克基土司官寨', wiki: '马尔康海拔 2600m，阿坝州首府，卓克基土司官寨为重要历史建筑。' },
+    '松潘': { alt: 2850, note: '黄龙景区门户', wiki: '松潘县海拔 2850m，黄龙景区门户，川主寺为九黄机场所在地。' },
+    '九寨沟县': { alt: 1400, note: '九寨沟景区所在地', wiki: '九寨沟县海拔 1400m，景区实际海拔 2000-3100m，以翠海、叠瀑、彩林、雪峰闻名。' },
+};
+
 function _enrichWaypoint(wp) {
-    if (wp.note && wp.wiki && wp.alt) return wp; // 已有完整数据
+    if (wp.alt && wp.note) return wp; // 已有足够数据
 
     // 提取纯名称（去掉 D1 · 前缀）
-    const cleanName = wp.name.replace(/^D\d+\s*·\s*/, '').trim();
+    const cleanName = wp.name.replace(/^D[\d.]+\s*·\s*/, '').trim();
 
-    // 在所有预设方案中查找匹配
+    // 1. 在所有预设方案中查找匹配
     for (const planId in PRESET_PLANS) {
         const plan = PRESET_PLANS[planId];
         for (const day of plan.days) {
@@ -4446,6 +4503,20 @@ function _enrichWaypoint(wp) {
             }
         }
     }
+
+    // 2. 在常用地点兜底表中查找
+    for (const key in COMMON_ALTS) {
+        if (cleanName.includes(key) || key.includes(cleanName)) {
+            const info = COMMON_ALTS[key];
+            return {
+                ...wp,
+                alt: wp.alt || info.alt,
+                note: wp.note || info.note,
+                wiki: wp.wiki || info.wiki,
+            };
+        }
+    }
+
     return wp;
 }
 
