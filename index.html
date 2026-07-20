@@ -1067,6 +1067,249 @@ const state = {
     aiResult: null,
 };
 
+// ====== 和风天气 API 配置 (V22.4) ======
+const QWEATHER_CONFIG = {
+    key: '83a7fe83974c425d877fb263b55c99d7',        // API Key
+    apiHost: 'kw5g7erce5.re.qweatherapi.com',         // 你的 API Host
+};
+
+// 高德天气图标映射
+const AWEATHER_ICONS = {
+    'sunny': '☀️', 'cloudy': '☁️', 'partlycloudy': '⛅', 'overcast': '☁️',
+    'rainy': '🌧️', 'storm': '⛈️', 'shower': '🌦️', 'sleet': '🌨️',
+    'snow': '❄️', 'fog': '🌫️', 'dust': '💨', 'sandstorm': '🌪️',
+    'haze': '🌫️', 'windy': '🌬️', 'unknown': '🌡️',
+};
+
+function getAmapWeatherIcon(type) {
+    const t = String(type).toLowerCase();
+    if (t.includes('雨')) return '🌧️';
+    if (t.includes('雪')) return '❄️';
+    if (t.includes('阴')) return '☁️';
+    if (t.includes('晴')) return '☀️';
+    if (t.includes('雾') || t.includes('霾')) return '🌫️';
+    if (t.includes('风')) return '🌬️';
+    if (t.includes('多云')) return '⛅';
+    if (t.includes('雷')) return '⛈️';
+    return '🌡️';
+}
+
+function getWeatherIcon(code) {
+    return getAmapWeatherIcon(code);
+}
+
+// 获取和风天气数据
+async function fetchWeather(lat, lng) {
+    try {
+        const apiKey = QWEATHER_CONFIG.key;
+        const apiHost = QWEATHER_CONFIG.apiHost;
+        
+        // 获取实时天气
+        const nowUrl = `https://${apiHost}/v7/weather/now?location=${lng},${lat}&key=${apiKey}`;
+        const nowRes = await fetch(nowUrl);
+        const nowData = await nowRes.json();
+        
+        console.log('和风天气实时响应:', nowData);
+
+        // 获取3天预报
+        const forecastUrl = `https://${apiHost}/v7/weather/3d?location=${lng},${lat}&key=${apiKey}`;
+        const forecastRes = await fetch(forecastUrl);
+        const forecastData = await forecastRes.json();
+        
+        console.log('和风天气预报响应:', forecastData);
+
+        return {
+            ok: nowData.code === '200' || nowData.code === '204',
+            now: (nowData.code === '200' || nowData.code === '204') ? nowData.now : null,
+            daily: forecastData.code === '200' ? forecastData.daily : null
+        };
+    } catch (e) {
+        console.error('天气获取失败:', e);
+        return { ok: false, now: null, daily: null };
+    }
+}
+
+// 调试：测试和风天气 API
+async function testWeatherAPI() {
+    const apiKey = QWEATHER_CONFIG.key;
+    const apiHost = QWEATHER_CONFIG.apiHost;
+    const url = `https://${apiHost}/v7/weather/now?location=104.06,30.67&key=${apiKey}`;
+    console.log('测试和风天气 API:', url);
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        console.log('API响应:', data);
+        return data;
+    } catch (e) {
+        console.error('API测试失败:', e);
+        return null;
+    }
+}
+
+// 天气图标映射
+const WEATHER_ICONS = {
+    '100': '☀️', '101': '☁️', '102': '⛅', '103': '☁️',
+    '104': '☁️', '105': '🌨️', '106': '🌨️', '107': '❄️',
+    '108': '🌨️', '109': '🌨️', '110': '🌫️', '111': '❄️',
+    '112': '🌧️', '113': '🌙☀️', '114': '🌙☁️', '115': '🌙⛅',
+    '116': '🌙☁️', '117': '🌙☁️', '118': '🌧️', '119': '🌧️',
+    '120': '🌧️', '121': '🌨️', '122': '🌨️', '123': '❄️',
+    '124': '🌙🌨️', '125': '🌙❄️', '126': '🌧️', '127': '🌧️',
+    '128': '🌧️', '129': '🌨️', '130': '🌨️', '131': '❄️',
+    '132': '❄️', '200': '🌬️', '201': '🌬️', '202': '🌬️',
+    '203': '🌬️', '204': '🌬️', '205': '🌬️', '206': '🌬️',
+    '207': '🌬️', '208': '🌬️', '209': '🌬️', '210': '🌬️',
+    '211': '🌬️', '212': '🌬️', '213': '🌬️', '300': '🌦️',
+    '301': '🌧️', '302': '⛈️', '303': '⛈️', '304': '⛈️',
+    '305': '🌧️', '306': '🌧️', '307': '🌧️', '308': '🌧️',
+    '309': '🌧️', '310': '🌧️', '311': '🌧️', '312': '🌧️',
+    '313': '🌧️', '314': '🌧️', '315': '🌧️', '316': '🌧️',
+    '317': '🌧️', '318': '🌧️', '399': '🌧️', '400': '🌨️',
+    '401': '❄️', '402': '❄️', '403': '❄️', '404': '❄️',
+    '405': '❄️', '406': '❄️', '407': '❄️', '408': '❄️',
+    '409': '❄️', '410': '❄️', '411': '❄️', '412': '❄️',
+    '413': '🌨️', '414': '🌨️', '415': '🌨️', '416': '🌨️',
+    '417': '🌨️', '418': '🌨️', '419': '🌨️', '420': '🌨️',
+    '421': '🌨️', '422': '🌨️', '423': '🌨️', '424': '🌨️',
+    '425': '❄️', '426': '❄️', '427': '❄️', '428': '❄️',
+    '429': '❄️', '430': '❄️', '431': '❄️', '432': '❄️',
+    '433': '❄️', '434': '❄️', '435': '❄️', '499': '❄️',
+    '500': '🌫️', '501': '🌫️', '502': '🌫️', '503': '🌫️',
+    '504': '🌫️', '507': '⛈️', '508': '⛈️', '509': '🌫️',
+    '510': '🌫️', '511': '🌫️', '512': '🌫️', '513': '🌫️',
+    '514': '🌫️', '515': '🌫️', '516': '🌫️', '517': '🌫️',
+    '518': '🌫️', '519': '🌫️', '520': '🌫️', '521': '🌫️',
+    '522': '🌫️', '523': '🌫️', '524': '🌫️', '525': '🌫️',
+    '526': '🌫️', '527': '🌫️', '528': '🌫️', '529': '🌫️',
+    '530': '🌫️', '531': '🌫️', '532': '🌫️', '533': '🌫️',
+    '534': '🌫️', '535': '🌫️', '536': '🌫️', '537': '🌫️',
+    '538': '🌫️', '539': '🌫️', '540': '🌫️', '701': '🌫️',
+    '702': '☁️', '703': '☁️', '704': '☁️', '705': '☁️',
+    '706': '☁️', '707': '☁️', '708': '☁️', '709': '☁️',
+    '710': '☁️', '711': '🌫️', '712': '🌫️', '713': '🌫️',
+    '714': '🌫️', '715': '🌫️', '716': '🌫️', '717': '🌫️',
+    '718': '🌫️', '719': '🌫️', '720': '🌫️', '721': '🌫️',
+    '722': '🌫️', '723': '🌫️', '724': '🌫️', '725': '🌫️',
+    '726': '🌫️', '727': '🌫️', '728': '�雾', '729': '🌫️',
+    '730': '🌫️', '731': '🌫️', '732': '☁️', '733': '☁️',
+    '734': '☁️', '735': '☁️', '800': '🌙', '801': '🌙☁️',
+    '802': '🌙⛅', '803': '🌙☁️', '804': '☁️', '805': '☁️',
+    '806': '☁️', '807': '☁️', '808': '☁️', '809': '⛈️',
+    '810': '🌧️', '811': '🌧️', '812': '🌧️', '813': '🌧️',
+    '814': '⛈️', '815': '🌨️', '816': '🌨️', '817': '🌨️',
+    '818': '🌨️', '819': '❄️', '820': '❄️', '821': '❄️',
+    '822': '❄️', '823': '🌨️', '900': '🌡️', '901': '❄️',
+    '999': '❓'
+};
+
+function getWeatherIcon(code) {
+    return WEATHER_ICONS[String(code)] || '🌡️';
+}
+
+// 获取天气数据
+async function fetchWeather(lat, lng) {
+    try {
+        const apiKey = QWEATHER_CONFIG.projectId;
+        
+        // 尝试商业版认证方式：key 作为 query 参数
+        const nowUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/now?location=${lng},${lat}&key=${apiKey}`;
+        const nowRes = await fetch(nowUrl);
+        const nowData = await nowRes.json();
+        
+        console.log('天气API实时响应:', nowData);
+
+        // 获取3天预报
+        const forecastUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/3d?location=${lng},${lat}&key=${apiKey}`;
+        const forecastRes = await fetch(forecastUrl);
+        const forecastData = await forecastRes.json();
+        
+        console.log('天气API预报响应:', forecastData);
+
+        return {
+            ok: nowData.code === '200' || nowData.code === '204',
+            now: (nowData.code === '200' || nowData.code === '204') ? nowData.now : null,
+            daily: forecastData.code === '200' ? forecastData.daily : null
+        };
+    } catch (e) {
+        console.error('天气获取失败:', e);
+        console.log('API响应:', e.message);
+        return { ok: false, now: null, daily: null };
+    }
+}
+
+// 调试：直接测试API
+async function testWeatherAPI() {
+    const apiKey = QWEATHER_CONFIG.projectId;
+    const testUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/now?location=100.75,35.75&key=${apiKey}`;
+    console.log('测试天气API:', testUrl);
+    console.log('使用Key:', apiKey);
+    try {
+        const res = await fetch(testUrl);
+        const data = await res.json();
+        console.log('API响应:', data);
+        return data;
+    } catch (e) {
+        console.error('API测试失败:', e);
+        return null;
+    }
+}
+
+// 渲染天气 HTML
+function renderWeatherHTML(weather) {
+    if (!weather.ok || !weather.now) {
+        return '<div style="padding:12px;color:#94a3b8;font-size:12px;">天气数据加载失败</div>';
+    }
+
+    const now = weather.now;
+    const daily = weather.daily || [];
+    const icon = getWeatherIcon(now.icon);
+    const temp = now.temp || '--';
+    const feelsLike = now.feelsLike || '--';
+    const wind = now.windDir || '--';
+    const windScale = now.windScale || '--';
+    const humidity = now.humidity || '--';
+    const text = now.text || '未知';
+
+    let forecastHTML = '';
+    if (daily.length > 0) {
+        const dayNames = ['今天', '明天', '后天'];
+        forecastHTML = daily.slice(0, 3).map((d, i) => {
+            const dayIcon = getWeatherIcon(d.iconDay);
+            const nightIcon = getWeatherIcon(d.iconNight);
+            const tempRange = `${d.tempMin}° ~ ${d.tempMax}°`;
+            return `
+                <div style="flex:1;text-align:center;padding:8px 4px;border-radius:6px;background:#f8fafc;margin:0 3px;">
+                    <div style="font-size:11px;color:#64748b;margin-bottom:4px;">${dayNames[i]}</div>
+                    <div style="font-size:14px;margin-bottom:2px;">${dayIcon}</div>
+                    <div style="font-size:9px;color:#94a3b8;">${nightIcon}</div>
+                    <div style="font-size:11px;font-weight:600;color:#334155;margin-top:4px;">${tempRange}</div>
+                    <div style="font-size:10px;color:#64748b;margin-top:2px;">${d.textDay || ''}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    return `
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:10px;padding:14px;color:#fff;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="font-size:32px;margin-bottom:2px;">${icon}</div>
+                    <div style="font-size:14px;opacity:0.9;">${text}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:36px;font-weight:300;">${temp}°</div>
+                    <div style="font-size:11px;opacity:0.8;">体感 ${feelsLike}°</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;opacity:0.9;">
+                <span>💨 ${wind} ${windScale}级</span>
+                <span>💧 ${humidity}%</span>
+            </div>
+        </div>
+        ${forecastHTML ? `<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">📅 3日预报</div><div style="display:flex;">${forecastHTML}</div></div>` : ''}
+    `;
+}
+
 // ====== 预设线路方案（来源：川西格聂南线双方案自驾规划.md / V3 合并路线） ======
 // V3: 路线1 末段（稻城亚丁→格聂→新都桥→西昌）+ 路线2 木里+泸沽湖中段
 // 新都桥连住 2-3 天，其它途经点尽量贴合原数据，精简了色达/马尔康节点
@@ -1754,6 +1997,16 @@ function openPoiDetail(i, position) {
             <div class="d-body">
                 <div class="d-wiki">${(dayInfo && dayInfo.wiki) ? escapeHtml(dayInfo.wiki) : escapeHtml(p.note || '该地点暂无详细介绍')}</div>
 
+                <!-- V22.3: 天气区块 -->
+                <div class="d-section" id="weatherSection">
+                    <h4><span>🌤️ 实时天气</span></h4>
+                    <div id="weatherContent${i}" style="min-height:60px;">
+                        <div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px;">
+                            ⏳ 加载天气数据...
+                        </div>
+                    </div>
+                </div>
+
                 <div class="d-actions">
                     <a class="d-btn primary big" target="_blank" href="https://baike.baidu.com/item/${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}" rel="noopener">📖 打开百科</a>
                     <a class="d-btn primary" target="_blank" href="https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${encodeURIComponent(p.name)}&src=mindmap&coordinate=gaode&callnative=1" rel="noopener">🧭 高德导航</a>
@@ -1806,6 +2059,14 @@ function openPoiDetail(i, position) {
     _detailOverlay = document.createElement('div');
     _detailOverlay.innerHTML = html;
     document.body.appendChild(_detailOverlay);
+
+    // V22.3: 加载天气数据
+    fetchWeather(p.lat, p.lng).then(weather => {
+        const weatherEl = document.getElementById('weatherContent' + i);
+        if (weatherEl) {
+            weatherEl.innerHTML = renderWeatherHTML(weather);
+        }
+    });
 
     // 默认加载景点 + 美食 + 住宿 (3 列并发搜索)
     _searchDetailNearby(p, i, null);
@@ -1907,6 +2168,31 @@ async function generateItineraryWithAI(i) {
     btn.disabled = true;
     btn.textContent = '⏳ 生成中...';
 
+    // V22.3: 获取天气数据用于 AI 参考
+    let weatherInfo = '';
+    try {
+        const weather = await fetchWeather(p.lat, p.lng);
+        if (weather.ok && weather.now) {
+            const w = weather.now;
+            const icon = getWeatherIcon(w.icon);
+            weatherInfo = `
+【当前天气】${icon} ${w.text || '未知天气'} ${w.temp || '--'}°C
+- 体感温度: ${w.feelsLike || '--'}°C
+- 风向风力: ${w.windDir || '--'} ${w.windScale || '--'}级
+- 相对湿度: ${w.humidity || '--'}%
+`;
+            if (weather.daily && weather.daily.length > 0) {
+                weatherInfo += '\n【3日天气预报】';
+                const dayNames = ['今天', '明天', '后天'];
+                weather.daily.slice(0, 3).forEach((d, idx) => {
+                    weatherInfo += `\n${dayNames[idx]}: ${getWeatherIcon(d.iconDay)} ${d.textDay || ''} ${d.tempMin || ''}°~${d.tempMax || ''}°`;
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('获取天气失败:', e);
+    }
+
     // 构建提示词
     const prompt = `请为川西自驾游中的「${placeName}」景点生成详细的游玩策略和行程安排。
 
@@ -1917,6 +2203,7 @@ async function generateItineraryWithAI(i) {
 ${prevPoint ? `- 上一站：${prevPoint.name}` : '- 起点站'}
 ${nextPoint ? `- 下一站：${nextPoint.name}` : '- 终点站'}
 - 途经点序号：第 ${i + 1} 站，共 ${state.waypoints.length} 站
+${weatherInfo ? `\n${weatherInfo}` : ''}
 
 请生成以下内容（用纯文本格式，不要JSON）：
 1. 【时间规划】根据整体路线安排，建议几点到达该地、游玩多久、几点离开前往下一站
@@ -1931,7 +2218,7 @@ ${nextPoint ? `- 下一站：${nextPoint.name}` : '- 终点站'}
 10. 周边可串联的景点
 11. 实用小贴士
 
-⚠️ 重要：请在【时间规划】部分，结合整条路线的节奏，给出明确的到达时间和离开时间建议。`;
+⚠️ 重要：请结合上述天气信息，在行程安排中给出穿衣建议和天气注意事项。如果有雨雪天气预警，请特别提醒。`;
 
     try {
         const response = await fetch('https://api.deepseek.com/chat/completions', {
