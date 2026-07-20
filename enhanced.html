@@ -2388,6 +2388,7 @@ async function applyAIParsedRoute(places) {
 
     // V22.10.6: 标记为 AI 生成的路线，确认天数后自动保存到云端
     window._aiGeneratedFlag = true;
+    console.log('[AI Route] 已设置 _aiGeneratedFlag = true');
 
     _geoAbort = false;  // 重置中止标志
     showToast(`🔍 正在定位 ${places.length} 个地点...`, 'info');
@@ -2465,12 +2466,15 @@ async function applyAIParsedRoute(places) {
         showToast(`⚠️ ${failedPlaces.length} 个地点定位失败，已跳过: ${failedPlaces.slice(0, 3).join('、')}${failedPlaces.length > 3 ? '...' : ''}`, 'warning');
     }
 
-    // 如果有成功添加的地点，弹出天数设置
+    // 如果有成功添加的地点，先自动保存一份 AI 原始版到云端（V22.10.8: 防止用户没点确认就关闭对话框）
     if (state.waypoints.length > (startPoint ? 1 : 0)) {
-        // 延迟弹出，避免阻塞
+        const aiRawName = `🤖 AI 原始 ${new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+        _autoSaveRoute(aiRawName);
+
+        // 延迟弹出天数设置对话框，让用户调整 D 编号和停留天数
         setTimeout(() => {
             showDaySettingDialog(startPoint ? 1 : 0);
-        }, 300);
+        }, 500);
     } else if (successCount.value === 0) {
         showToast('❌ 所有地点都定位失败', 'error');
     }
@@ -2564,6 +2568,18 @@ function confirmDaySetting(startIndex) {
     // V22.10.6: 记录是否是 AI 生成的路线（用于后续自动保存到云端）
     const isFromAI = window._aiGeneratedFlag === true;
 
+    // V22.10.8: 记录每个 D 包含哪些点的索引，用于智能分配停留天数
+    const dayBuckets = []; // [[i1, i2, ...], [i3, i4, ...]]
+    let bucket = [];
+    for (let i = startIndex; i < state.waypoints.length; i++) {
+        bucket.push(i);
+        if (bucket.length >= perDay && dayBuckets.length < numDays - 1) {
+            dayBuckets.push(bucket);
+            bucket = [];
+        }
+    }
+    if (bucket.length > 0) dayBuckets.push(bucket);
+
     for (let i = 0; i < state.waypoints.length; i++) {
         const p = state.waypoints[i];
         if (i < startIndex) {
@@ -2578,6 +2594,25 @@ function confirmDaySetting(startIndex) {
                 countInDay = 0;
             }
         }
+    }
+
+    // V22.10.8: 智能分配停留天数 - 每天的最后一个途经点 stayDays = 1（在该地过夜）
+    // 避免连续行程太赶。最后一天如果只有一个途经点，则 stayDays = 0（直接离开）。
+    if (isFromAI) {
+        // 先全部重置为 0
+        for (let i = startIndex; i < state.waypoints.length; i++) {
+            state.waypoints[i].stayDays = 0;
+        }
+        // 每天最后一个途经点 stayDays = 1（除了最后一天）
+        for (let d = 0; d < dayBuckets.length - 1; d++) {
+            const bucket = dayBuckets[d];
+            const lastIdx = bucket[bucket.length - 1];
+            if (lastIdx !== undefined && lastIdx !== state.waypoints.length - 1) {
+                state.waypoints[lastIdx].stayDays = 1;
+            }
+        }
+        // 重新用 renumberDays 让 D 编号与停留天数同步
+        renumberDays();
     }
 
     closeDaySettingDialog();
@@ -2606,12 +2641,7 @@ function _autoSaveRoute(name) {
         timestamp: Date.now(),
         pointCount: state.waypoints.length,
     };
-    // 去重：检查最近一条是否与本次完全相同
-    const last = routes[0];
-    if (last && JSON.stringify(last.waypoints) === JSON.stringify(route.waypoints)) {
-        showToast('☁️ 已自动同步到云端（与上次一致）', 'success');
-        return;
-    }
+    // V22.10.8: 总是保存（去掉去重，因为 AI 流程可能产生"原始"+"调整后"两个版本）
     routes.unshift(route);
     if (routes.length > 20) routes.length = 20;
     setSavedRoutes(routes); // 内部已调用 _triggerAutoSync()
@@ -2623,6 +2653,7 @@ function _autoSaveRoute(name) {
     } else {
         showToast(`💾【${name}】已保存到本地（开启云端同步后可跨设备）`, 'info');
     }
+    console.log(`[AutoSave] 已保存: ${name} (${route.pointCount} 点)`);
 }
 
 // ====== V22.3: 关闭天数设置对话框 ======
