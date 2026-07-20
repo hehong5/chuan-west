@@ -1557,7 +1557,7 @@ function renderPoints() {
                 <div class="point-index">${i + 1}</div>
                 <div class="point-info" onclick="openAndFlyTo(${i})" style="cursor:pointer;flex:1;" title="点击打开详情 → 在弹窗里改名/改海拔">
                     <div class="point-name">${escapeHtml(p.name)}</div>
-                    <div class="point-coord">${label} · ${p.alt ? escapeHtml(String(p.alt)) + 'm' : '⛰ 待填'}</div>
+                    <div class="point-coord">${p.alt ? escapeHtml(String(p.alt)) + 'm · ' : ''}${p.note ? escapeHtml(p.note.slice(0, 20)) + (p.note.length > 20 ? '...' : '') : '⛰ 待填海拔'}</div>
                 </div>
                 ${stayControl}
                 <div class="point-actions">
@@ -2019,7 +2019,7 @@ function openPoiDetail(i, position) {
                         <button class="d-btn" onclick="askAIAboutPlace(${i})" id="aiAskBtn${i}" style="background:#7c3aed;color:#fff;border-color:#7c3aed;white-space:nowrap;">💬 提问</button>
                     </div>
                     <textarea id="itineraryText${i}" placeholder="在此输入该地点的详细行程安排、游玩策略、注意事项等..."
-                        style="width:100%;min-height:120px;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.6;resize:vertical;box-sizing:border-box;"
+                        style="width:100%;min-height:200px;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.6;resize:vertical;box-sizing:border-box;"
                         onblur="saveItinerary(${i})">${dayInfo && dayInfo.wiki ? escapeHtml(dayInfo.wiki) : (p.itinerary || '')}</textarea>
                     <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:11px;color:#94a3b8;">可编辑 · 自动保存</span>
@@ -4824,67 +4824,53 @@ async function dbPush() {
 
 async function dbPull() {
     const code = _dbGetUserId();
-    const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
-
+    // V22.10: 下载时尝试从云端拉取（不受开关限制，只要云端有数据就下载）
     try {
-        // 1. 优先从云端拉取（如果开启）
-        if (useCloud) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}&order=updated_at.desc&limit=1`, {
-                    method: 'GET',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    },
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                // V22.6: 404 说明表不存在，禁用云同步
-                if (r.status === 404) {
-                    console.warn('[db pull] 云端表不存在，禁用云同步');
-                    localStorage.setItem('travelmind_use_cloud', '0');
-                    localStorage.setItem(CLOUD_KEY_AUTOSYNC, '0');
-                    clearTimeout(_dbAutoTimer);
-                    const chk = document.getElementById('useCloudChk');
-                    if (chk) chk.checked = false;
-                    const autoChk = document.getElementById('cloudAutoSyncChk');
-                    if (autoChk) autoChk.checked = false;
-                    updateCloudStatusText();
-                } else {
-                    const cloudData = await r.json();
-                    if (cloudData && cloudData.length > 0) {
-                        const payload = JSON.parse(cloudData[0].data);
-                        const _savedAt = cloudData[0].updated_at || Date.now();
-                        const { _code, ...data } = payload;
-                        // 保存到本地备份
-                        localStorage.setItem(_roomKey(code), cloudData[0].data);
-                        if (_cloudApplyData(data)) {
-                            return { ok: true, msg: `✓ 已从云端恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
-                        }
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}&order=updated_at.desc&limit=1`, {
+                method: 'GET',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (r.status === 404) {
+                // 404 说明表不存在，跳过云端
+            } else {
+                const cloudData = await r.json();
+                if (cloudData && cloudData.length > 0) {
+                    const payload = JSON.parse(cloudData[0].data);
+                    const _savedAt = cloudData[0].updated_at || Date.now();
+                    const { _code, ...data } = payload;
+                    localStorage.setItem(_roomKey(code), cloudData[0].data);
+                    if (_cloudApplyData(data)) {
+                        return { ok: true, msg: `✓ 已从云端恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
                     }
                 }
-            } catch (e) {
-                console.warn('[db pull] 云端拉取失败，使用本地数据:', e.message);
             }
+        } catch (e) {
+            console.warn('[db pull] 云端拉取失败，使用本地数据:', e.message);
         }
+        clearTimeout(timeoutId);
+    } catch (e) {}
 
-        // 2. 从本地恢复
-        const raw = localStorage.getItem(_roomKey(code));
-        if (!raw) {
-            return { ok: false, msg: '没有找到数据，请先开启"云端同步"并上传' };
-        }
-        const payload = JSON.parse(raw);
-        const { _savedAt, _code, ...data } = payload;
-        if (_cloudApplyData(data)) {
-            return { ok: true, msg: `✓ 已从本机恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
-        }
-        return { ok: false, msg: '数据格式不对' };
-    } catch (e) {
-        return { ok: false, msg: '读取失败: ' + e.message };
+    // 从本地恢复
+    const raw = localStorage.getItem(_roomKey(code));
+    if (!raw) {
+        return { ok: false, msg: '没有找到数据，请先在另一台设备上传' };
     }
+    const payload = JSON.parse(raw);
+    const { _savedAt, _code, ...data } = payload;
+    if (_cloudApplyData(data)) {
+        return { ok: true, msg: `✓ 已从本机恢复 (${_savedAt ? new Date(_savedAt).toLocaleString('zh-CN') : ''})` };
+    }
+    return { ok: false, msg: '数据格式不对' };
 }
 
 async function dbAuto() {
