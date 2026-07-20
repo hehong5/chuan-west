@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.4</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.5</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.4');
+        console.log('🗺️ 川西旅行规划 v20260720-22.5');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
     <!-- mammoth.js for Word docx parsing -->
@@ -3204,6 +3204,7 @@ async function addViaSearch() {
         if (state.waypoints.length === 0) state.waypoints.push(newWp);
         else state.waypoints[0] = { ...state.waypoints[0], ...newWp };
         showToast(`✓ 已设为新起点：${cleanName}`, 'success');
+        fitToRoute();  // V22.4: 飞到新起点
     } else if (role === 'end') {
         if (state.waypoints.length === 0) state.waypoints.push(newWp);
         else {
@@ -3211,6 +3212,7 @@ async function addViaSearch() {
             state.waypoints[last] = { ...state.waypoints[last], ...newWp };
         }
         showToast(`✓ 已设为新终点：${cleanName}`, 'success');
+        fitToRoute();  // V22.4: 飞到新终点
     } else {
         // 途经点: 插在「终点之前」, 避免把终点挤掉
         if (state.waypoints.length <= 1) {
@@ -3223,6 +3225,7 @@ async function addViaSearch() {
 
     renderPoints();
     drawRoute();
+    fitToRoute();  // V22.4: 确保视野包含新添加的点
     saveToLocal();
     input.value = '';
     hint.textContent = '✓ 已添加：' + cleanName;
@@ -4697,7 +4700,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v22.4',
+        version: 'v22.5',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
