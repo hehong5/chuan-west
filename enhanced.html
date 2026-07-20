@@ -2864,7 +2864,14 @@ ${weatherInfo ? `\n${weatherInfo}` : ''}
             p.itinerary = content;
             saveToLocal();
             _triggerAutoSync();
-            showToast('✓ AI 生成完成', 'success');
+            // V22.10.7: 显示明确的同步状态提示
+            const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
+            const autoSync = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
+            if (useCloud && autoSync) {
+                showToast('☁️ AI 攻略已保存到云端', 'success');
+            } else {
+                showToast('💾 AI 攻略已保存到本地（开启云同步后可跨设备）', 'info');
+            }
         } else {
             throw new Error('未获取到有效内容');
         }
