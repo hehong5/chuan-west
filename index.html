@@ -1206,54 +1206,6 @@ function getWeatherIcon(code) {
     return WEATHER_ICONS[String(code)] || '🌡️';
 }
 
-// 获取天气数据
-async function fetchWeather(lat, lng) {
-    try {
-        const apiKey = QWEATHER_CONFIG.projectId;
-        
-        // 尝试商业版认证方式：key 作为 query 参数
-        const nowUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/now?location=${lng},${lat}&key=${apiKey}`;
-        const nowRes = await fetch(nowUrl);
-        const nowData = await nowRes.json();
-        
-        console.log('天气API实时响应:', nowData);
-
-        // 获取3天预报
-        const forecastUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/3d?location=${lng},${lat}&key=${apiKey}`;
-        const forecastRes = await fetch(forecastUrl);
-        const forecastData = await forecastRes.json();
-        
-        console.log('天气API预报响应:', forecastData);
-
-        return {
-            ok: nowData.code === '200' || nowData.code === '204',
-            now: (nowData.code === '200' || nowData.code === '204') ? nowData.now : null,
-            daily: forecastData.code === '200' ? forecastData.daily : null
-        };
-    } catch (e) {
-        console.error('天气获取失败:', e);
-        console.log('API响应:', e.message);
-        return { ok: false, now: null, daily: null };
-    }
-}
-
-// 调试：直接测试API
-async function testWeatherAPI() {
-    const apiKey = QWEATHER_CONFIG.projectId;
-    const testUrl = `https://${QWEATHER_CONFIG.apiHost}/v7/weather/now?location=100.75,35.75&key=${apiKey}`;
-    console.log('测试天气API:', testUrl);
-    console.log('使用Key:', apiKey);
-    try {
-        const res = await fetch(testUrl);
-        const data = await res.json();
-        console.log('API响应:', data);
-        return data;
-    } catch (e) {
-        console.error('API测试失败:', e);
-        return null;
-    }
-}
-
 // 渲染天气 HTML
 function renderWeatherHTML(weather) {
     if (!weather.ok || !weather.now) {
