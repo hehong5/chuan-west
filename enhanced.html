@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.3</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.4</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.3');
+        console.log('🗺️ 川西旅行规划 v20260720-22.4');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
     <!-- mammoth.js for Word docx parsing -->
@@ -2330,14 +2330,13 @@ async function applyAIParsedRoute(places) {
         <div style="text-align:center;padding:20px;">
             <div style="font-size:14px;color:#4338ca;margin-bottom:10px;">🔍 正在通过高德地图定位 ${places.length} 个地点...</div>
             <div id="geoProgress" style="font-size:12px;color:#64748b;margin-bottom:10px;">准备中...</div>
-            <button id="geoSkipBtn" onclick="skipRemainingPlaces()" style="padding:6px 12px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:4px;cursor:pointer;font-size:11px;">⏭️ 跳过剩余未定位地点</button>
-            <button id="geoAbortBtn" onclick="abortGeocoding()" style="margin-left:6px;padding:6px 12px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:4px;cursor:pointer;font-size:11px;">⛔ 取消全部</button>
+            <button id="geoAbortBtn" onclick="abortGeocoding()" style="padding:6px 12px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:4px;cursor:pointer;font-size:11px;">⛔ 取消全部</button>
         </div>
     `;
     previewEl.style.display = 'block';
 
-    let successCount = 0;
-    let failCount = 0;
+    const failedPlaces = [];  // 记录定位失败的地点
+    const successCount = { value: 0 };
 
     for (let i = 0; i < places.length; i++) {
         // 检查中止标志
@@ -2359,47 +2358,162 @@ async function applyAIParsedRoute(places) {
                     lng: result.lng,
                     lat: result.lat,
                 });
-                successCount++;
+                successCount.value++;
             } else {
-                failCount++;
+                failedPlaces.push(place);
             }
         } catch (err) {
-            failCount++;
             console.warn(`定位失败: ${place}`, err);
+            failedPlaces.push(place);
         }
 
         // 避免请求过快
         await new Promise(r => setTimeout(r, 200));
     }
 
-    // 更新 UI
-    renderPoints();
-    drawRoute();
-    saveToLocal();
-
-    // 清空输入
-    document.getElementById('aiRouteInput').value = '';
+    // 清空预览
     previewEl.style.display = 'none';
     document.getElementById('aiParseStatus').style.display = 'none';
+    document.getElementById('aiRouteInput').value = '';
 
-    // 飞到地图中心
-    if (state.waypoints.length > 0) {
-        fitToRoute();
+    // 更新 UI（暂时显示不带 D 前缀的名称）
+    renderPoints();
+    drawRoute();
+
+    // 提示定位失败但跳过继续
+    if (failedPlaces.length > 0) {
+        showToast(`⚠️ ${failedPlaces.length} 个地点定位失败，已跳过: ${failedPlaces.slice(0, 3).join('、')}${failedPlaces.length > 3 ? '...' : ''}`, 'warning');
     }
 
-    // 统计
-    if (successCount > 0) {
-        const msg = failCount > 0 ? `成功添加 ${successCount} 个地点，${failCount} 个未找到` : `成功添加 ${successCount} 个地点`;
-        showToast('✅ ' + msg, 'success');
-    } else {
+    // 如果有成功添加的地点，弹出天数设置
+    if (state.waypoints.length > (startPoint ? 1 : 0)) {
+        // 延迟弹出，避免阻塞
+        setTimeout(() => {
+            showDaySettingDialog(startPoint ? 1 : 0);
+        }, 300);
+    } else if (successCount.value === 0) {
         showToast('❌ 所有地点都定位失败', 'error');
     }
 }
 
-// ====== V22.2: 跳过剩余地点 ======
-function skipRemainingPlaces() {
-    _geoAbort = true;
-    showToast('⏭️ 已跳过剩余地点', 'info');
+// ====== V22.3: 显示天数设置对话框 ======
+function showDaySettingDialog(startIndex) {
+    const totalPoints = state.waypoints.length;
+    const minDays = 1;
+    const maxDays = totalPoints;
+    const suggestedDays = Math.min(Math.ceil(totalPoints / 3), maxDays);
+
+    const html = `
+        <div id="daySettingOverlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;">
+            <div style="background:white;border-radius:12px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <h3 style="margin:0 0 16px 0;font-size:16px;color:#1e293b;">📅 设置行程天数</h3>
+                <p style="margin:0 0 16px 0;font-size:13px;color:#64748b;">
+                    共 ${totalPoints - startIndex} 个地点（不含起点）<br>
+                    请设置行程天数，系统将自动分配 D1、D2...
+                </p>
+                <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;">
+                    <button onclick="adjustDialogDays(-1)" style="width:36px;height:36px;border-radius:50%;border:1px solid #e2e8f0;background:white;font-size:18px;cursor:pointer;">−</button>
+                    <input type="number" id="dayCountInput" value="${suggestedDays}" min="${minDays}" max="${maxDays}" 
+                        style="width:60px;height:36px;text-align:center;border:2px solid #4f46e5;border-radius:8px;font-size:18px;font-weight:bold;color:#4f46e5;">
+                    <button onclick="adjustDialogDays(1)" style="width:36px;height:36px;border-radius:50%;border:1px solid #e2e8f0;background:white;font-size:18px;cursor:pointer;">+</button>
+                    <span style="color:#64748b;font-size:14px;">天</span>
+                </div>
+                <div id="dayPreview" style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#475569;max-height:150px;overflow-y:auto;"></div>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="confirmDaySetting(${startIndex})" style="flex:1;padding:10px;background:#4f46e5;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:500;">✅ 确认</button>
+                    <button onclick="closeDaySettingDialog()" style="padding:10px 16px;background:#e2e8f0;color:#64748b;border:none;border-radius:8px;font-size:14px;cursor:pointer;">跳过</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    
+    // 监听输入变化
+    const input = document.getElementById('dayCountInput');
+    input.addEventListener('input', () => updateDayPreview(startIndex));
+    
+    // 初始预览
+    updateDayPreview(startIndex);
+}
+
+// ====== V22.3: 调整天数 ======
+function adjustDialogDays(delta) {
+    const input = document.getElementById('dayCountInput');
+    const newVal = Math.max(1, Math.min(state.waypoints.length, parseInt(input.value) + delta));
+    input.value = newVal;
+    updateDayPreview();
+}
+
+// ====== V22.3: 更新天数预览 ======
+function updateDayPreview(startIndex) {
+    const input = document.getElementById('dayCountInput');
+    const previewEl = document.getElementById('dayPreview');
+    if (!input || !previewEl) return;
+    
+    const numDays = Math.max(1, Math.min(state.waypoints.length, parseInt(input.value) || 1));
+    const totalPoints = state.waypoints.length;
+    const perDay = Math.ceil((totalPoints - startIndex) / numDays);
+    
+    let html = '';
+    for (let d = 1; d <= numDays; d++) {
+        const start = startIndex + (d - 1) * perDay;
+        const end = Math.min(start + perDay, totalPoints);
+        const points = [];
+        for (let i = start; i < end; i++) {
+            if (i < state.waypoints.length) {
+                const name = state.waypoints[i].name.replace(/^D\d+\s*·\s*/, '');  // 去掉旧的 D 前缀
+                points.push(name.length > 10 ? name.substring(0, 10) + '...' : name);
+            }
+        }
+        html += `<div style="margin-bottom:4px;"><b>D${d}</b>: ${points.join(' → ') || '（空）'}</div>`;
+    }
+    previewEl.innerHTML = html;
+}
+
+// ====== V22.3: 确认天数设置 ======
+function confirmDaySetting(startIndex) {
+    const input = document.getElementById('dayCountInput');
+    const numDays = Math.max(1, Math.min(state.waypoints.length, parseInt(input.value) || 1));
+    
+    // 计算每分配多少个点
+    const totalPoints = state.waypoints.length;
+    const perDay = Math.ceil((totalPoints - startIndex) / numDays);
+    let currentDay = 1;
+    let countInDay = 0;
+    
+    for (let i = 0; i < state.waypoints.length; i++) {
+        const p = state.waypoints[i];
+        if (i < startIndex) {
+            // 起点，移除 D 前缀
+            p.name = p.name.replace(/^D\d+\s*·\s*/, '');
+        } else {
+            // 途经点，分配 D 编号
+            p.name = `D${currentDay} · ${p.name.replace(/^D\d+\s*·\s*/, '')}`;
+            countInDay++;
+            if (countInDay >= perDay && currentDay < numDays) {
+                currentDay++;
+                countInDay = 0;
+            }
+        }
+    }
+    
+    closeDaySettingDialog();
+    renderPoints();
+    drawRoute();
+    saveToLocal();
+    fitToRoute();
+    showToast(`✅ 已分配 ${numDays} 天行程`, 'success');
+}
+
+// ====== V22.3: 关闭天数设置对话框 ======
+function closeDaySettingDialog() {
+    const overlay = document.getElementById('daySettingOverlay');
+    if (overlay) overlay.remove();
+    
+    // 如果没确认就关闭，也显示结果（不分配 D）
+    if (state.waypoints.length > 0) {
+        showToast(`✅ 已添加 ${state.waypoints.length} 个地点（可手动设置 D 编号）`, 'success');
+    }
 }
 
 // ====== V22.2: 中止全部定位 ======
@@ -4583,7 +4697,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v22.3',
+        version: 'v22.4',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
