@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.2</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.3</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,9 +14,11 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.2');
+        console.log('🗺️ 川西旅行规划 v20260720-22.3');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
+    <!-- mammoth.js for Word docx parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -792,7 +794,7 @@ Day3: 理塘 → 格聂之眼 → 巴塘
                     </div>
                     
                     <!-- 隐藏的文件输入 -->
-                    <input type="file" id="aiFileInput" accept=".txt,.md,.doc,.docx,.json,.yaml,.yml" style="display:none;" onchange="handleAFileUpload(this)">
+                    <input type="file" id="aiFileInput" accept=".txt,.md,.docx,.json,.yaml,.yml" style="display:none;" onchange="handleAFileUpload(this)">
                     
                     <!-- 解析状态 -->
                     <div id="aiParseStatus" style="display:none;margin-top:10px;padding:10px;border-radius:6px;font-size:12px;text-align:center;"></div>
@@ -2091,29 +2093,69 @@ function copyItinerary(i) {
 }
 
 // ====== V22.2: 处理文件上传 ======
-function handleAFileUpload(input) {
+async function handleAFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
 
-    const statusEl = document.getElementById('aiParseStatus');
     const previewEl = document.getElementById('aiParsePreview');
     const inputEl = document.getElementById('aiRouteInput');
 
     showParseStatus('📂 正在读取文件: ' + file.name, 'loading');
     previewEl.style.display = 'none';
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const content = e.target.result;
+    try {
+        let content = '';
+
+        if (file.name.endsWith('.docx')) {
+            // 使用 mammoth.js 解析 docx
+            content = await readDocxFile(file);
+        } else if (file.name.endsWith('.doc')) {
+            // 旧的 .doc 格式不支持，建议用户另存为 .docx
+            showParseStatus('⚠️ .doc 格式不支持，请另存为 .docx 后重试', 'error');
+            showToast('不支持 .doc 格式，请另存为 .docx', 'error');
+            return;
+        } else {
+            // 纯文本格式直接读取
+            content = await readTextFile(file);
+        }
+
         inputEl.value = content;
         showParseStatus('✓ 文件已读取，正在准备 AI 解析...', 'success');
-        // 自动触发解析
         setTimeout(() => parseRouteWithAI(), 500);
-    };
-    reader.onerror = function() {
-        showParseStatus('❌ 文件读取失败', 'error');
-    };
-    reader.readAsText(file);
+
+    } catch (err) {
+        console.error('文件读取失败:', err);
+        showParseStatus('❌ 文件读取失败: ' + err.message, 'error');
+        showToast('文件读取失败', 'error');
+    }
+}
+
+// ====== V22.2: 读取文本文件 ======
+function readTextFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = e => reject(new Error('文本文件读取失败'));
+        reader.readAsText(file, 'UTF-8');
+    });
+}
+
+// ====== V22.2: 读取 docx 文件 ======
+function readDocxFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const arrayBuffer = e.target.result;
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                resolve(result.value);
+            } catch (err) {
+                reject(new Error('docx 解析失败'));
+            }
+        };
+        reader.onerror = e => reject(new Error('docx 文件读取失败'));
+        reader.readAsArrayBuffer(file);
+    });
 }
 
 // ====== V22.2: 显示解析状态 ======
@@ -2261,12 +2303,15 @@ async function parseRouteWithAI() {
 }
 
 // ====== V22.2: 应用 AI 解析的路线 ======
+let _geoAbort = false;  // 中止标志
+
 async function applyAIParsedRoute(places) {
     if (!places || places.length === 0) {
         showToast('没有地点可添加', 'error');
         return;
     }
 
+    _geoAbort = false;  // 重置中止标志
     showToast(`🔍 正在定位 ${places.length} 个地点...`, 'info');
 
     // 清空现有路线，保留起点（如果有的话）
@@ -2284,7 +2329,9 @@ async function applyAIParsedRoute(places) {
     previewEl.innerHTML = `
         <div style="text-align:center;padding:20px;">
             <div style="font-size:14px;color:#4338ca;margin-bottom:10px;">🔍 正在通过高德地图定位 ${places.length} 个地点...</div>
-            <div id="geoProgress" style="font-size:12px;color:#64748b;">准备中...</div>
+            <div id="geoProgress" style="font-size:12px;color:#64748b;margin-bottom:10px;">准备中...</div>
+            <button id="geoSkipBtn" onclick="skipRemainingPlaces()" style="padding:6px 12px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:4px;cursor:pointer;font-size:11px;">⏭️ 跳过剩余未定位地点</button>
+            <button id="geoAbortBtn" onclick="abortGeocoding()" style="margin-left:6px;padding:6px 12px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:4px;cursor:pointer;font-size:11px;">⛔ 取消全部</button>
         </div>
     `;
     previewEl.style.display = 'block';
@@ -2293,6 +2340,11 @@ async function applyAIParsedRoute(places) {
     let failCount = 0;
 
     for (let i = 0; i < places.length; i++) {
+        // 检查中止标志
+        if (_geoAbort) {
+            break;
+        }
+
         const place = places[i];
         const progressEl = document.getElementById('geoProgress');
         if (progressEl) {
@@ -2300,7 +2352,6 @@ async function applyAIParsedRoute(places) {
         }
 
         try {
-            // 使用高德地理编码 API
             const result = await geocodePlace(place);
             if (result) {
                 state.waypoints.push({
@@ -2311,7 +2362,6 @@ async function applyAIParsedRoute(places) {
                 successCount++;
             } else {
                 failCount++;
-                console.warn(`无法定位: ${place}`);
             }
         } catch (err) {
             failCount++;
@@ -2319,7 +2369,7 @@ async function applyAIParsedRoute(places) {
         }
 
         // 避免请求过快
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 200));
     }
 
     // 更新 UI
@@ -2339,23 +2389,43 @@ async function applyAIParsedRoute(places) {
 
     // 统计
     if (successCount > 0) {
-        showToast(`✅ 成功添加 ${successCount} 个地点${failCount > 0 ? `，${failCount} 个未找到` : ''}`, 'success');
+        const msg = failCount > 0 ? `成功添加 ${successCount} 个地点，${failCount} 个未找到` : `成功添加 ${successCount} 个地点`;
+        showToast('✅ ' + msg, 'success');
     } else {
         showToast('❌ 所有地点都定位失败', 'error');
     }
 }
 
-// ====== V22.2: 高德地理编码 ======
+// ====== V22.2: 跳过剩余地点 ======
+function skipRemainingPlaces() {
+    _geoAbort = true;
+    showToast('⏭️ 已跳过剩余地点', 'info');
+}
+
+// ====== V22.2: 中止全部定位 ======
+function abortGeocoding() {
+    _geoAbort = true;
+    showToast('⛔ 已取消定位', 'info');
+}
+
+// ====== V22.2: 高德地理编码 (带超时) ======
 function geocodePlace(keyword) {
     return new Promise((resolve) => {
         if (!window.AMap || !window.AMap.Geocoder) {
-            // 降级：使用简单的搜索
             resolve(null);
             return;
         }
 
         const geocoder = new AMap.Geocoder();
+        
+        // 超时处理：3秒后自动返回null
+        const timeout = setTimeout(() => {
+            console.warn(`地理编码超时: ${keyword}`);
+            resolve(null);
+        }, 3000);
+
         geocoder.getLocation(keyword, (status, result) => {
+            clearTimeout(timeout);
             if (status === 'complete' && result.geocodes && result.geocodes.length > 0) {
                 const loc = result.geocodes[0].location;
                 resolve({
@@ -4513,7 +4583,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v22.2',
+        version: 'v22.3',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
