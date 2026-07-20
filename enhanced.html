@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.9</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.9.1</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.9');
+        console.log('🗺️ 川西旅行规划 v20260720-22.9.1');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
     <!-- mammoth.js for Word docx parsing -->
@@ -44,6 +44,33 @@
             --warning: #f59e0b;
             --danger: #ef4444;
         }
+
+        /* V22.9: 搜索下拉建议 */
+        .suggestions-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow);
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
+        }
+        .suggestions-dropdown .sug-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+        .suggestions-dropdown .sug-item:last-child { border-bottom: none; }
+        .suggestions-dropdown .sug-item:hover { background: #f1f5f9; }
+        .suggestions-dropdown .sug-item .sug-name { font-weight: 500; color: var(--text); }
+        .suggestions-dropdown .sug-item .sug-address { font-size: 11px; color: var(--text-light); margin-top: 2px; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -817,9 +844,15 @@ Day3: 理塘 → 格聂之眼 → 巴塘
                             <option value="start">起点(替换)</option>
                             <option value="end">终点(替换)</option>
                         </select>
-                        <input type="text" class="input" id="viaInput" placeholder="搜地点（如：稻城、塔公草原、色达…）"
-                            style="flex:1;min-width:0;"
-                            onkeydown="if(event.key==='Enter'){event.preventDefault();addViaSearch();}" />
+                        <div style="flex:1;position:relative;">
+                            <input type="text" class="input" id="viaInput" placeholder="搜地点（如：稻城、塔公草原、色达…）"
+                                style="width:100%;"
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();addViaSearch();}" 
+                                oninput="handleViaInput(this.value)"
+                                onfocus="handleViaFocus()"
+                                onblur="setTimeout(hideViaSuggestions, 200)" />
+                            <div id="viaSuggestions" class="suggestions-dropdown" style="display:none;"></div>
+                        </div>
                         <button class="btn btn-secondary" type="button" onclick="addViaSearch()" style="padding:8px 14px;font-size:13px;white-space:nowrap;">➕ 加</button>
                     </div>
                     <div id="viaHint" style="font-size:11px;color:#64748b;margin-top:4px;">输入地名后回车，高德解析后按所选角色加入。起终点会被替换。</div>
@@ -3124,20 +3157,15 @@ function _renderPointLegs() {
 }
 
 
-// 检查路径是否是直线（失败段fallback）
-function _isStraightPath(pts) {
-    // 直线只有2个点，且与途经点坐标一致
-    return pts.length === 2;
-}
-
+// V22.9: 分段绘制 - 成功段蓝色实线，失败段灰色虚线
 function _renderRouteResult(res) {
     hideLoading();
     const pathArr = res.paths || [];
     document.getElementById('statDistance').textContent = (res.distance / 1000).toFixed(1);
     const driveH = (res.time / 3600);
     const timeEl = document.getElementById('statTime');
-    timeEl.dataset.driveH = driveH.toFixed(2);  // V20: 保存驾车小时, 供 updateStayStats 用
-    updateStayStats();  // V20: 联动停留天数
+    timeEl.dataset.driveH = driveH.toFixed(2);
+    updateStayStats();
 
     // 最长一段 km
     if (state._legs && state._legs.length > 0) {
@@ -3151,25 +3179,39 @@ function _renderRouteResult(res) {
 
     // 清除旧路径
     if (state.routePath) { try { state.map.remove(state.routePath); } catch(e){} state.routePath = null; }
+    
+    // 清除所有旧的分段 polyline
+    if (state._routePolylines) {
+        state._routePolylines.forEach(p => state.map.remove(p));
+        state._routePolylines = [];
+    }
+    if (!state._routePolylines) state._routePolylines = [];
 
-    // V22.9: 分段绘制 - 成功段蓝色实线，失败段灰色虚线
+    // 分段绘制每段路线
     if (state._legs && state._legs.length > 0) {
-        let lastEnd = null;
         state._legs.forEach((l, idx) => {
             if (!l.path || l.path.length < 2) return;
-            const isStraight = _isStraightPath(l.path);
+            
+            // 判断是否失败段：distM 为 0 或 path 只有起点终点
+            const isFailed = !l.geoKm || l.path.length <= 2;
+            const isDetailed = l.path.length > 10; // 有足够多的路径点说明是详细路线
+            
             const polyline = new AMap.Polyline({
                 path: l.path,
-                strokeColor: isStraight ? '#94a3b8' : '#2563eb',
-                strokeWeight: isStraight ? 4 : 6,
-                strokeOpacity: isStraight ? 0.5 : 0.85,
-                strokeStyle: isStraight ? 'dashed' : 'solid',
-                showDir: !isStraight,
+                strokeColor: isFailed ? '#94a3b8' : '#2563eb',
+                strokeWeight: isFailed ? 3 : 5,
+                strokeOpacity: isFailed ? 0.4 : 0.85,
+                strokeStyle: isFailed ? 'dashed' : 'solid',
+                showDir: !isFailed && isDetailed,
             });
             state.map.add(polyline);
-            // 收集所有 polyline 用于 fitView
-            if (!state.routePath) state.routePath = polyline;
+            state._routePolylines.push(polyline);
         });
+        
+        // 用第一个 polyline 作为 fitView 的参考
+        if (state._routePolylines.length > 0) {
+            state.routePath = state._routePolylines[0];
+        }
     } else if (pathArr.length > 0) {
         // 兜底：整条路径
         state.routePath = new AMap.Polyline({
@@ -3181,6 +3223,7 @@ function _renderRouteResult(res) {
             showDir: true,
         });
         state.map.add(state.routePath);
+        state._routePolylines.push(state.routePath);
     }
 
     // 任何段失败时提示
@@ -3199,6 +3242,71 @@ function _fitToRouteOrMarkers() {
     }
 }
 
+// ====== V22.9: 搜索框自动补全 ======
+let _viaSuggestTimer = null;
+let _viaSuggestAC = null;
+
+function handleViaInput(value) {
+    if (_viaSuggestTimer) clearTimeout(_viaSuggestTimer);
+    if (!value || value.trim().length < 2) {
+        hideViaSuggestions();
+        return;
+    }
+    _viaSuggestTimer = setTimeout(() => searchViaSuggestions(value.trim()), 300);
+}
+
+function handleViaFocus() {
+    const input = document.getElementById('viaInput');
+    if (input && input.value.trim().length >= 2) {
+        searchViaSuggestions(input.value.trim());
+    }
+}
+
+async function searchViaSuggestions(keyword) {
+    if (!_viaSuggestAC) {
+        _viaSuggestAC = new AMap.AutoComplete({ city: '全国', datatype: 'all' });
+    }
+    _viaSuggestAC.search(keyword, (status, result) => {
+        const container = document.getElementById('viaSuggestions');
+        if (!container) return;
+        
+        if (status === 'complete' && result && result.tips && result.tips.length > 0) {
+            const tips = result.tips.slice(0, 8);
+            container.innerHTML = tips.map(tip => `
+                <div class="sug-item" onclick="selectViaSuggestion('${escapeHtml(tip.name)}', ${tip.location ? `'${tip.location.lng},${tip.location.lat}'` : 'null'})">
+                    <div class="sug-name">${escapeHtml(tip.name)}</div>
+                    ${tip.address ? `<div class="sug-address">${escapeHtml(tip.address)}</div>` : ''}
+                </div>
+            `).join('');
+            container.style.display = 'block';
+        } else {
+            hideViaSuggestions();
+        }
+    });
+}
+
+function selectViaSuggestion(name, location) {
+    const input = document.getElementById('viaInput');
+    if (input) {
+        input.value = name;
+        // 存储坐标到 input 的 data 属性
+        input.dataset.selLng = location ? location.split(',')[0] : '';
+        input.dataset.selLat = location ? location.split(',')[1] : '';
+    }
+    hideViaSuggestions();
+    // 直接执行添加
+    addViaSearch();
+}
+
+function hideViaSuggestions() {
+    const container = document.getElementById('viaSuggestions');
+    if (container) container.style.display = 'none';
+}
+
+function escapeHtml(str) {
+    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ====== 中间途经点搜索加入 (V15 重写) ======
 // 根据 #viaRole 选择, 可以把地点设为「起点（替换）」/「途经点（追加在终点前）」/「终点（替换）」
 async function addViaSearch() {
@@ -3214,7 +3322,16 @@ async function addViaSearch() {
     hint.textContent = '正在解析 "' + keyword + '"…';
     hint.style.color = '#f59e0b';
 
-    const r = await geocodeKeyword(keyword);
+    // V22.9: 优先使用下拉选中的坐标
+    let r = null;
+    if (input.dataset.selLng && input.dataset.selLat) {
+        r = { lng: parseFloat(input.dataset.selLng), lat: parseFloat(input.dataset.selLat), city: null };
+        input.dataset.selLng = '';
+        input.dataset.selLat = '';
+    } else {
+        r = await geocodeKeyword(keyword);
+    }
+    
     if (!r || r.lng == null) {
         hint.textContent = '❌ 找不到 "' + keyword + '"，试试其它关键词';
         hint.style.color = '#dc2626';
@@ -4772,7 +4889,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v22.9',
+        version: 'v22.9.1',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
