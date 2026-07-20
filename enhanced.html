@@ -1428,7 +1428,8 @@ function onMapClick(e) {
 // ====== 添加途经点 ======
 function addWaypoint(name, lng, lat) {
     // 移除最多10个途经点的限制（导入预设线路需要 20+ 个）
-    state.waypoints.push({ name, lng, lat });
+    state.waypoints.push({ name, lng, lat, stayDays: 0 });
+    renumberDays(); // V22.10.3: 自动重排 D 编号
     renderPoints();
     drawRoute();
     saveToLocal();
@@ -1437,6 +1438,7 @@ function addWaypoint(name, lng, lat) {
 // ====== 删除途经点 ======
 function removeWaypoint(index) {
     state.waypoints.splice(index, 1);
+    renumberDays();
     renderPoints();
     drawRoute();
     saveToLocal();
@@ -1482,6 +1484,7 @@ function moveWaypoint(index, dir) {
     if (index < 1 || index > state.waypoints.length - 2) return;
     const [moved] = state.waypoints.splice(index, 1);
     state.waypoints.splice(newIdx, 0, moved);
+    renumberDays();
     renderPoints();
     drawRoute();
     saveToLocal();
@@ -1500,34 +1503,23 @@ function adjustStay(index, delta) {
     saveToLocal();
 }
 
-// V22.10.3: 根据 stayDays 重新编号 D1·, D2· ... (每个途经点默认1天 + 停留天数)
+// V22.10.3: 根据 stayDays 重新编号 D1·, D2· ...
+// 规则：起点 D1 = 1天出发；每个途经点默认 0 天（不过夜），停留 1 天 = D 编号 +1
 function renumberDays() {
-    let dayNum = 1;
-    state.waypoints.forEach((wp, i) => {
-        if (i === 0) {
-            // 起点：1天
-            wp.stayDays = wp.stayDays || 0;
-        } else if (i === state.waypoints.length - 1) {
-            // 终点：不参与编号
-        } else {
-            // 途经点：默认1天
-            if (wp.stayDays === undefined || wp.stayDays === null) wp.stayDays = 1;
-        }
-    });
-
-    // 重新设置 name 前缀
     let dayCounter = 1;
     state.waypoints.forEach((wp, i) => {
-        // 提取纯名称
+        // 提取纯名称（去掉之前的 D 编号）
         const cleanName = wp.name.replace(/^D[\d.]+\s*·\s*/, '').trim();
+
         if (i === 0) {
+            // 起点：固定 D1
             wp.name = `D${dayCounter} · ${cleanName}`;
-            dayCounter += 1 + (wp.stayDays || 0);
-        } else if (i === state.waypoints.length - 1) {
-            wp.name = `D${dayCounter} · ${cleanName}`;
+            dayCounter += 1;
         } else {
+            // 途经点 + 终点：D 编号 = 上一个 + 1 + 上一个停留天数
             wp.name = `D${dayCounter} · ${cleanName}`;
-            dayCounter += 1 + (wp.stayDays || 1);
+            // 下一个 D 编号 = 当前 D 编号 + 1 + 当前停留天数（默认 0）
+            dayCounter += 1 + (wp.stayDays || 0);
         }
     });
 }
@@ -1715,6 +1707,7 @@ function attachDragHandlers() {
             const [moved] = state.waypoints.splice(src, 1);
             state.waypoints.splice(targetIdx, 0, moved);
             cleanup();
+            renumberDays();
             renderPoints();
             drawRoute();
             saveToLocal();
@@ -2439,6 +2432,7 @@ async function applyAIParsedRoute(places) {
                     name: place,
                     lng: result.lng,
                     lat: result.lat,
+                    stayDays: 0,
                 });
                 successCount.value++;
             } else {
@@ -2459,6 +2453,7 @@ async function applyAIParsedRoute(places) {
     document.getElementById('aiRouteInput').value = '';
 
     // 更新 UI（暂时显示不带 D 前缀的名称）
+    renumberDays();
     renderPoints();
     drawRoute();
 
@@ -3546,10 +3541,13 @@ function importRoute(planId) {
             tag: day.tag,
             note: day.note,
             wiki: day.wiki,
-            // V22.10.3: 每个途经点默认1天（起终点0天），保持原 D 编号
-            stayDays: (isFirst || isLast) ? 0 : 1,
+            // V22.10.3: 默认不过夜（stayDays=0），renumberDays 会自动编排 D 编号
+            stayDays: 0,
         });
     });
+
+    // V22.10.3: 重新编排 D 编号（统一规则）
+    renumberDays();
 
     // V18: 换方案时清掉旧的加油/充电 marker
     clearFuelMarkers();
