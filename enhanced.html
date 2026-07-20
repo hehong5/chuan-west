@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.5</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.6</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,7 +14,7 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.5');
+        console.log('🗺️ 川西旅行规划 v20260720-22.6');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
     <!-- mammoth.js for Word docx parsing -->
@@ -4155,12 +4155,7 @@ function escapeHtml(s) {
 }
 
 // ====== LocalStorage + 自动同步 ======
-let _saveTimer = null;
-function _triggerAutoSync() {
-    if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
-    clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(() => cloudSilentSync(), 5000);
-}
+// (旧函数已移除，整合到 Supabase 云同步模块)
 
 function saveToLocal() {
     try {
@@ -4522,42 +4517,70 @@ async function dbPush() {
         // 2. 尝试云同步到 Supabase
         const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
         if (useCloud) {
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
-                method: 'GET',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-            const existing = await r.json();
+            // V22.6: 添加超时 + 检查 404
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-            if (existing && existing.length > 0) {
-                // 更新现有记录
-                await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
-                    method: 'PATCH',
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
+                    method: 'GET',
                     headers: {
                         'apikey': SUPABASE_ANON_KEY,
                         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                         'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
                     },
-                    body: JSON.stringify({ data: payload, updated_at: new Date().toISOString() })
+                    signal: controller.signal
                 });
-            } else {
-                // 插入新记录
-                await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify({ code: code, data: payload, updated_at: new Date().toISOString() })
-                });
+                clearTimeout(timeoutId);
+
+                // V22.6: 404 说明表不存在，禁用云同步
+                if (r.status === 404) {
+                    console.warn('[db push] 云端表不存在，禁用云同步');
+                    localStorage.setItem('travelmind_use_cloud', '0');
+                    const chk = document.getElementById('useCloudChk');
+                    if (chk) chk.checked = false;
+                    updateCloudStatusText();
+                    return { ok: true, msg: '✓ 已保存到本机（云端未配置）' };
+                }
+
+                const existing = await r.json();
+
+                if (existing && existing.length > 0) {
+                    // 更新现有记录
+                    await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({ data: payload, updated_at: new Date().toISOString() })
+                    });
+                } else {
+                    // 插入新记录
+                    await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({ code: code, data: payload, updated_at: new Date().toISOString() })
+                    });
+                }
+                return { ok: true, msg: '✓ 已同步到云端 (code: ' + code + ')' };
+            } catch (fetchErr) {
+                clearTimeout(timeoutId);
+                // 请求被中止（超时）或网络错误，禁用云同步
+                console.warn('[db push] 云同步请求失败:', fetchErr.message);
+                localStorage.setItem('travelmind_use_cloud', '0');
+                const chk = document.getElementById('useCloudChk');
+                if (chk) chk.checked = false;
+                updateCloudStatusText();
+                return { ok: true, msg: '✓ 已保存到本机（网络错误）' };
             }
-            return { ok: true, msg: '✓ 已同步到云端 (code: ' + code + ')' };
         }
         return { ok: true, msg: '✓ 已保存到本机 (code: ' + code + ')' };
     } catch (e) {
@@ -4574,21 +4597,32 @@ async function dbPull() {
         // 1. 优先从云端拉取（如果开启）
         if (useCloud) {
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
                 const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}&order=updated_at.desc&limit=1`, {
                     method: 'GET',
                     headers: {
                         'apikey': SUPABASE_ANON_KEY,
                         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    }
+                    },
+                    signal: controller.signal
                 });
-                const cloudData = await r.json();
-                if (cloudData && cloudData.length > 0) {
-                    const payload = JSON.parse(cloudData[0].data);
-                    const { _savedAt, _code, ...data } = payload;
-                    // 保存到本地备份
-                    localStorage.setItem(_roomKey(code), cloudData[0].data);
-                    if (_cloudApplyData(data)) {
-                        return { ok: true, msg: `✓ 已从云端恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
+                clearTimeout(timeoutId);
+
+                // V22.6: 404 说明表不存在，禁用云同步
+                if (r.status === 404) {
+                    console.warn('[db pull] 云端表不存在');
+                    localStorage.setItem('travelmind_use_cloud', '0');
+                } else {
+                    const cloudData = await r.json();
+                    if (cloudData && cloudData.length > 0) {
+                        const payload = JSON.parse(cloudData[0].data);
+                        const { _savedAt, _code, ...data } = payload;
+                        // 保存到本地备份
+                        localStorage.setItem(_roomKey(code), cloudData[0].data);
+                        if (_cloudApplyData(data)) {
+                            return { ok: true, msg: `✓ 已从云端恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
+                        }
                     }
                 }
             } catch (e) {
@@ -4700,7 +4734,7 @@ function _cloudSetStatus(msg, ok) {
 
 function _cloudGetAllData() {
     return {
-        version: 'v22.5',
+        version: 'v22.6',
         timestamp: Date.now(),
         currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
         savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
