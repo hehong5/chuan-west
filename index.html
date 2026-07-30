@@ -5233,14 +5233,14 @@ async function _cloudWriteRemote(code, envelope) {
         await _cloudRequest(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${encodedCode}`, {
             method: 'PATCH',
             headers: _cloudHeaders({ Prefer: 'return=minimal' }),
-            body: JSON.stringify({ data: JSON.stringify(envelope), updated_at: updatedAt }),
+            body: JSON.stringify({ data: envelope, updated_at: updatedAt }),
             errorLabel: '云端更新失败',
         });
     } else {
         await _cloudRequest(`${SUPABASE_URL}/rest/v1/${DB_TABLE}`, {
             method: 'POST',
             headers: _cloudHeaders({ Prefer: 'return=minimal' }),
-            body: JSON.stringify({ code, data: JSON.stringify(envelope), updated_at: updatedAt }),
+            body: JSON.stringify({ code, data: envelope, updated_at: updatedAt }),
             errorLabel: '云端创建房间失败',
         });
     }
