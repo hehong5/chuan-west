@@ -503,6 +503,12 @@
         }
         .point-item.start .point-index { background: var(--success); }
         .point-item.end .point-index { background: var(--danger); }
+        .point-reorder-control {
+            display: flex;
+            align-items: stretch;
+            flex: 0 0 48px;
+            gap: 2px;
+        }
         .point-order-input {
             width: 30px;
             height: 24px;
@@ -520,6 +526,25 @@
         .point-order-input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.16); }
         .point-order-input::-webkit-inner-spin-button,
         .point-order-input::-webkit-outer-spin-button { margin: 0; }
+        .point-reorder-buttons {
+            display: grid;
+            grid-template-rows: repeat(2, 11px);
+            gap: 2px;
+        }
+        .point-reorder-btn {
+            width: 16px;
+            height: 11px;
+            padding: 0;
+            border: 1px solid #bfdbfe;
+            border-radius: 3px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            cursor: pointer;
+            font-size: 9px;
+            line-height: 1;
+        }
+        .point-reorder-btn:hover:not(:disabled) { background: #dbeafe; border-color: #60a5fa; }
+        .point-reorder-btn:disabled { cursor: default; opacity: .35; }
 
         .point-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .point-name {
@@ -1033,8 +1058,50 @@
             box-sizing: border-box;
             cursor: pointer;
             transition: transform .15s ease, box-shadow .15s ease;
+            position: absolute;
+            left: 2px;
+            bottom: 0;
         }
         .route-marker:hover { transform: translateY(-2px) scale(1.08); box-shadow: 0 5px 12px rgba(15,23,42,.32); }
+        .route-marker-wrap {
+            position: relative;
+            width: 34px;
+            height: 72px;
+            overflow: visible;
+        }
+        .marker-trip-label {
+            position: absolute;
+            left: 50%;
+            bottom: 32px;
+            width: 110px;
+            padding: 4px 6px;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,.96);
+            border: 1px solid rgba(37,99,235,.24);
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(15,23,42,.16);
+            box-sizing: border-box;
+            color: #0f172a;
+            line-height: 1.3;
+            text-align: center;
+            pointer-events: none;
+        }
+        .marker-trip-name {
+            display: block;
+            overflow: hidden;
+            font-size: 11px;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .marker-trip-drive {
+            display: block;
+            margin-top: 1px;
+            color: #2563eb;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
         .route-marker-role {
             padding-left: 4px;
             font-size: 8px;
@@ -2059,6 +2126,18 @@ function setWaypointOrder(index, requestedOrder) {
     commitRouteChange({ message: `✓ 已将【${moved.name}】排到第 ${targetIndex + 1} 位` });
 }
 
+function moveWaypoint(index, direction) {
+    const lastIndex = state.waypoints.length - 1;
+    const targetIndex = index + direction;
+    if (index < 1 || index >= lastIndex || targetIndex < 1 || targetIndex >= lastIndex) return;
+
+    const movedWaypoint = state.waypoints[index];
+    state.waypoints.splice(index, 1);
+    state.waypoints.splice(targetIndex, 0, movedWaypoint);
+    const directionText = direction < 0 ? '上移' : '下移';
+    commitRouteChange({ message: `✓ 已将【${movedWaypoint.name}】${directionText}一位` });
+}
+
 function haversineKm(a, b) {
     const toRad = deg => deg * Math.PI / 180;
     const R = 6371;
@@ -2192,10 +2271,16 @@ function renderPoints() {
         if (i === state.waypoints.length - 1) cls += ' end';
 
         const label = i === 0 ? '起点' : i === state.waypoints.length - 1 ? '终点' : '途经';
-        // 起终点不显示长按拖动按钮（避免顺序混乱）
+        // 起终点顺序固定，中间点可输入序号或点击箭头移动。
         const canReorder = i > 0 && i < state.waypoints.length - 1;
         const orderControl = canReorder
-            ? `<input class="point-order-input" type="number" min="2" max="${state.waypoints.length - 1}" value="${i + 1}" title="输入序号后回车或离开输入框即可排序" aria-label="${escapeHtml(p.name)} 的路线序号" onclick="event.stopPropagation()" onchange="setWaypointOrder(${i}, this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();setWaypointOrder(${i}, this.value);}">`
+            ? `<div class="point-reorder-control" onclick="event.stopPropagation()">
+                <input class="point-order-input" type="number" min="2" max="${state.waypoints.length - 1}" value="${i + 1}" title="输入序号后回车或离开输入框即可排序" aria-label="${escapeHtml(p.name)} 的路线序号" onchange="setWaypointOrder(${i}, this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();setWaypointOrder(${i}, this.value);}">
+                <div class="point-reorder-buttons">
+                    <button class="point-reorder-btn" type="button" ${i === 1 ? 'disabled' : ''} onclick="moveWaypoint(${i}, -1)" title="上移一位" aria-label="上移 ${escapeHtml(p.name)}">&#9650;</button>
+                    <button class="point-reorder-btn" type="button" ${i === state.waypoints.length - 2 ? 'disabled' : ''} onclick="moveWaypoint(${i}, 1)" title="下移一位" aria-label="下移 ${escapeHtml(p.name)}">&#9660;</button>
+                </div>
+            </div>`
             : `<div class="point-index" title="${i === 0 ? '起点序号固定' : '终点序号固定'}">${i + 1}</div>`;
 
         const stayDays = p.stayDays || 0;
@@ -2257,22 +2342,28 @@ function openAndFlyTo(i) {
     openPoiDetail(i, [p.lng, p.lat]);
 }
 function drawMarkers() {
-    clearMapMarkers();
+    clearMapMarkers({ clearRoute: false });
 
     state.waypoints.forEach((p, i) => {
         const isStart = i === 0;
         const isEnd = i === state.waypoints.length - 1;
+        const nextLeg = (state._legs || []).find(leg => leg.from === i);
         const markerContent = document.createElement('div');
-        markerContent.className = 'route-marker';
-        if (isStart) markerContent.classList.add('start');
-        else if (isEnd) markerContent.classList.add('end');
-        markerContent.innerHTML = `<span class="route-marker-role">${isStart ? '起' : isEnd ? '终' : 'D'}</span><span class="route-marker-number">${i + 1}</span>`;
+        const markerClass = `route-marker${isStart ? ' start' : isEnd ? ' end' : ''}`;
+        markerContent.className = 'route-marker-wrap';
+        markerContent.innerHTML = `
+            <div class="marker-trip-label">
+                <span class="marker-trip-name">${escapeHtml(formatMarkerPlaceName(p.name))}</span>
+                <span class="marker-trip-drive">${formatMarkerDriveTime(nextLeg && nextLeg.timeS, isEnd)}</span>
+            </div>
+            <div class="${markerClass}"><span class="route-marker-role">${isStart ? '起' : isEnd ? '终' : 'D'}</span><span class="route-marker-number">${i + 1}</span></div>
+        `;
         markerContent.title = `${p.dayLabel || `D${i + 1}`} ${p.name} · ${formatWaypointAltitude(p.alt)}`;
 
         const marker = new AMap.Marker({
             position: [p.lng, p.lat],
             content: markerContent,
-            offset: new AMap.Pixel(-15, -15),
+            offset: new AMap.Pixel(-17, -72),
             extData: { index: i, name: p.name },
             draggable: false,
             cursor: 'pointer',
@@ -2288,10 +2379,26 @@ function drawMarkers() {
     });
 }
 
-function clearMapMarkers() {
+function formatMarkerPlaceName(name) {
+    const value = String(name || '未命名地点').replace(/\s+/g, ' ').trim();
+    return value.length > 9 ? `${value.slice(0, 9)}...` : value;
+}
+
+function formatMarkerDriveTime(timeS, isEnd) {
+    if (isEnd) return '行程终点';
+    const seconds = Number(timeS);
+    if (!Number.isFinite(seconds) || seconds <= 0) return '车程规划中';
+    const totalMinutes = Math.max(1, Math.round(seconds / 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `车程 ${hours ? `${hours}小时` : ''}${minutes ? `${minutes}分` : ''}`;
+}
+
+function clearMapMarkers(options = {}) {
+    const { clearRoute = true } = options;
     state.markers.forEach(m => state.map.remove(m));
     state.markers = [];
-    if (state.routePath) {
+    if (clearRoute && state.routePath) {
         state.map.remove(state.routePath);
         state.routePath = null;
     }
@@ -3415,14 +3522,15 @@ function drawRoute() {
     if (state._legLabels) { state._legLabels.forEach(t => state.map.remove(t)); state._legLabels = []; }
     state._legLabels = [];
     state._legs = []; // 保存每段信息给 UI
+    drawMarkers();
 
     const pts = state.waypoints;
     if (pts.length <= DRIVING_SEGMENT_SIZE + 1) {
         showLoading('路径规划中...');
         _drawRouteSingleSegment(pts, (res) => {
+            state._legs = res.legs || [];
             _renderRouteResult(res);
             _fitToRouteOrMarkers();
-            _renderLegLabels();
             _renderPointLegs(); // 侧边栏显示每段 km/h
         });
     } else {
@@ -3446,7 +3554,6 @@ function drawRoute() {
                 state._legs = allLegs;
                 _renderRouteResult({ ok: !failedAny, paths: allPaths, distance: totalDistance, time: totalTime, info: failedInfo });
                 _fitToRouteOrMarkers();
-                _renderLegLabels();
                 _renderPointLegs();
                 return;
             }
@@ -3591,6 +3698,7 @@ function _renderRouteResult(res) {
         showDir: true,
     });
     state.map.add(state.routePath);
+    drawMarkers();
 
     // 任何段失败时提示
     if (!res.ok && res.info) {
