@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.1</title>
+    <title>川西智能旅行规划 TravelMind - 高德+AI 增强版 v20260720-22.9.1</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='40' text-anchor='middle' fill='white'%3E🗺️%3C/text%3E%3C/svg%3E" />
 
     <!-- 高德地图 JS API 2.0 -->
@@ -14,13 +14,18 @@
         window._AMapSecurityConfig = {
             securityJsCode: 'ad4a2f4725abe8bac8dd32f146227448',
         };
-        console.log('🗺️ 川西旅行规划 v20260720-22.1');
+        window.onerror = function(message, source) {
+            var msg = String(message || '');
+            var src = String(source || '');
+            if (src.indexOf('amap.com') >= 0 && msg.indexOf('Unimplemented type: 3') >= 0) {
+                return true;
+            }
+            if (msg === 'Script error.' && !src) return true;
+            return false;
+        };
+        console.log('🗺️ 川西旅行规划 v20260720-22.9.1');
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=c22d38718a05e6dd605b3891abe907b3&plugin=AMap.Driving,AMap.PlaceSearch,AMap.Geocoder,AMap.Geolocation,AMap.ToolBar,AMap.Scale"></script>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -36,17 +41,20 @@
             --border: #e2e8f0;
             --shadow: 0 4px 20px rgba(0,0,0,0.08);
             --shadow-lg: 0 10px 40px rgba(0,0,0,0.15);
-            --radius: 12px;
-            --radius-sm: 8px;
+            --radius: 8px;
+            --radius-sm: 6px;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
+            --terrain: #0f766e;
+            --route-ink: #0f172a;
+            --route-rail: #cbd5e1;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
@@ -226,9 +234,161 @@
             margin-top: 12px;
         }
 
-        .point-item {
+        .route-overview {
+            background: var(--route-ink);
+            color: white;
+            border-radius: var(--radius);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(15,23,42,0.12);
+            box-shadow: 0 8px 22px rgba(15,23,42,0.12);
+        }
+        .route-overview-head {
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #cbd5e1;
+        }
+        .route-overview-title {
+            font-weight: 700;
+            color: #f8fafc;
+            letter-spacing: 0;
+            flex-shrink: 0;
+        }
+        .route-overview-head span:last-child {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: right;
+        }
+        .route-overview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .route-overview-item {
+            min-width: 0;
+            padding: 7px 8px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .route-overview-value {
+            font-family: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .route-overview-label {
+            font-size: 10px;
+            color: #cbd5e1;
+            margin-top: 3px;
+            white-space: nowrap;
+        }
+        .route-quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .route-quick-actions .btn {
+            justify-content: center;
+            padding: 8px 10px;
+            font-size: 12px;
+            min-height: 38px;
+        }
+
+        .route-flow {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 5px;
+            margin-bottom: 12px;
+        }
+        .route-flow-step {
+            padding: 7px 5px;
+            border-radius: 7px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 10px;
+            line-height: 1.35;
+            text-align: center;
+        }
+        .route-flow-step.active {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            color: #1d4ed8;
+            font-weight: 700;
+        }
+        .route-flow-step.done {
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+            color: #047857;
+        }
+        .route-section-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 12px 0 8px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .route-section-label span {
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 400;
+        }
+        .route-save-status {
+            margin: 7px 0 8px;
+            padding: 7px 9px;
+            border-radius: 6px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+        .route-save-status.pending { background:#fff7ed;border-color:#fed7aa;color:#9a3412; }
+        .route-save-status.synced { background:#ecfdf5;border-color:#a7f3d0;color:#047857; }
+        .route-save-status.error { background:#fef2f2;border-color:#fecaca;color:#b91c1c; }
+        .saved-route-card {
+            padding: 8px 9px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 7px;
+            margin-bottom: 6px;
+        }
+        .saved-route-title { font-size:13px;color:#334155;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+        .saved-route-meta { font-size:10px;color:#94a3b8;margin-top:3px;line-height:1.45; }
+        .saved-route-actions { display:flex;gap:5px;margin-top:7px; }
+        .saved-route-actions button { flex:1;border:1px solid #dbeafe;background:white;color:#2563eb;border-radius:5px;padding:5px 6px;font-size:11px;cursor:pointer; }
+        .saved-route-actions button.danger { flex:0 0 auto;color:#b91c1c;border-color:#fecaca; }
+        .ai-query-box {
+            background: linear-gradient(135deg,#eef2ff,#f5f3ff);
+            border: 1px solid #c7d2fe;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .ai-query-title { font-size:13px;font-weight:700;color:#4338ca;margin-bottom:7px; }
+        .ai-query-row { display:flex;gap:6px;align-items:stretch; }
+        .ai-query-row textarea { min-height:68px;resize:vertical;line-height:1.5; }
+        .ai-query-row .btn { flex:0 0 86px;justify-content:center; }
+        .ai-quick-prompts { display:flex;gap:5px;flex-wrap:wrap;margin-top:7px; }
+        .ai-quick-prompts button { border:1px solid #c7d2fe;background:white;color:#4f46e5;border-radius:999px;padding:4px 8px;font-size:10px;cursor:pointer; }
+        .ai-source-note { margin-top:7px;color:#64748b;font-size:10px;line-height:1.45; }
+        .ai-answer-meta { margin-bottom:8px;padding:7px 9px;border-radius:6px;background:#f8fafc;color:#64748b;font-size:10px;line-height:1.5; }
+
+        .point-item {
+            display: flex;
+            align-items: flex-start;
             gap: 8px;
             padding: 10px;
             background: white;
@@ -252,9 +412,9 @@
         .point-index {
             width: 24px;
             height: 24px;
-            background: var(--primary);
+            background: #334155;
             color: white;
-            border-radius: 50%;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -279,6 +439,86 @@
         .point-name:hover, .point-name:focus {
             outline-color: #c4b5fd;
             background: #faf5ff;
+        }
+        .point-plan-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .day-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 5px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            font-family: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .day-chip.range {
+            background: #f0fdf4;
+            color: #047857;
+            border-color: #bbf7d0;
+        }
+        .point-role-chip,
+        .point-alt-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 20px;
+            padding: 0 6px;
+            border-radius: 5px;
+            background: #f8fafc;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            font-size: 11px;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .point-alt-chip.high {
+            background: #fff7ed;
+            color: #c2410c;
+            border-color: #fed7aa;
+        }
+        .stay-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            background: #f0fdf4;
+            padding: 2px 5px;
+            border-radius: 5px;
+            border: 1px solid #bbf7d0;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+        .stay-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: #16a34a;
+            cursor: pointer;
+            font-weight: 700;
+            border-radius: 4px;
+            line-height: 1;
+        }
+        .stay-btn:hover {
+            background: #dcfce7;
+        }
+        .stay-value {
+            color: #15803d;
+            font-weight: 700;
+            min-width: 38px;
+            text-align: center;
+            white-space: nowrap;
         }
         .point-coord {
             font-size: 11px;
@@ -641,16 +881,55 @@
 
         /* ===== 响应式 ===== */
         @media (max-width: 768px) {
+            .topbar {
+                padding: 0 10px;
+                gap: 8px;
+            }
+            .logo {
+                min-width: 0;
+                flex: 1;
+                font-size: 15px;
+            }
+            .logo span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .topbar-actions {
+                gap: 5px;
+                flex-shrink: 0;
+            }
+            .topbar-actions .btn {
+                width: 38px;
+                height: 38px;
+                padding: 0;
+                justify-content: center;
+                font-size: 0;
+                gap: 0;
+            }
+            .topbar-actions .btn span {
+                font-size: 16px;
+                line-height: 1;
+            }
             .sidebar {
                 position: fixed;
-                left: -420px;
+                width: min(450px, 100vw);
+                left: -100vw;
                 top: 60px;
                 bottom: 0;
                 z-index: 999;
                 transition: left 0.3s;
             }
             .sidebar.open { left: 0; }
+            body.sidebar-open #helpFab { display: none !important; }
             .mobile-menu-btn { display: flex !important; }
+            .tab-content { padding: 12px; }
+            .route-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .route-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .ai-query-row { flex-direction: column; }
+            .ai-query-row .btn { flex-basis: auto; }
+            .point-item { padding: 9px 8px; }
+            .point-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 60px; }
         }
         @media (min-width: 769px) {
             .mobile-menu-btn { display: none !important; }
@@ -719,16 +998,16 @@
         <span>TravelMind 智能旅行规划</span>
     </div>
     <div class="topbar-actions">
-        <button class="btn btn-secondary" onclick="locateMe()">
+        <button class="btn btn-secondary" onclick="locateMe()" title="定位" aria-label="定位">
             <span>📍</span> 定位
         </button>
-        <button class="btn btn-secondary" onclick="clearAll()">
+        <button class="btn btn-secondary" onclick="clearAll()" title="清空路线" aria-label="清空路线">
             <span>🗑</span> 清空
         </button>
-        <button class="btn btn-ai" onclick="aiOptimize()">
+        <button class="btn btn-ai" onclick="aiOptimize()" title="AI 智能优化" aria-label="AI 智能优化">
             <span>✨</span> AI 智能优化
         </button>
-        <button class="btn btn-secondary" onclick="openCloudPanel()" title="云端同步（GitHub Gist）" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:white;border:none;">
+        <button class="btn btn-secondary" onclick="openCloudPanel()" title="云端同步（Supabase）" aria-label="云端同步" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:white;border:none;">
             <span>☁️</span> 云同步
         </button>
     </div>
@@ -757,6 +1036,15 @@
                     <div style="font-size:11px;color:#78350f;margin-top:8px;line-height:1.4;">路线亮点：西昌→木里大寺→<b>泸沽湖连住 1 晚</b>→<b>香格里拉镇入亚丁</b>→稻城→理塘→<b>格聂之眼</b>→白玉→德格→<b>新都桥连住 2 晚</b>→康定→雅西高速→西昌。导入后地图自动跳到 D5（泸沽湖）。</div>
                 </div>
 
+                <div class="route-flow" id="routeFlow" aria-label="路线规划步骤">
+                    <div class="route-flow-step active" data-step="1">1 设置起终点</div>
+                    <div class="route-flow-step" data-step="2">2 添加途经点</div>
+                    <div class="route-flow-step" data-step="3">3 调顺序与天数</div>
+                    <div class="route-flow-step" data-step="4">4 保存并同步</div>
+                </div>
+
+                <div class="route-section-label">① 设置路线骨架 <span>先起点、再终点</span></div>
+
                 <div class="route-input">
                     <div class="input-label">📍 起点</div>
                     <input type="text" class="input" id="startInput" placeholder="搜索起点（如：成都）">
@@ -784,9 +1072,18 @@
                     <input type="text" class="input" id="endInput" placeholder="搜索终点（如：稻城）">
                 </div>
 
-                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px;background:linear-gradient(135deg,#10b981,#14b8a6);" onclick="addWaypoint()">
+                <div id="waypointsContainer"></div>
+
+                <div class="route-section-label">② 添加与调整 <span>中间点不会改变起终点</span></div>
+
+                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px;background:linear-gradient(135deg,#10b981,#14b8a6);" onclick="enableMapPickMode()">
                     📍 点击地图选点添加途经点
                 </button>
+
+                <div class="route-quick-actions">
+                    <button class="btn btn-secondary" type="button" onclick="smartSortWaypoints()" title="只重排中间途经点，起点和终点保持不动">↕ 智能排序</button>
+                    <button class="btn btn-secondary" type="button" onclick="smartAssignStayDays()" title="根据景点类型、海拔和连住信息重新估算停留天数">D 智能排天数</button>
+                </div>
 
                 <!-- V18: 加油/充电搜索按钮 -->
                 <div style="display:flex;gap:6px;margin-bottom:12px;">
@@ -797,8 +1094,6 @@
                         🔌 充电桩
                     </button>
                 </div>
-
-                <div id="waypointsContainer"></div>
 
                 <div id="statsBar" style="display:none;" class="stats-bar">
                     <div class="stat-item">
@@ -829,15 +1124,18 @@
                     <p style="font-size:12px;margin-top:8px;">支持任意数量的途经点</p>
                 </div>
 
+                <div class="route-section-label">③ 路线点与停留 <span>起终点锁定，中间点可排序</span></div>
                 <div class="point-list" id="pointList"></div>
 
                 <!-- V19: 我的路线保存 -->
                 <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #e2e8f0;">
+                    <div class="route-section-label" style="margin-top:0;">④ 保存路线 <span>本机先保存，云端单独确认</span></div>
                     <div style="display:flex;gap:6px;margin-bottom:8px;">
                         <input type="text" class="input" id="savedRouteName" placeholder="给当前路线起个名字"
                             style="flex:1;min-width:0;font-size:13px;" maxlength="30">
-                        <button class="btn btn-primary" style="font-size:13px;padding:8px 12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);" onclick="saveCurrentRoute()">💾 保存</button>
+                        <button class="btn btn-primary" id="saveRouteBtn" style="font-size:13px;padding:8px 12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);" onclick="saveCurrentRoute()">💾 另存为</button>
                     </div>
+                    <div id="routeSaveStatus" class="route-save-status">当前路线尚未另存；编辑中的路线会自动保存在本机。</div>
                     <div id="savedRoutesList" style="font-size:12px;"></div>
                 </div>
             </div>
@@ -845,7 +1143,7 @@
             <!-- 周边探索 Tab -->
             <div class="tab-panel" id="panel-nearby">
                 <div class="search-bar">
-                    <input type="text" class="input" id="searchKeyword" placeholder="搜索景点/美食/酒店">
+                    <input type="text" class="input" id="searchKeyword" placeholder="搜索景点/美食/酒店" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPoi();}">
                     <button class="btn btn-primary" onclick="searchPoi()">搜索</button>
                 </div>
 
@@ -867,6 +1165,20 @@
 
             <!-- AI建议 Tab -->
             <div class="tab-panel" id="panel-ai">
+                <div class="ai-query-box">
+                    <div class="ai-query-title">🔎 AI 路线问答（高德地点数据增强）</div>
+                    <div class="ai-query-row">
+                        <textarea id="aiQuestion" class="input" placeholder="例如：沿途哪里适合补给和住宿？哪些高海拔路段需要拆分？" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();askTravelAI();}"></textarea>
+                        <button class="btn btn-ai" onclick="askTravelAI()">搜索并回答</button>
+                    </div>
+                    <div class="ai-quick-prompts">
+                        <button onclick="askTravelAI('按天检查路线强度和高反风险')">高反与强度</button>
+                        <button onclick="askTravelAI('沿途推荐住宿、医院和补给节点')">住宿与补给</button>
+                        <button onclick="askTravelAI('检查加油充电薄弱路段并给出备选点')">加油与充电</button>
+                        <button onclick="askTravelAI('找出值得增加或删减的景点，并说明理由')">景点取舍</button>
+                    </div>
+                    <div class="ai-source-note">回答会标注“路线数据 / 高德 POI / AI 推断”，没有实时依据时会明确提示，不把推测当成事实。</div>
+                </div>
                 <div id="aiContent">
                     <div class="empty-state">
                         <div class="empty-state-icon">🤖</div>
@@ -928,21 +1240,20 @@
 <div id="cloudModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:white;border-radius:14px;padding:24px;max-width:480px;width:90vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h2 style="margin:0;font-size:18px;color:#1e293b;">🔢 团队同步 (本机)</h2>
+            <h2 style="margin:0;font-size:18px;color:#1e293b;">☁️ 云保存与团队同步</h2>
             <button onclick="closeCloudPanel()" style="border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer;">✕</button>
         </div>
 
         <div id="cloudToggle" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#065f46;margin-bottom:14px;line-height:1.6;">
             <label style="cursor:pointer;display:flex;align-items:center;gap:8px;">
-                <input type="checkbox" id="useCloudChk" onchange="localStorage.setItem('travelmind_use_cloud', this.checked ? '1' : '0'); updateCloudStatusText();" style="width:18px;height:18px;cursor:pointer;">
+                <input type="checkbox" id="useCloudChk" onchange="toggleCloudEnabled(this.checked)" style="width:18px;height:18px;cursor:pointer;">
                 <span><b>☁️ 启用云端同步</b>（Supabase 数据库，跨设备自动同步）</span>
             </label>
             <div id="cloudToggleHint" style="margin-top:6px;font-size:11px;color:#047857;"></div>
         </div>
 
         <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6;">
-            💡 <b>V22.1 团队码方案</b>：每个设备分配一个 <b>4 位数字</b>，相同码 = 同一房间。<br>
-            🔄 开启"☁️ 云端同步"后，数据自动同步到云端，队友无需手动导入/导出。
+            💡 <b>同步规则</b>：本机永远先保存；云端成功后才显示“已同步”。新设备输入团队码时会先读取云端，不会直接覆盖队友数据。
         </div>
 
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:11px;color:#475569;margin-bottom:14px;line-height:1.6;">
@@ -955,9 +1266,9 @@
         <div id="cloudStatus" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px;background:#f8fafc;border-radius:6px;min-height:20px;"></div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">💾 上传</button>
-            <button class="btn btn-primary" onclick="cloudDownload()" style="flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);min-width:120px;">⬇️ 下载</button>
-            <button class="btn btn-secondary" onclick="cloudAutoSync()" style="flex:1;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;min-width:120px;" title="重写团队房间">🔄 写入</button>
+            <button class="btn btn-primary" onclick="cloudUpload()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);min-width:120px;">💾 立即云保存</button>
+            <button class="btn btn-primary" onclick="cloudDownload()" style="flex:1;background:linear-gradient(135deg,#3b82f6,#2563eb);min-width:120px;">⬇️ 从云端恢复</button>
+            <button class="btn btn-secondary" onclick="cloudAutoSync()" style="flex:1;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;min-width:120px;" title="比较两端时间并合并">🔄 双向同步</button>
         </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #e2e8f0;">
@@ -977,17 +1288,17 @@
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="cloudExport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📋 导出</button>
                 <button class="btn btn-secondary" onclick="cloudImport()" style="flex:1;background:#fef3c7;color:#92400e;border:1px solid #fde68a;min-width:90px;">📥 导入</button>
-                <button class="btn btn-secondary" onclick="cloudTest()" style="flex:1;background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8;min-width:90px;" title="检查本机团队房间状态">🔧 检房间</button>
+                <button class="btn btn-secondary" onclick="cloudTest()" style="flex:1;background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8;min-width:90px;" title="测试真实 Supabase 读取">🔧 测试云端</button>
             </div>
         </div>
 
         <div style="margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;">
             <label style="cursor:pointer;color:#475569;font-size:12px;">
-                <input type="checkbox" id="cloudAutoSyncChk" onchange="localStorage.setItem(CLOUD_KEY_AUTOSYNC, this.checked ? '1' : '0');updateCloudStatusText();" style="margin-right:4px;">
+                <input type="checkbox" id="cloudAutoSyncChk" onchange="toggleCloudAutoSync(this.checked)" style="margin-right:4px;">
                 启用自动同步
             </label>
             <span style="color:#cbd5e1;">|</span>
-            <span>路线 / 已保存路线 / 装备清单 / 停留天数</span>
+            <span>路线 / 已保存路线 / 装备清单 / 停留天数 / AI 内容</span>
         </div>
     </div>
 </div>
@@ -1065,6 +1376,7 @@ const state = {
     currentRadius: 10000,
     currentMapStyle: 'normal',
     aiResult: null,
+    activeSavedRouteId: null,
 };
 
 // ====== 和风天气 API 配置 (V22.4) ======
@@ -1374,6 +1686,148 @@ function initMap() {
     showToast('地图加载完成，点击地图添加途经点', 'success');
 }
 
+function cleanWaypointName(name) {
+    return String(name || '')
+        .replace(/^D\d+(?:\.\d+)?\s*[·.-]\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim() || '未命名地点';
+}
+
+function clampStayDays(value) {
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.min(30, n));
+}
+
+function normalizeWaypoints() {
+    const valid = state.waypoints
+        .filter(p => p && Number.isFinite(Number(p.lng)) && Number.isFinite(Number(p.lat)));
+    const last = valid.length - 1;
+    state.waypoints = valid.map((p, i) => {
+            const normalized = {
+                ...p,
+                name: cleanWaypointName(p.name),
+                lng: Number(p.lng),
+                lat: Number(p.lat),
+            };
+            normalized.stayDays = (i === 0 || i === last) ? 0 : clampStayDays(p.stayDays);
+            return normalized;
+        });
+}
+
+function refreshDayPlan() {
+    normalizeWaypoints();
+    let day = 1;
+    let extraStayDays = 0;
+    let highAltitudeDays = 0;
+
+    state.waypoints.forEach((p, i) => {
+        const isMiddle = i > 0 && i < state.waypoints.length - 1;
+        const stay = isMiddle ? clampStayDays(p.stayDays) : 0;
+        p.stayDays = stay;
+        p.dayStart = day;
+        p.dayEnd = day + stay;
+        p.dayLabel = p.dayStart === p.dayEnd ? `D${p.dayStart}` : `D${p.dayStart}-D${p.dayEnd}`;
+        extraStayDays += stay;
+        if (isMiddle && Number(p.alt) >= 3500) highAltitudeDays += stay + 1;
+        day = p.dayEnd + 1;
+    });
+
+    state.dayStats = {
+        totalTripDays: state.waypoints.length ? day - 1 : 0,
+        driveDays: state.waypoints.length,
+        extraStayDays,
+        highAltitudeDays,
+    };
+    return state.dayStats;
+}
+
+function syncEndpointInputs() {
+    const startInput = document.getElementById('startInput');
+    const endInput = document.getElementById('endInput');
+    if (startInput) startInput.value = state.waypoints[0]?.name || '';
+    if (endInput) endInput.value = state.waypoints.length >= 2 ? (state.waypoints[state.waypoints.length - 1]?.name || '') : '';
+}
+
+function updateRouteFlow() {
+    const steps = Array.from(document.querySelectorAll('#routeFlow .route-flow-step'));
+    if (!steps.length) return;
+    const count = state.waypoints.length;
+    const hasSkeleton = count >= 2;
+    const hasMiddle = count >= 3;
+    const hasSaved = Boolean(state.activeSavedRouteId);
+    const activeStep = !hasSkeleton ? 1 : !hasMiddle ? 2 : !hasSaved ? 3 : 4;
+    steps.forEach((step, index) => {
+        const stepNumber = index + 1;
+        step.classList.toggle('done', stepNumber < activeStep || (stepNumber === 4 && hasSaved));
+        step.classList.toggle('active', stepNumber === activeStep && !(stepNumber === 4 && hasSaved));
+    });
+}
+
+function updateRouteSaveStatus(message, type = '') {
+    const box = document.getElementById('routeSaveStatus');
+    if (!box) return;
+    box.textContent = message;
+    box.className = 'route-save-status' + (type ? ' ' + type : '');
+}
+
+function getRouteLongestLegText() {
+    if (!state._legs || !state._legs.length) return '待规划';
+    let maxLeg = state._legs[0];
+    state._legs.forEach(l => { if (l.distM > maxLeg.distM) maxLeg = l; });
+    return `${(maxLeg.distM / 1000).toFixed(0)}km`;
+}
+
+function updateRouteOverview() {
+    const box = document.getElementById('waypointsContainer');
+    if (!box) return;
+    if (!state.waypoints.length) {
+        box.innerHTML = '';
+        return;
+    }
+    const s = state.dayStats || refreshDayPlan();
+    const highText = s.highAltitudeDays > 0 ? `${s.highAltitudeDays}天` : '0天';
+    box.innerHTML = `
+        <div class="route-overview" aria-live="polite">
+            <div class="route-overview-head">
+                <span class="route-overview-title">路线控制台</span>
+                <span>${escapeHtml(state.waypoints[0]?.name || '起点')} → ${escapeHtml(state.waypoints[state.waypoints.length - 1]?.name || '终点')}</span>
+            </div>
+            <div class="route-overview-grid">
+                <div class="route-overview-item">
+                    <div class="route-overview-value">${s.totalTripDays}</div>
+                    <div class="route-overview-label">规划天数</div>
+                </div>
+                <div class="route-overview-item">
+                    <div class="route-overview-value">${s.driveDays}</div>
+                    <div class="route-overview-label">移动/驻点</div>
+                </div>
+                <div class="route-overview-item">
+                    <div class="route-overview-value">${s.extraStayDays}</div>
+                    <div class="route-overview-label">额外停留</div>
+                </div>
+                <div class="route-overview-item">
+                    <div class="route-overview-value">${getRouteLongestLegText()}</div>
+                    <div class="route-overview-label">最长路段</div>
+                </div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:#cbd5e1;">高海拔驻点估算：${highText} · 起终点锁定，中间点可排序</div>
+        </div>
+    `;
+}
+
+function commitRouteChange(options = {}) {
+    const { draw = true, save = true, message = '', markDirty = true } = options;
+    if (markDirty) {
+        state.activeSavedRouteId = null;
+        updateRouteSaveStatus('路线已修改并保存在本机；如需长期保留，请另存路线并等待云端同步。', 'pending');
+    }
+    renderPoints();
+    if (draw) drawRoute();
+    if (save) saveToLocal({ markDirty });
+    if (message) showToast(message, 'success');
+}
+
 // ====== 地图点击 ======
 function onMapClick(e) {
     if (!state.clickMode) return;
@@ -1394,20 +1848,36 @@ function onMapClick(e) {
 }
 
 // ====== 添加途经点 ======
-function addWaypoint(name, lng, lat) {
-    // 移除最多10个途经点的限制（导入预设线路需要 20+ 个）
-    state.waypoints.push({ name, lng, lat });
-    renderPoints();
-    drawRoute();
-    saveToLocal();
+function addWaypoint(name, lng, lat, extra = {}) {
+    if (!name || !Number.isFinite(Number(lng)) || !Number.isFinite(Number(lat))) {
+        enableMapPickMode();
+        return;
+    }
+    const waypoint = {
+        ...extra,
+        name: cleanWaypointName(name),
+        lng: Number(lng),
+        lat: Number(lat),
+    };
+    if (state.waypoints.length <= 1) {
+        state.waypoints.push(waypoint);
+    } else {
+        state.waypoints.splice(state.waypoints.length - 1, 0, waypoint);
+    }
+    commitRouteChange({ message: `✓ 已添加途经点：${waypoint.name}` });
 }
 
 // ====== 删除途经点 ======
 function removeWaypoint(index) {
+    const point = state.waypoints[index];
+    if (!point) return;
+    const isEndpoint = index === 0 || index === state.waypoints.length - 1;
+    if (isEndpoint && state.waypoints.length > 1) {
+        const role = index === 0 ? '起点' : '终点';
+        if (!confirm(`删除${role}【${point.name}】后，相邻地点会自动成为新的${role}，确定吗？`)) return;
+    }
     state.waypoints.splice(index, 1);
-    renderPoints();
-    drawRoute();
-    saveToLocal();
+    commitRouteChange();
 }
 
 // ====== V21.4: 左侧直接编辑途径点名字/海拔 ======
@@ -1417,11 +1887,8 @@ function saveWaypointEdit(index, newName) {
     const trimmed = newName.replace(/\s+/g, ' ').trim();
     if (!trimmed) { renderPoints(); return; }   // 空名重渲染 (放弃改动)
     if (trimmed === p.name) return;
-    p.name = trimmed;
-    renderPoints();      // 重渲染让 marker 名字更新
-    drawRoute();
-    saveToLocal();
-    _triggerAutoSync();
+    p.name = cleanWaypointName(trimmed);
+    commitRouteChange();
     showToast(`✓ 已改名为 "${trimmed}"`, 'success');
 }
 function saveAltEdit(index, newAlt) {
@@ -1435,10 +1902,7 @@ function saveAltEdit(index, newAlt) {
         if (isNaN(num) || num < 0 || num > 9000) { renderPoints(); return; }
         p.alt = Math.round(num);
     }
-    renderPoints();
-    drawRoute();
-    saveToLocal();
-    _triggerAutoSync();
+    commitRouteChange();
 }
 
 // ====== 移动途经点 (V18: 上下移按钮) ======
@@ -1446,13 +1910,94 @@ function saveAltEdit(index, newAlt) {
 function moveWaypoint(index, dir) {
     const newIdx = index + dir;
     // 起终点不动 (i=0 起点, 末尾终点)
-    if (newIdx < 1 || newIdx > state.waypoints.length - 2) return;
-    if (index < 1 || index > state.waypoints.length - 2) return;
+    if (newIdx < 1 || newIdx > state.waypoints.length - 2 || index < 1 || index > state.waypoints.length - 2) {
+        showToast('起点和终点已锁定，只能调整中间途经点', 'warning');
+        return;
+    }
     const [moved] = state.waypoints.splice(index, 1);
     state.waypoints.splice(newIdx, 0, moved);
-    renderPoints();
-    drawRoute();
-    saveToLocal();
+    commitRouteChange({ message: `✓ 已将【${moved.name}】移到第 ${newIdx + 1} 位` });
+}
+
+function reorderWaypoint(sourceIdx, targetIdx) {
+    const last = state.waypoints.length - 1;
+    if (sourceIdx < 1 || sourceIdx >= last) return false;
+    if (targetIdx < 1 || targetIdx >= last) return false;
+    if (sourceIdx === targetIdx) return false;
+    const [moved] = state.waypoints.splice(sourceIdx, 1);
+    state.waypoints.splice(targetIdx, 0, moved);
+    return true;
+}
+
+function haversineKm(a, b) {
+    const toRad = deg => deg * Math.PI / 180;
+    const R = 6371;
+    const dLat = toRad(Number(b.lat) - Number(a.lat));
+    const dLng = toRad(Number(b.lng) - Number(a.lng));
+    const lat1 = toRad(Number(a.lat));
+    const lat2 = toRad(Number(b.lat));
+    const h = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function smartSortWaypoints() {
+    if (state.waypoints.length < 4) {
+        showToast('至少需要起点、终点和 2 个以上途经点才需要排序', 'error');
+        return;
+    }
+    const start = state.waypoints[0];
+    const end = state.waypoints[state.waypoints.length - 1];
+    const pending = state.waypoints.slice(1, -1);
+    const sorted = [];
+    let cursor = start;
+
+    while (pending.length) {
+        let bestIdx = 0;
+        let bestScore = Infinity;
+        pending.forEach((p, idx) => {
+            const score = haversineKm(cursor, p) + haversineKm(p, end) * 0.12;
+            if (score < bestScore) {
+                bestScore = score;
+                bestIdx = idx;
+            }
+        });
+        const [next] = pending.splice(bestIdx, 1);
+        sorted.push(next);
+        cursor = next;
+    }
+
+    state.waypoints = [start, ...sorted, end];
+    commitRouteChange({ message: '✓ 已按地理邻近重排途经点，起终点保持不动' });
+}
+
+function smartAssignStayDays() {
+    if (state.waypoints.length < 3) {
+        showToast('请先添加中间途经点', 'error');
+        return;
+    }
+    let changed = 0;
+    state.waypoints.forEach((p, i) => {
+        if (i === 0 || i === state.waypoints.length - 1) {
+            p.stayDays = 0;
+            return;
+        }
+        const text = `${p.name || ''} ${p.note || ''} ${p.wiki || ''}`;
+        const prevName = cleanWaypointName(state.waypoints[i - 1]?.name);
+        const nextName = cleanWaypointName(state.waypoints[i + 1]?.name);
+        const sameNeighbor = prevName === cleanWaypointName(p.name) || nextName === cleanWaypointName(p.name);
+        let stay = 0;
+        const liveMatch = text.match(/连住\s*(\d+)\s*[晚天]?/);
+        if (liveMatch && !sameNeighbor) {
+            stay = Math.max(0, parseInt(liveMatch[1], 10) - 1);
+        } else if (!sameNeighbor && /徒步|长线|一日游|深度|休整|摄影|日出|日落/.test(text)) {
+            stay = 1;
+        }
+        if (Number(p.alt) >= 4200 && !/休整|连住/.test(text)) stay = 0;
+        if ((p.stayDays || 0) !== stay) changed++;
+        p.stayDays = stay;
+    });
+    commitRouteChange({ message: `✓ 已智能排天数，调整 ${changed} 个驻点` });
 }
 
 // ====== V20: 调整途经点停留天数 ======
@@ -1462,26 +2007,27 @@ function adjustStay(index, delta) {
     // 起终点不参与停留
     if (index === 0 || index === state.waypoints.length - 1) return;
     p.stayDays = Math.max(0, Math.min(30, (p.stayDays || 0) + delta));
-    renderPoints();
-    updateStayStats();
-    saveToLocal();
+    commitRouteChange();
 }
 
 // ====== V20: 刷新"停留总天数"统计 ======
 function updateStayStats() {
     const stayEl = document.getElementById('statStayDays');
     if (!stayEl) return;
+    refreshDayPlan();
     const totalStay = state.waypoints.reduce((s, p) => s + (p.stayDays || 0), 0);
     stayEl.textContent = totalStay;
 
     // 把"总小时"叠加停留天数显示: 总天 = (路上时间 + 停留)/24, 用"天+小时"展示
     const timeEl = document.getElementById('statTime');
+    if (!timeEl) return;
     const driveH = parseFloat(timeEl.dataset.driveH || '0');
     const totalH = driveH + totalStay * 24;
     const d = Math.floor(totalH / 24);
     const h = Math.round(totalH - d * 24);
     timeEl.textContent = d > 0 ? `${d}天${h}h` : `${h}h`;
     timeEl.dataset.totalStay = totalStay;
+    updateRouteOverview();
 }
 
 // ====== 渲染路线点列表 ======
@@ -1491,16 +2037,24 @@ function renderPoints() {
     const stats = document.getElementById('statsBar');
 
     if (state.waypoints.length === 0) {
+        syncEndpointInputs();
+        updateRouteFlow();
         list.innerHTML = '';
         empty.style.display = 'block';
         stats.style.display = 'none';
+        updateRouteOverview();
         clearMapMarkers();
         return;
     }
 
+    refreshDayPlan();
+    syncEndpointInputs();
+    updateRouteFlow();
+    updateRouteOverview();
     empty.style.display = 'none';
     stats.style.display = 'flex';
     document.getElementById('statPoints').textContent = state.waypoints.length;
+    updateStayStats();
 
     list.innerHTML = state.waypoints.map((p, i) => {
         let cls = 'point-item';
@@ -1514,18 +2068,25 @@ function renderPoints() {
         const stayDays = p.stayDays || 0;
         const stayControl = (i === 0 || i === state.waypoints.length - 1)
             ? ''
-            : `<span style="display:inline-flex;align-items:center;gap:2px;background:#f0fdf4;padding:2px 5px;border-radius:4px;border:1px solid #bbf7d0;font-size:11px;">
-                <button onclick="event.stopPropagation();adjustStay(${i}, -1)" style="border:none;background:transparent;color:#16a34a;cursor:pointer;font-weight:700;padding:0 2px;" title="减 1 天">−</button>
-                <span style="color:#15803d;font-weight:600;min-width:38px;text-align:center;">${stayDays}天</span>
-                <button onclick="event.stopPropagation();adjustStay(${i}, 1)" style="border:none;background:transparent;color:#16a34a;cursor:pointer;font-weight:700;padding:0 2px;" title="加 1 天">+</button>
+            : `<span class="stay-control" title="额外停留天数，会顺延后续 D 天">
+                <button class="stay-btn" onclick="event.stopPropagation();adjustStay(${i}, -1)" title="减 1 天" aria-label="减 1 天">−</button>
+                <span class="stay-value">${stayDays}天</span>
+                <button class="stay-btn" onclick="event.stopPropagation();adjustStay(${i}, 1)" title="加 1 天" aria-label="加 1 天">+</button>
                </span>`;
+        const altText = p.alt ? `${escapeHtml(String(p.alt))}m` : '海拔待填';
+        const altHigh = Number(p.alt) >= 3500 ? ' high' : '';
+        const dayRangeCls = p.dayStart !== p.dayEnd ? ' range' : '';
 
         return `
             <div class="${cls}" data-index="${i}">
                 <div class="point-index">${i + 1}</div>
                 <div class="point-info" onclick="openAndFlyTo(${i})" style="cursor:pointer;flex:1;" title="点击打开详情 → 在弹窗里改名/改海拔">
                     <div class="point-name">${escapeHtml(p.name)}</div>
-                    <div class="point-coord">${label} · ${p.alt ? escapeHtml(String(p.alt)) + 'm' : '⛰ 待填'}</div>
+                    <div class="point-plan-row">
+                        <span class="day-chip${dayRangeCls}">${escapeHtml(p.dayLabel || `D${i + 1}`)}</span>
+                        <span class="point-role-chip">${label}</span>
+                        <span class="point-alt-chip${altHigh}">${altText}</span>
+                    </div>
                 </div>
                 ${stayControl}
                 <div class="point-actions">
@@ -1643,12 +2204,13 @@ function attachDragHandlers() {
                 cleanup();
                 return;
             }
-            const [moved] = state.waypoints.splice(src, 1);
-            state.waypoints.splice(targetIdx, 0, moved);
+            if (!reorderWaypoint(src, targetIdx)) {
+                cleanup();
+                showToast('起点和终点已锁定，只能调整中间途经点', 'error');
+                return;
+            }
             cleanup();
-            renderPoints();
-            drawRoute();
-            saveToLocal();
+            commitRouteChange();
             showToast(`✓ 已挪到第 ${targetIdx + 1} 位`, 'success');
         });
         item.addEventListener('dragend', cleanup);
@@ -1809,18 +2371,17 @@ function drawMarkers() {
             const moved = state.waypoints.splice(oldIdx, 1)[0];
             moved.lng = newLng;
             moved.lat = newLat;
-            // 找最近邻的下标, 插入到它后面 (保持视觉相邻)
-            let bestIdx = state.waypoints.length;
+            // 找最近邻的下标, 插入到它后面 (保持视觉相邻), 但不越过终点
+            let bestIdx = Math.max(1, state.waypoints.length - 1);
             let bestDist = Infinity;
             for (let j = 1; j < state.waypoints.length - 1; j++) {
                 const w = state.waypoints[j];
                 const d = Math.hypot(w.lng - newLng, w.lat - newLat);
                 if (d < bestDist) { bestDist = d; bestIdx = j + 1; }
             }
+            bestIdx = Math.min(Math.max(1, bestIdx), state.waypoints.length - 1);
             state.waypoints.splice(bestIdx, 0, moved);
-            renderPoints();
-            drawRoute();
-            saveToLocal();
+            commitRouteChange();
             showToast(`✓ 途经点 #${oldIdx + 1} 已挪到第 ${bestIdx + 1} 位`, 'success');
         });
 
@@ -1867,6 +2428,8 @@ function openPoiDetail(i, position) {
 
     // 找对应 plan/day 数据
     const dayInfo = _findDayInfo(p);
+    const cleanName = cleanWaypointName(p.name);
+    const encodedCleanName = encodeURIComponent(cleanName);
 
     // 弹窗 HTML
     const html = `
@@ -1921,14 +2484,14 @@ function openPoiDetail(i, position) {
             <div class="d-head">
                 <button class="d-close" onclick="closePoiDetail()" title="关闭">×</button>
                 <div style="font-size:11px;opacity:.85;letter-spacing:1px;">${dayInfo ? escapeHtml(dayInfo.d) : ''} · 海拔 ${p.alt || '—'}m</div>
-                <h2 style="margin:6px 0 0 0; font-size:20px; line-height:1.3;">${escapeHtml(p.name.replace(/^D\d+\s*·\s*/, ''))}</h2>
+                <h2 style="margin:6px 0 0 0; font-size:20px; line-height:1.3;">${escapeHtml(cleanName)}</h2>
                 <div>
                     <span class="d-tag">📍 ${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</span>
                     ${dayInfo && dayInfo.tag ? `<span class="d-tag">${_tagEmoji(dayInfo.tag)} ${_tagLabel(dayInfo.tag)}</span>` : ''}
                 </div>
                 <!-- V21.6: 在弹窗里直接改名/改海拔 -->
                 <div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                    <input id="dNameInput" type="text" value="${escapeHtml(p.name.replace(/^D\d+\s*·\s*/, ''))}"
+                    <input id="dNameInput" type="text" value="${escapeHtml(cleanName)}"
                         placeholder="地点名称"
                         style="flex:1;min-width:0;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;"
                         onfocus="this.style.background='rgba(255,255,255,.25)'"
@@ -1960,12 +2523,12 @@ function openPoiDetail(i, position) {
                 </div>
 
                 <div class="d-actions">
-                    <a class="d-btn primary big" target="_blank" href="https://baike.baidu.com/item/${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}" rel="noopener">📖 打开百科</a>
-                    <a class="d-btn primary" target="_blank" href="https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${encodeURIComponent(p.name)}&src=mindmap&coordinate=gaode&callnative=1" rel="noopener">🧭 高德导航</a>
-                    <a class="d-btn" target="_blank" href="https://baike.baidu.com/search?word=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}" rel="noopener">🔍 百度百科搜</a>
-                    <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 攻略 景点介绍')}" rel="noopener">🔍 百度攻略</a>
-                    <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, ''))}" rel="noopener">📕 小红书</a>
-                    <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(p.name.replace(/^D\d+\s*·\s*/, '') + ' 旅游 攻略')}&tbm=isch" rel="noopener">🖼 Google 图片</a>
+                    <a class="d-btn primary big" target="_blank" href="https://baike.baidu.com/item/${encodedCleanName}" rel="noopener">📖 打开百科</a>
+                    <a class="d-btn primary" target="_blank" href="https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${encodedCleanName}&src=mindmap&coordinate=gaode&callnative=1" rel="noopener">🧭 高德导航</a>
+                    <a class="d-btn" target="_blank" href="https://baike.baidu.com/search?word=${encodedCleanName}" rel="noopener">🔍 百度百科搜</a>
+                    <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(cleanName + ' 攻略 景点介绍')}" rel="noopener">🔍 百度攻略</a>
+                    <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodedCleanName}" rel="noopener">📕 小红书</a>
+                    <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(cleanName + ' 旅游 攻略')}&tbm=isch" rel="noopener">🖼 Google 图片</a>
                 </div>
 
                 <div class="d-section" id="detailItinerarySection">
@@ -2053,17 +2616,11 @@ function saveDetailEdit(i) {
         newAlt = Math.round(num);
     }
 
-    // 保留前缀 "D5 · "
-    const dayMatch = p.name.match(/^(D\d+\s*·\s*)(.+)$/);
-    const prefix = dayMatch ? dayMatch[1] : '';
-    p.name = prefix + newName;
+    p.name = cleanWaypointName(newName);
     if (newAlt == null) delete p.alt;
     else p.alt = newAlt;
 
-    renderPoints();
-    drawRoute();
-    saveToLocal();
-    _triggerAutoSync();
+    commitRouteChange();
     showToast(`✓ 已更新为 "${newName}"${newAlt ? ' / ' + newAlt + 'm' : ''}`, 'success');
 
     // 关闭弹窗, 让用户立刻在左侧列表看到结果
@@ -2084,6 +2641,402 @@ function saveItinerary(i) {
     }
     saveToLocal();
     _triggerAutoSync();
+}
+
+const AI_HISTORY_KEY = 'travelmind_ai_history';
+const DEEPSEEK_DEFAULT_ENDPOINT = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_DEFAULT_MODEL = 'deepseek-v4-flash';
+
+function getDeepSeekApiKey() {
+    return (window.TRAVELMIND_DEEPSEEK_API_KEY ||
+        localStorage.getItem('travelmind_deepseek_key') ||
+        '').trim();
+}
+
+function getDeepSeekEndpoint() {
+    return (window.TRAVELMIND_AI_PROXY_URL ||
+        localStorage.getItem('travelmind_ai_proxy_url') ||
+        DEEPSEEK_DEFAULT_ENDPOINT).trim();
+}
+
+function getDeepSeekModel() {
+    return (window.TRAVELMIND_DEEPSEEK_MODEL ||
+        localStorage.getItem('travelmind_deepseek_model') ||
+        DEEPSEEK_DEFAULT_MODEL).trim();
+}
+
+function extractJsonText(content) {
+    const text = String(content || '').replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    const match = text.match(/\{[\s\S]*\}/);
+    return match ? match[0] : text;
+}
+
+function getAiHistory() {
+    try {
+        const arr = JSON.parse(localStorage.getItem(AI_HISTORY_KEY) || '[]');
+        return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+}
+
+function setAiHistory(arr) {
+    try {
+        localStorage.setItem(AI_HISTORY_KEY, JSON.stringify((arr || []).slice(0, 60)));
+    } catch (e) {}
+}
+
+function getRouteSnapshot() {
+    return state.waypoints.map(p => ({
+        name: p.name,
+        lng: p.lng,
+        lat: p.lat,
+        alt: p.alt || null,
+        dayLabel: p.dayLabel || null,
+        stayDays: p.stayDays || 0,
+    }));
+}
+
+let _aiCloudTimer = null;
+function triggerAiCloudSaveNow() {
+    clearTimeout(_aiCloudTimer);
+    _aiCloudTimer = setTimeout(async () => {
+        try {
+            if (localStorage.getItem(CLOUD_KEY_ENABLED) === '1') {
+                const r = await dbPush();
+                if (!r.ok) console.warn('[ai cloud sync]', r.msg);
+            } else {
+                _triggerAutoSync();
+            }
+        } catch (e) {
+            console.warn('[ai cloud sync]', e.message);
+        }
+    }, 300);
+}
+
+function recordAiArtifact({ type, title, content, raw = '', parsed = null, metadata = {}, prompt = '' }) {
+    const item = {
+        id: 'ai_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        type,
+        title,
+        content: String(content || ''),
+        raw: typeof raw === 'string' ? raw : JSON.stringify(raw || ''),
+        parsed,
+        prompt,
+        metadata,
+        routeSnapshot: getRouteSnapshot(),
+        createdAt: Date.now(),
+    };
+    const history = getAiHistory();
+    history.unshift(item);
+    setAiHistory(history);
+    state.lastAiSave = {
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        createdAt: item.createdAt,
+    };
+    saveToLocal();
+    triggerAiCloudSaveNow();
+    return item;
+}
+
+function formatDeepSeekFetchError(err) {
+    if (err && err.name === 'AbortError') return '请求超时，请稍后重试或缩短路线点数量';
+    const msg = err && err.message ? err.message : String(err);
+    if (/Failed to fetch|NetworkError|Load failed|fetch/i.test(msg)) {
+        return '浏览器直连 DeepSeek 失败，常见原因是 CORS、网络拦截或本机代理异常。可配置 window.TRAVELMIND_AI_PROXY_URL 或 localStorage.travelmind_ai_proxy_url 走后端代理';
+    }
+    return msg;
+}
+
+async function deepSeekChat({ messages, temperature = 0.7, max_tokens = 2000, json = false }) {
+    const endpoint = getDeepSeekEndpoint();
+    const apiKey = getDeepSeekApiKey();
+    const model = getDeepSeekModel();
+    if (!endpoint) throw new Error('未配置 DeepSeek 接口地址');
+    if (endpoint.includes('api.deepseek.com') && !apiKey) {
+        throw new Error('未配置 DeepSeek API Key，可写入 localStorage.travelmind_deepseek_key');
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    const body = {
+        model,
+        messages,
+        temperature,
+        max_tokens,
+    };
+    if (json) body.response_format = { type: 'json_object' };
+    if (/^deepseek-v4/i.test(model)) body.thinking = { type: 'disabled' };
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+    let response;
+    let text = '';
+    try {
+        response = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+        text = await response.text();
+    } catch (err) {
+        throw new Error(formatDeepSeekFetchError(err));
+    } finally {
+        clearTimeout(timer);
+    }
+
+    let data = null;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch (e) {
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 240) || response.statusText}`);
+        throw new Error('DeepSeek 返回的不是 JSON：' + text.slice(0, 160));
+    }
+
+    if (!response.ok || data?.error) {
+        const apiMsg = data?.error?.message || data?.message || text.slice(0, 240) || response.statusText;
+        throw new Error(`HTTP ${response.status}: ${apiMsg}`);
+    }
+
+    const content = data?.choices?.[0]?.message?.content || '';
+    if (!content.trim()) {
+        throw new Error('DeepSeek 返回为空，请检查模型名、额度或代理响应格式');
+    }
+    return {
+        content,
+        data,
+        model,
+        endpoint,
+        finishReason: data?.choices?.[0]?.finish_reason || '',
+    };
+}
+
+function buildAiRouteContext() {
+    refreshDayPlan();
+    const distanceText = document.getElementById('statDistance')?.textContent || '待规划';
+    const timeText = document.getElementById('statTime')?.textContent || '待规划';
+    return {
+        generatedAt: new Date().toISOString(),
+        routeSummary: {
+            pointCount: state.waypoints.length,
+            totalTripDays: state.dayStats?.totalTripDays || 0,
+            extraStayDays: state.dayStats?.extraStayDays || 0,
+            highAltitudeDays: state.dayStats?.highAltitudeDays || 0,
+            distanceKm: distanceText,
+            totalTime: timeText,
+        },
+        waypoints: state.waypoints.map((point, index) => ({
+            order: index + 1,
+            day: point.dayLabel || `D${index + 1}`,
+            role: index === 0 ? '起点' : index === state.waypoints.length - 1 ? '终点' : '途经点',
+            name: point.name,
+            lng: Number(point.lng),
+            lat: Number(point.lat),
+            altitude: point.alt || null,
+            stayDays: point.stayDays || 0,
+            note: String(point.note || point.wiki || '').slice(0, 180),
+        })),
+        legs: (state._legs || []).map((leg, index) => ({
+            from: state.waypoints[index]?.name || `点${index + 1}`,
+            to: state.waypoints[index + 1]?.name || `点${index + 2}`,
+            distanceKm: Number((Number(leg.distM || 0) / 1000).toFixed(1)),
+            durationHours: Number((Number(leg.durS || 0) / 3600).toFixed(1)),
+            estimated: Boolean(leg.estimated),
+        })),
+    };
+}
+
+function inferAiPoiKeywords(question) {
+    const text = String(question || '');
+    const rules = [
+        [/加油|油站|汽油|柴油/, '加油站'],
+        [/充电|电车|新能源|续航/, '充电站'],
+        [/住宿|酒店|民宿|客栈/, '酒店 民宿'],
+        [/医院|急救|医疗|高反|氧气/, '医院 急救'],
+        [/补给|超市|采购|食物|物资/, '超市'],
+        [/景点|风景|拍照|摄影|游玩/, '旅游景点'],
+        [/餐厅|吃饭|美食|午餐|晚餐/, '餐厅'],
+    ];
+    return [...new Set(rules.filter(([pattern]) => pattern.test(text)).map(([, keyword]) => keyword))].slice(0, 2);
+}
+
+function getAiSearchAnchors() {
+    const points = state.waypoints.filter(point => Number.isFinite(Number(point.lng)) && Number.isFinite(Number(point.lat)));
+    if (points.length <= 3) return points;
+    return [points[0], points[Math.floor((points.length - 1) / 2)], points[points.length - 1]];
+}
+
+function searchAmapNearbyForAI(keyword, anchor, radius = 30000) {
+    return new Promise(resolve => {
+        if (!window.AMap || !anchor) {
+            resolve([]);
+            return;
+        }
+        const placeSearch = new AMap.PlaceSearch({ pageSize: 5, autoFitView: false, extensions: 'base' });
+        let settled = false;
+        const finish = pois => {
+            if (settled) return;
+            settled = true;
+            try { placeSearch.destroy && placeSearch.destroy(); } catch (e) {}
+            resolve(pois || []);
+        };
+        const timer = setTimeout(() => finish([]), 6500);
+        placeSearch.searchNearBy(keyword, [anchor.lng, anchor.lat], radius, (status, result) => {
+            clearTimeout(timer);
+            if (status !== 'complete' || !result?.poiList?.pois) {
+                finish([]);
+                return;
+            }
+            finish(result.poiList.pois.map(poi => ({
+                keyword,
+                anchor: anchor.name,
+                name: poi.name,
+                address: poi.address || '',
+                distanceKm: poi.distance ? Number((poi.distance / 1000).toFixed(1)) : null,
+                type: poi.type || '',
+                lng: Number(poi.location?.lng),
+                lat: Number(poi.location?.lat),
+            })));
+        });
+    });
+}
+
+async function collectAiGrounding(question) {
+    const keywords = inferAiPoiKeywords(question);
+    const anchors = getAiSearchAnchors();
+    const poiJobs = [];
+    keywords.forEach(keyword => anchors.forEach(anchor => poiJobs.push(searchAmapNearbyForAI(keyword, anchor))));
+    const poiGroups = poiJobs.length ? await Promise.all(poiJobs) : [];
+    const poiMap = new Map();
+    poiGroups.flat().forEach(poi => {
+        const key = `${poi.name}|${poi.address}`;
+        if (!poiMap.has(key)) poiMap.set(key, poi);
+    });
+
+    const wantsWeather = /天气|温度|气温|雨|雪|风|季节/.test(question);
+    const weather = [];
+    if (wantsWeather) {
+        const weatherResults = await Promise.all(anchors.map(async anchor => ({
+            anchor: anchor.name,
+            data: await fetchWeather(anchor.lat, anchor.lng),
+        })));
+        weatherResults.forEach(item => {
+            if (!item.data?.ok || !item.data.now) return;
+            weather.push({
+                anchor: item.anchor,
+                observedAt: new Date().toISOString(),
+                text: item.data.now.text,
+                temp: item.data.now.temp,
+                feelsLike: item.data.now.feelsLike,
+                wind: `${item.data.now.windDir || ''}${item.data.now.windScale || ''}级`,
+            });
+        });
+    }
+
+    return {
+        poiKeywords: keywords,
+        pois: Array.from(poiMap.values()).slice(0, 18),
+        weather,
+    };
+}
+
+function buildLocalAiFallback(question, routeContext, grounding) {
+    const highPoints = routeContext.waypoints.filter(point => Number(point.altitude) >= 3500);
+    const longLegs = [...routeContext.legs].sort((a, b) => b.distanceKm - a.distanceKm).slice(0, 3);
+    const lines = [
+        'AI 服务当前不可用，先给出基于本机路线数据的检查结果：',
+        '',
+        `【问题】${question}`,
+        `【路线数据】共 ${routeContext.routeSummary.pointCount} 个点，约 ${routeContext.routeSummary.totalTripDays} 天，里程 ${routeContext.routeSummary.distanceKm} km。`,
+    ];
+    if (highPoints.length) lines.push(`【高海拔】${highPoints.map(point => `${point.day} ${point.name} ${point.altitude}m`).join('；')}。建议避免连续快速升高。`);
+    if (longLegs.length) lines.push(`【长距离路段】${longLegs.map(leg => `${leg.from}→${leg.to} ${leg.distanceKm}km/${leg.durationHours}h`).join('；')}。`);
+    if (grounding.pois.length) lines.push(`【高德 POI】已找到 ${grounding.pois.length} 个相关地点，可在“周边探索”中进一步核验营业时间和评价。`);
+    lines.push('【不确定项】实时封路、施工、营业时间和油品供应必须在出发前通过高德导航、当地交警或商家电话再次确认。');
+    return lines.join('\n');
+}
+
+function renderAiAnswer(text, grounding, meta = {}) {
+    const poiText = grounding.pois.length ? `高德 POI ${grounding.pois.length} 条` : '未触发高德 POI 搜索';
+    const weatherText = grounding.weather.length ? `当前天气 ${grounding.weather.length} 个锚点` : '未查询当前天气';
+    document.getElementById('aiContent').innerHTML = `
+        <div class="ai-answer-meta">数据依据：路线计算 · ${escapeHtml(poiText)} · ${escapeHtml(weatherText)}${meta.model ? ` · 模型 ${escapeHtml(meta.model)}` : ''}</div>
+        <div class="ai-result">
+            <h4>🤖 AI 路线回答</h4>
+            <p style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(text)}</p>
+        </div>
+    `;
+}
+
+async function askTravelAI(presetQuestion = '') {
+    const input = document.getElementById('aiQuestion');
+    const question = String(presetQuestion || input?.value || '').trim();
+    if (!question) {
+        showToast('请输入想搜索或咨询的问题', 'warning');
+        input?.focus();
+        return;
+    }
+    if (input && presetQuestion) input.value = presetQuestion;
+    switchTab('ai');
+    showLoading('正在整理路线与高德地点数据...');
+    const routeContext = buildAiRouteContext();
+    let grounding = { poiKeywords: [], pois: [], weather: [] };
+    try {
+        grounding = await collectAiGrounding(question);
+        showLoading('AI 正在核对并生成答案...');
+        const prompt = `【当前日期】${new Date().toLocaleDateString('zh-CN')}
+【用户问题】${question}
+【程序计算的路线数据】${JSON.stringify(routeContext)}
+【高德 POI 检索结果】${JSON.stringify(grounding.pois)}
+【当前天气观测】${JSON.stringify(grounding.weather)}
+
+请用中文回答，并严格遵守：
+1. 先给“结论先行”，再给可执行清单。
+2. 明确标注【路线数据】【高德 POI】【AI 推断】【需实时核验】四类依据。
+3. 不得编造实时封路、营业时间、价格、油品或充电桩可用状态；没有依据就明确说未知。
+4. 对高原路线优先检查海拔爬升、连续驾驶、补给薄弱段、夜间行车和天气风险。
+5. 推荐地点时优先引用提供的高德 POI 名称和相对锚点；没有 POI 时只给筛选方法。
+6. 答案控制在 900 字以内，避免泛泛而谈。`;
+        const result = await deepSeekChat({
+            messages: [
+                { role: 'system', content: '你是谨慎、可核验的川西自驾旅行研究助手。事实与推断必须分开，优先使用用户路线和高德数据。' },
+                { role: 'user', content: prompt },
+            ],
+            temperature: 0.35,
+            max_tokens: 2600,
+        });
+        hideLoading();
+        renderAiAnswer(result.content, grounding, { model: result.model });
+        recordAiArtifact({
+            type: 'travel_search_answer',
+            title: question.slice(0, 40),
+            content: result.content,
+            raw: result.data,
+            prompt,
+            metadata: {
+                model: result.model,
+                finishReason: result.finishReason,
+                poiCount: grounding.pois.length,
+                weatherCount: grounding.weather.length,
+            },
+        });
+        showToast(result.finishReason === 'length' ? 'AI 回答已保存，但内容可能被截断' : 'AI 回答完成并已保存', result.finishReason === 'length' ? 'warning' : 'success');
+    } catch (error) {
+        hideLoading();
+        const fallback = buildLocalAiFallback(question, routeContext, grounding);
+        renderAiAnswer(fallback, grounding);
+        recordAiArtifact({
+            type: 'travel_search_fallback',
+            title: question.slice(0, 40),
+            content: fallback,
+            raw: error.message,
+            prompt: question,
+            metadata: { fallback: true, error: error.message },
+        });
+        showToast('AI 请求失败，已生成本机数据兜底答案', 'warning');
+    }
 }
 
 // ====== V21.8: 复制行程安排 ======
@@ -2107,7 +3060,7 @@ async function generateItineraryWithAI(i) {
     const btn = document.getElementById('aiGenBtn' + i);
     if (!ta || !statusEl || !btn) return;
 
-    const placeName = p.name.replace(/^D\d+\s*·\s*/, '').trim();
+    const placeName = cleanWaypointName(p.name);
     const altitude = p.alt || '未知';
     const coords = `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
 
@@ -2173,42 +3126,33 @@ ${weatherInfo ? `\n${weatherInfo}` : ''}
 ⚠️ 重要：请结合上述天气信息，在行程安排中给出穿衣建议和天气注意事项。如果有雨雪天气预警，请特别提醒。`;
 
     try {
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer sk-2ac968719b7b49bf9eb363a5c468764f',
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [
-                    { role: 'system', content: '你是资深川西自驾游规划师，擅长高原旅行路线规划和景点攻略。请用详细、有条理的方式回答。' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 2000,
-            }),
+        const { content, data, model } = await deepSeekChat({
+            messages: [
+                { role: 'system', content: '你是资深川西自驾游规划师，擅长高原旅行路线规划和景点攻略。请用详细、有条理的方式回答。' },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
         });
-
-        if (!response.ok) {
-            throw new Error('API 请求失败');
-        }
-
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || '';
 
         if (content) {
             ta.value = content;
             p.itinerary = content;
-            saveToLocal();
-            _triggerAutoSync();
-            showToast('✓ AI 生成完成', 'success');
+            recordAiArtifact({
+                type: 'itinerary',
+                title: `${placeName} 游玩攻略`,
+                content,
+                raw: data,
+                prompt,
+                metadata: { waypointIndex: i, model, placeName },
+            });
+            showToast('✓ AI 生成完成，已自动保存', 'success');
         } else {
             throw new Error('未获取到有效内容');
         }
     } catch (err) {
         console.error('AI 生成失败:', err);
-        showToast('⚠️ AI 生成失败，请重试', 'error');
+        showToast('AI 生成失败: ' + err.message, 'error');
     } finally {
         statusEl.style.display = 'none';
         btn.disabled = false;
@@ -2227,7 +3171,7 @@ function _tagLabel(tag) {
 
 // 反查当前 waypoint 对应的 plan day (从 plan data 中找 name+alt 都一致的)
 function _findDayInfo(p) {
-    const baseName = p.name.replace(/^D\d+\s*·\s*/, '').trim();
+    const baseName = cleanWaypointName(p.name);
     for (const planId in PRESET_PLANS) {
         for (const day of PRESET_PLANS[planId].days) {
             if (day.name === baseName && day.alt === p.alt) {
@@ -2263,7 +3207,7 @@ function _searchDetailNearby(p, i, cat) {
     if (!container) return;
     const myToken = ++_searchCancel;
 
-    const baseName = p.name.replace(/^D\d+\s*·\s*/, '');
+    const baseName = cleanWaypointName(p.name);
     const cats = ['scenic', 'food', 'hotel'];
     const catKw = { scenic: '景区 景点', food: '餐厅 美食 特色', hotel: '酒店 民宿 客栈' };
 
@@ -2316,7 +3260,7 @@ function _searchDetailNearby(p, i, cat) {
                 ps.setCity(city);
                 ps.search(kw, finalize);
             } else {
-                ps.searchNearBy(kw, center, 10000, '', finalize);
+                ps.searchNearBy(kw, center, 10000, finalize);
             }
 
             setTimeout(() => finalize('timeout', null), 10000);
@@ -2749,7 +3693,12 @@ async function addViaSearch() {
         else state.waypoints[0] = { ...state.waypoints[0], ...newWp };
         showToast(`✓ 已设为新起点：${cleanName}`, 'success');
     } else if (role === 'end') {
-        if (state.waypoints.length === 0) state.waypoints.push(newWp);
+        if (state.waypoints.length === 0) {
+            state.waypoints.push(newWp);
+            showToast('当前只有终点，请继续设置起点', 'warning');
+        } else if (state.waypoints.length === 1) {
+            state.waypoints.push(newWp);
+        }
         else {
             const last = state.waypoints.length - 1;
             state.waypoints[last] = { ...state.waypoints[last], ...newWp };
@@ -2757,17 +3706,17 @@ async function addViaSearch() {
         showToast(`✓ 已设为新终点：${cleanName}`, 'success');
     } else {
         // 途经点: 插在「终点之前」, 避免把终点挤掉
-        if (state.waypoints.length <= 1) {
-            state.waypoints.push(newWp);
-        } else {
-            state.waypoints.splice(state.waypoints.length - 1, 0, newWp);
+        if (state.waypoints.length < 2) {
+            hint.textContent = '请先设置起点和终点，再添加中间途经点';
+            hint.style.color = '#dc2626';
+            showToast('请先完成起点和终点', 'warning');
+            return;
         }
+        state.waypoints.splice(state.waypoints.length - 1, 0, newWp);
         showToast(`✓ 已加为途经点：${cleanName}`, 'success');
     }
 
-    renderPoints();
-    drawRoute();
-    saveToLocal();
+    commitRouteChange();
     input.value = '';
     hint.textContent = '✓ 已添加：' + cleanName;
     hint.style.color = '#10b981';
@@ -2780,7 +3729,7 @@ async function addViaSearch() {
 }
 
 // ====== 点击地图选点 ======
-function addWaypoint() {
+function enableMapPickMode() {
     state.clickMode = true;
     showMapTip('点击地图任意位置添加途经点');
 }
@@ -2813,13 +3762,15 @@ function importRoute(planId) {
     // 把每天的站点加为途经点
     plan.days.forEach(day => {
         state.waypoints.push({
-            name: `${day.d} · ${day.name}`,
+            name: day.name,
+            sourceDay: day.d,
             lng: day.lng,
             lat: day.lat,
             alt: day.alt,
             tag: day.tag,
             note: day.note,
             wiki: day.wiki,
+            stayDays: clampStayDays(day.stayDays),
         });
     });
 
@@ -2827,11 +3778,7 @@ function importRoute(planId) {
     clearFuelMarkers();
 
     // 渲染地图 + 路线
-    renderPoints();
-    drawRoute();
-
-    // 保存到 localStorage
-    if (typeof saveToLocal === 'function') saveToLocal();
+    commitRouteChange();
 
     // 飞到"激活当天"
     const idx = Math.min(plan.activeDay || 0, plan.days.length - 1);
@@ -2871,11 +3818,8 @@ function setRadius(r) {
 
 function searchPoi() {
     const keyword = document.getElementById('searchKeyword').value.trim();
-
     if (state._searchTimer) clearTimeout(state._searchTimer);
-    state._searchTimer = setTimeout(() => {
-        doSearch(keyword);
-    }, 300);
+    doSearch(keyword);
 }
 
 // 把"西昌"这种城市名/地名，先用 Geocoder 转成 [lng, lat]
@@ -2888,18 +3832,30 @@ function geocodeKeyword(keyword) {
         if (!_geoCoder) {
             _geoCoder = new AMap.Geocoder({ city: '全国', radius: 1000 });
         }
+        let settled = false;
+        const finish = value => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+        };
+        const timer = setTimeout(() => finish({ lng: null, lat: null, city: null, timeout: true }), 4500);
         _geoCoder.getLocation(keyword, (status, result) => {
+            clearTimeout(timer);
             if (status === 'complete' && result && result.geocodes && result.geocodes.length > 0) {
                 const loc = result.geocodes[0].location;
                 const city = result.geocodes[0].city || result.geocodes[0].adcode || null;
                 const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
                 const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
-                resolve({ lng, lat, city });
+                finish({ lng, lat, city });
             } else {
-                resolve({ lng: null, lat: null, city: null });
+                finish({ lng: null, lat: null, city: null });
             }
         });
     });
+}
+
+function isGenericPoiKeyword(keyword) {
+    return /^(景点|景区|旅游景点|美食|餐厅|饭店|酒店|民宿|客栈|加油站|充电站|医院|超市)$/i.test(String(keyword || '').trim());
 }
 
 async function doSearch(keyword) {
@@ -2908,7 +3864,7 @@ async function doSearch(keyword) {
                  [state.map.getCenter().lng, state.map.getCenter().lat];
 
     // 如果有关键词, 先 Geocode
-    if (keyword) {
+    if (keyword && !isGenericPoiKeyword(keyword)) {
         const geo = await geocodeKeyword(keyword);
         console.log('[搜索v6] Geocode 结果:', geo);
         if (geo && geo.lng != null && geo.lat != null) {
@@ -2952,15 +3908,24 @@ async function doSearch(keyword) {
     });
 
     let calledBack = false;
+    let usedNearbyFallback = false;
     const onResult = (status, result) => {
+        const count = result && result.poiList && result.poiList.pois && result.poiList.pois.length;
+        console.log('[搜索v6结果] status=', status, 'info=', result && result.info, 'count=', count);
+        if ((!count || status !== 'complete') && city && !usedNearbyFallback) {
+            usedNearbyFallback = true;
+            ps.searchNearBy(finalKeyword, center, state.currentRadius, onResult);
+            return;
+        }
         if (calledBack) return;
         calledBack = true;
         state._searchInFlight = false;
         hideLoading();
-        const count = result && result.poiList && result.poiList.pois && result.poiList.pois.length;
-        console.log('[搜索v6结果] status=', status, 'info=', result && result.info, 'count=', count);
         if (status === 'complete' && count > 0) {
-            const pois = result.poiList.pois.slice(0, 15);
+            const pois = result.poiList.pois
+                .filter((poi, index, arr) => arr.findIndex(item => item.name === poi.name && item.address === poi.address) === index)
+                .sort((a, b) => Number(a.distance || Infinity) - Number(b.distance || Infinity))
+                .slice(0, 15);
             renderPoiList(pois);
             drawPoiMarkers(pois);
             showToast(`找到 ${pois.length} 个结果`, 'success');
@@ -2982,13 +3947,14 @@ async function doSearch(keyword) {
         ps.setCity(city);
         ps.search(finalKeyword, (status, result) => onResult(status, result));
     } else {
-        ps.searchNearBy(finalKeyword, center, state.currentRadius, '', onResult);
+        ps.searchNearBy(finalKeyword, center, state.currentRadius, onResult);
     }
 
     // 8 秒超时
     setTimeout(() => {
         if (!calledBack) {
             console.warn('[搜索v6] 8 秒超时未回调');
+            usedNearbyFallback = true;
             onResult('timeout', null);
         }
     }, 8000);
@@ -3261,6 +4227,10 @@ function clearFuelMarkers() {
 
 function renderFuelLegend(fuelN, chargeN) {
     let legend = document.getElementById('fuelLegend');
+    if (fuelN + chargeN === 0) {
+        if (legend) legend.style.display = 'none';
+        return;
+    }
     if (!legend) {
         legend = document.createElement('div');
         legend.id = 'fuelLegend';
@@ -3283,7 +4253,7 @@ function renderFuelLegend(fuelN, chargeN) {
             </span>
             <button id="btnClearFuel" style="border:none;background:transparent;color:#64748b;cursor:pointer;font-size:11px;">✕ 关闭</button>
         `;
-        document.body.appendChild(legend);
+        (document.getElementById('map') || document.body).appendChild(legend);
         legend.querySelector('#btnClearFuel').onclick = clearFuelMarkers;
     }
     legend.style.display = 'flex';
@@ -3410,8 +4380,9 @@ async function aiOptimize() {
     switchTab('ai');
 
     try {
+        const routeContext = buildAiRouteContext();
         const waypointText = state.waypoints.map((p, i) =>
-            `${i + 1}. ${p.name}${p.alt ? ' (海拔 ' + p.alt + 'm)' : ''}`
+            `${p.dayLabel || `D${i + 1}`} ${p.name}${p.alt ? ' (海拔 ' + p.alt + 'm)' : ''}${p.stayDays ? `，额外停留 ${p.stayDays} 天` : ''}${p.note ? `，备注：${String(p.note).slice(0, 80)}` : ''}`
         ).join('\n');
 
         const prompt = `你是资深川西/川藏线自驾游规划师，擅长高原自驾生存学、地形气候分析与应急准备。
@@ -3419,6 +4390,14 @@ async function aiOptimize() {
 
 【路线途经点】
 ${waypointText}
+
+【程序计算数据】
+${JSON.stringify(routeContext.routeSummary)}
+
+【当前日期】
+${new Date().toLocaleDateString('zh-CN')}
+
+要求：距离、时长、天数优先采用程序计算数据；实时封路、价格、营业时间和油品供应无法确认时，必须写“出发前实时核验”，不得编造。
 
 【输出格式: 严格 JSON, 不要任何额外文字或 markdown 代码块】
 {
@@ -3458,48 +4437,55 @@ ${waypointText}
   }
 }`;
 
-        // 直接调用 DeepSeek（注意：生产环境应该用后端代理）
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer sk-2ac968719b7b49bf9eb363a5c468764f',
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [
-                    { role: 'system', content: '你是资深川西自驾游规划师，输出严格JSON格式（不要markdown代码块）。内容详尽、结构化、可执行。' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 4000,
-            }),
+        const { content, data, model } = await deepSeekChat({
+            messages: [
+                { role: 'system', content: '你是资深川西自驾游规划师，输出严格JSON格式（不要markdown代码块）。必须区分程序路线数据、通用经验和需要实时核验的信息。' },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 4000,
+            json: true,
         });
-
-        const data = await response.json();
         hideLoading();
 
-        if (data.choices && data.choices[0]) {
-            let content = data.choices[0].message.content;
-            // 容错解析
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                content = jsonMatch[0];
-            }
-            try {
-                state.aiResult = JSON.parse(content);
-                renderAiResult(state.aiResult);
-                showToast('AI 分析完成', 'success');
-            } catch (e) {
-                renderAiText(content);
-            }
-        } else {
-            showToast('AI 返回异常', 'error');
+        const rawContent = content;
+        try {
+            state.aiResult = JSON.parse(extractJsonText(rawContent));
+            renderAiResult(state.aiResult);
+            recordAiArtifact({
+                type: 'route_optimization',
+                title: '路线 AI 优化',
+                content: rawContent,
+                raw: data,
+                parsed: state.aiResult,
+                prompt,
+                metadata: { model },
+            });
+            showToast('AI 分析完成，已自动保存', 'success');
+        } catch (e) {
+            renderAiText(rawContent);
+            recordAiArtifact({
+                type: 'route_optimization_text',
+                title: '路线 AI 优化（文本原文）',
+                content: rawContent,
+                raw: data,
+                prompt,
+                metadata: { model, parseError: e.message },
+            });
+            showToast('AI 已返回文本，原文已自动保存', 'success');
         }
     } catch (err) {
         hideLoading();
         showToast('AI 请求失败：' + err.message, 'error');
-        renderAiText('⚠️ AI 服务暂时不可用 (网络/API 限流)，以下是预设基础攻略:\n\n【路线强度】川西自驾全程约 4000+ km，建议 20-25 天节奏。\n\n【必带】身份证/驾照/行驶证、高反药(红景天提前 7 天)、防滑链(11-4 月)、冲锋衣、充电宝 20000mAh+。\n\n【加油】稻城/理塘/新都桥 95# 油充足; 格聂之眼/格聂南线 60km 无人区需满油进; 莲宝叶则需在阿坝县城补满。\n\n【路况】雨季(7-8 月)塌方多、冬季垭口暗冰、折多山/觉巴山/雀儿山落石路段鸣笛通过、避免夜间行车。\n\n【住宿】分段适应(第 1 晚<3000m, 第 2 晚 3000-3500m, 第 3 晚再上 4000m); 理塘 4014m 当晚不洗澡不饮酒。\n\n【充电】高原电动 SUV 实测续航 -40%, 推荐混动; 充电桩主要在县城酒店。');
+        const fallback = '⚠️ AI 服务暂时不可用 (网络/API 限流)，以下是预设基础攻略:\n\n【路线强度】川西自驾全程约 4000+ km，建议 20-25 天节奏。\n\n【必带】身份证/驾照/行驶证、高反药(红景天提前 7 天)、防滑链(11-4 月)、冲锋衣、充电宝 20000mAh+。\n\n【加油】稻城/理塘/新都桥 95# 油充足; 格聂之眼/格聂南线 60km 无人区需满油进; 莲宝叶则需在阿坝县城补满。\n\n【路况】雨季(7-8 月)塌方多、冬季垭口暗冰、折多山/觉巴山/雀儿山落石路段鸣笛通过、避免夜间行车。\n\n【住宿】分段适应(第 1 晚<3000m, 第 2 晚 3000-3500m, 第 3 晚再上 4000m); 理塘 4014m 当晚不洗澡不饮酒。\n\n【充电】高原电动 SUV 实测续航 -40%, 推荐混动; 充电桩主要在县城酒店。';
+        renderAiText(fallback);
+        recordAiArtifact({
+            type: 'route_optimization_fallback',
+            title: '路线基础攻略（AI 失败兜底）',
+            content: fallback,
+            raw: err.message,
+            metadata: { fallback: true, error: err.message },
+        });
     }
 }
 
@@ -3593,19 +4579,25 @@ function switchTab(name) {
     if (name === 'gear') renderGear();  // V20: 切到装备 tab 时刷新
     if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('open');
+        document.body.classList.remove('sidebar-open');
+        showHelpFab();
     }
 }
 
 function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
+    const sidebar = document.getElementById('sidebar');
+    const open = sidebar.classList.toggle('open');
+    document.body.classList.toggle('sidebar-open', open);
+    const helpFab = document.getElementById('helpFab');
+    if (helpFab && window.innerWidth <= 768) helpFab.style.display = open ? 'none' : 'block';
 }
 
 function clearAll() {
     if (state.waypoints.length === 0 && !state.routePath) return;
     if (!confirm('确定清空所有路线点？')) return;
     state.waypoints = [];
-    renderPoints();
-    showToast('已清空', 'success');
+    state.activeSavedRouteId = null;
+    commitRouteChange({ message: '✓ 路线已清空并保存到本机' });
 }
 
 function toggleMapStyle() {
@@ -3641,11 +4633,13 @@ function showToast(msg, type = '') {
 // V21.5: 全局 JS 错误捕获 - 把错误写到屏幕中央, 方便排查"页面空白"
 window.addEventListener('error', (e) => {
     try {
+        if (e.message === 'Script error.' && (!e.filename || e.lineno === 0)) { e.preventDefault(); return; }
+        if (String(e.filename || '').includes('amap.com') && String(e.message || '').includes('Unimplemented type: 3')) { e.preventDefault(); return; }
         let box = document.getElementById('_jsErrorBox');
         if (!box) {
             box = document.createElement('div');
             box.id = '_jsErrorBox';
-            box.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;z-index:99999;background:#fef2f2;border:2px solid #ef4444;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#7f1d1d;max-height:50vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
+            box.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;z-index:99999;background:#fef2f2;border:2px solid #ef4444;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#7f1d1d;max-height:50vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,0.3);pointer-events:none;';
             document.body.appendChild(box);
         }
         const msg = `[${e.filename || '?'}:${e.lineno}:${e.colno}] ${e.message}`;
@@ -3661,7 +4655,7 @@ window.addEventListener('unhandledrejection', (e) => {
         if (!box) {
             box = document.createElement('div');
             box.id = '_jsErrorBox';
-            box.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;z-index:99999;background:#fef2f2;border:2px solid #ef4444;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#7f1d1d;max-height:50vh;overflow:auto;';
+            box.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;z-index:99999;background:#fef2f2;border:2px solid #ef4444;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#7f1d1d;max-height:50vh;overflow:auto;pointer-events:none;';
             document.body.appendChild(box);
         }
         const div = document.createElement('div');
@@ -3689,6 +4683,17 @@ function hideMapTip() {
     document.getElementById('mapTip').classList.remove('show');
 }
 
+function warnIfFileProtocol() {
+    if (location.protocol !== 'file:') return;
+    const id = 'fileProtocolWarning';
+    if (document.getElementById(id)) return;
+    const box = document.createElement('div');
+    box.id = id;
+    box.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:10001;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(15,23,42,.16);';
+    box.innerHTML = '当前是 file:// 直接打开。地图域名校验、云同步和跨源请求可能失败；建议用 <b>http://127.0.0.1:8765/index.html</b> 打开。<button onclick="this.parentElement.remove()" style="float:right;border:none;background:transparent;color:#9a3412;cursor:pointer;font-size:16px;">×</button>';
+    document.body.appendChild(box);
+}
+
 function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -3696,21 +4701,38 @@ function escapeHtml(s) {
 }
 
 // ====== LocalStorage + 自动同步 ======
-let _saveTimer = null;
-function _triggerAutoSync() {
+let _cloudSyncTimer = null;
+function _triggerAutoSync(options = {}) {
     if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
-    clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(() => cloudSilentSync(), 5000);
+    clearTimeout(_cloudSyncTimer);
+    const delay = Number.isFinite(options.delay) ? options.delay : 2500;
+    _cloudSyncTimer = setTimeout(() => cloudSilentSync(), delay);
 }
 
-function saveToLocal() {
+function saveToLocal(options = {}) {
     try {
-        localStorage.setItem('travelmind_route', JSON.stringify({
+        const previous = JSON.parse(localStorage.getItem('travelmind_route') || '{}');
+        const core = {
             waypoints: state.waypoints,
-            timestamp: Date.now(),
-        }));
+            aiResult: state.aiResult || null,
+            lastAiSave: state.lastAiSave || null,
+            dayStats: state.dayStats || null,
+        };
+        const previousCore = {
+            waypoints: previous.waypoints || [],
+            aiResult: previous.aiResult || null,
+            lastAiSave: previous.lastAiSave || null,
+            dayStats: previous.dayStats || null,
+        };
+        const changed = JSON.stringify(core) !== JSON.stringify(previousCore);
+        const payload = {
+            ...core,
+            timestamp: changed || !previous.timestamp ? Date.now() : previous.timestamp,
+        };
+        localStorage.setItem('travelmind_route', JSON.stringify(payload));
+        if (changed && options.markDirty !== false) markCloudDirty(payload.timestamp);
+        if (changed && options.sync !== false) _triggerAutoSync();
     } catch (e) {}
-    _triggerAutoSync();
 }
 
 function loadFromLocal() {
@@ -3718,8 +4740,12 @@ function loadFromLocal() {
         const data = JSON.parse(localStorage.getItem('travelmind_route') || '{}');
         if (data.waypoints && data.waypoints.length > 0) {
             state.waypoints = data.waypoints;
+            state.aiResult = data.aiResult || null;
+            state.lastAiSave = data.lastAiSave || null;
             renderPoints();
             drawRoute();
+            if (state.aiResult) renderAiResult(state.aiResult);
+            updateRouteSaveStatus('已恢复上次编辑中的路线；它保存在本机，尚未另存为路线版本。');
             showToast('已恢复上次路线', 'success');
         }
     } catch (e) {}
@@ -3738,6 +4764,7 @@ function setSavedRoutes(arr) {
     try {
         localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(arr));
     } catch (e) {}
+    markCloudDirty();
     _triggerAutoSync();
 }
 
@@ -3758,15 +4785,22 @@ function saveCurrentRoute() {
         name,
         waypoints: JSON.parse(JSON.stringify(state.waypoints)), // 深拷贝
         timestamp: Date.now(),
+        updatedAt: Date.now(),
         pointCount: state.waypoints.length,
+        totalTripDays: state.dayStats?.totalTripDays || state.waypoints.length,
+        startName: state.waypoints[0]?.name || '',
+        endName: state.waypoints[state.waypoints.length - 1]?.name || '',
     };
     routes.unshift(route);
     if (routes.length > 20) routes.length = 20;  // 最多保留 20 条
     setSavedRoutes(routes);
 
     nameInput.value = '';
+    state.activeSavedRouteId = route.id;
     renderSavedRoutes();
-    showToast(`💾 已保存【${route.name}】`, 'success');
+    updateRouteFlow();
+    updateRouteSaveStatus(`✓ 已另存【${route.name}】到本机，正在等待云端同步。`, 'pending');
+    showToast(`💾 已保存【${route.name}】到本机`, 'success');
 }
 
 function loadSavedRoute(id) {
@@ -3776,21 +4810,48 @@ function loadSavedRoute(id) {
     if (!confirm(`加载【${r.name}】？\n当前路线会被覆盖（${state.waypoints.length} 个点）。`)) return;
 
     state.waypoints = JSON.parse(JSON.stringify(r.waypoints));
-    renderPoints();
-    drawRoute();
-    saveToLocal();
+    state.activeSavedRouteId = r.id;
+    commitRouteChange({ markDirty: false });
     // 飞到第一个点
     if (state.waypoints[0]) {
         state.map.setZoomAndCenter(7, [state.waypoints[0].lng, state.waypoints[0].lat]);
     }
+    updateRouteSaveStatus(`✓ 当前加载的是【${r.name}】；继续修改后可另存，或点击下方“覆盖”更新原路线。`, 'synced');
     showToast(`✓ 已加载【${r.name}】( ${r.pointCount} 点)`, 'success');
+}
+
+function updateSavedRoute(id) {
+    const routes = getSavedRoutes();
+    const index = routes.findIndex(route => route.id === id);
+    if (index < 0 || !state.waypoints.length) return;
+    const route = routes[index];
+    if (!confirm(`用当前路线覆盖【${route.name}】吗？`)) return;
+    refreshDayPlan();
+    routes[index] = {
+        ...route,
+        waypoints: JSON.parse(JSON.stringify(state.waypoints)),
+        timestamp: route.timestamp || Date.now(),
+        updatedAt: Date.now(),
+        pointCount: state.waypoints.length,
+        totalTripDays: state.dayStats?.totalTripDays || state.waypoints.length,
+        startName: state.waypoints[0]?.name || '',
+        endName: state.waypoints[state.waypoints.length - 1]?.name || '',
+    };
+    state.activeSavedRouteId = id;
+    setSavedRoutes(routes);
+    renderSavedRoutes();
+    updateRouteFlow();
+    updateRouteSaveStatus(`✓ 已覆盖【${route.name}】并保存到本机，正在等待云端同步。`, 'pending');
+    showToast(`✓ 已更新【${route.name}】`, 'success');
 }
 
 function deleteSavedRoute(id, name) {
     if (!confirm(`删除【${name}】?`)) return;
     const routes = getSavedRoutes().filter(x => x.id !== id);
     setSavedRoutes(routes);
+    if (state.activeSavedRouteId === id) state.activeSavedRouteId = null;
     renderSavedRoutes();
+    updateRouteFlow();
     showToast(`🗑 已删除【${name}】`, 'success');
 }
 
@@ -3803,16 +4864,21 @@ function renderSavedRoutes() {
         return;
     }
     box.innerHTML = routes.map(r => {
-        const date = new Date(r.timestamp);
+        const date = new Date(r.updatedAt || r.timestamp);
         const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        const points = Array.isArray(r.waypoints) ? r.waypoints : [];
+        const startName = r.startName || points[0]?.name || '起点';
+        const endName = r.endName || points[points.length - 1]?.name || '终点';
+        const days = r.totalTripDays || points.length || r.pointCount || 0;
         return `
-            <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;">
-                <div style="flex:1;min-width:0;cursor:pointer;" onclick="loadSavedRoute('${r.id}')" title="点击加载">
-                    <div style="font-size:13px;color:#334155;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📂 ${escapeHtml(r.name)}</div>
-                    <div style="font-size:11px;color:#94a3b8;">${r.pointCount} 点 · ${dateStr}</div>
+            <div class="saved-route-card">
+                <div class="saved-route-title">📂 ${escapeHtml(r.name)}</div>
+                <div class="saved-route-meta">${escapeHtml(startName)} → ${escapeHtml(endName)} · ${r.pointCount || points.length} 点 · 约 ${days} 天 · ${dateStr}</div>
+                <div class="saved-route-actions">
+                    <button onclick="loadSavedRoute('${r.id}')">加载</button>
+                    <button onclick="updateSavedRoute('${r.id}')">用当前路线覆盖</button>
+                    <button class="danger" onclick="deleteSavedRoute('${r.id}', '${escapeHtml(r.name).replace(/'/g, "\\'")}')" title="删除">✕</button>
                 </div>
-                <button onclick="deleteSavedRoute('${r.id}', '${escapeHtml(r.name).replace(/'/g, "\\'")}')"
-                    style="border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:16px;padding:0 4px;" title="删除">✕</button>
             </div>
         `;
     }).join('');
@@ -3834,6 +4900,7 @@ function getGear() {
 }
 function setGear(arr) {
     try { localStorage.setItem(GEAR_KEY, JSON.stringify(arr)); } catch (e) {}
+    markCloudDirty();
     _triggerAutoSync();
 }
 
@@ -3852,6 +4919,8 @@ function addGearSingle() {
         name,
         cat: '其他',
         status: 'todo',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
     });
     setGear(list);
     input.value = '';
@@ -3889,34 +4958,19 @@ ${text}
 5. 不要解释, 只输出 JSON`;
 
     try {
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer sk-2ac968719b7b49bf9eb363a5c468764f',
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [
-                    { role: 'system', content: '严格输出 JSON, 不要 markdown。' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.3,
-                max_tokens: 2000,
-            }),
+        const { content, data, model } = await deepSeekChat({
+            messages: [
+                { role: 'system', content: '严格输出 JSON, 不要 markdown。' },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 2000,
+            json: true,
         });
-        const data = await response.json();
         hideLoading();
         _aiGearRunning = false;
 
-        if (!data.choices || !data.choices[0]) {
-            showToast('AI 返回异常', 'error');
-            return;
-        }
-        let content = data.choices[0].message.content;
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) content = jsonMatch[0];
-        const parsed = JSON.parse(content);
+        const parsed = JSON.parse(extractJsonText(content));
         if (!Array.isArray(parsed.items)) { showToast('解析结果格式异常', 'error'); return; }
 
         const list = getGear();
@@ -3930,6 +4984,8 @@ ${text}
                 name: it.name,
                 cat: it.cat || '其他',
                 status: 'todo',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
             });
             existingNames.add(it.name);
             added++;
@@ -3937,7 +4993,16 @@ ${text}
         setGear(list);
         renderGear();
         document.getElementById('gearBulkInput').value = '';
-        showToast(`✓ AI 解析 ${added} 件物品${added === 0 ? '(已全部存在)' : ''}`, 'success');
+        recordAiArtifact({
+            type: 'gear_parse',
+            title: '装备清单 AI 解析',
+            content,
+            raw: data,
+            parsed,
+            prompt,
+            metadata: { model, sourceText: text, added },
+        });
+        showToast(`✓ AI 解析 ${added} 件物品${added === 0 ? '(已全部存在)' : ''}，已自动保存`, 'success');
     } catch (err) {
         hideLoading();
         _aiGearRunning = false;
@@ -3958,6 +5023,7 @@ function changeGearStatus(id) {
     const g = list.find(x => x.id === id);
     if (!g) return;
     g.status = g.status === 'todo' ? 'bought' : g.status === 'bought' ? 'loaded' : 'todo';
+    g.updatedAt = Date.now();
     setGear(list);
     renderGear();
 }
@@ -4015,6 +5081,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const DB_TABLE = 'travelmind_data';
 
 const DB_KEY_USERID = 'travelmind_db_userid';
+const CLOUD_KEY_ENABLED = 'travelmind_use_cloud';
+const CLOUD_KEY_AUTOSYNC = 'travelmind_cloud_autosync';
+const CLOUD_KEY_BACKOFF_UNTIL = 'travelmind_cloud_backoff_until';
+const CLOUD_KEY_LOCAL_UPDATED_AT = 'travelmind_cloud_local_updated_at';
+const CLOUD_KEY_LAST_SYNC_AT = 'travelmind_cloud_last_sync_at';
+const CLOUD_KEY_PENDING = 'travelmind_cloud_pending';
+const CLOUD_BACKOFF_MS = 3 * 60 * 1000;
+const CLOUD_REQUEST_TIMEOUT_MS = 15000;
+let _cloudLastNetworkNoticeAt = 0;
 
 // 当前 user_id (本机 = 当前 4 位团队码)
 let _currentUid = null;
@@ -4045,161 +5120,270 @@ function _roomKey(code) {
     return 'tm-room-' + (code || 'default').toLowerCase().replace(/[^a-z0-9-]/g, '-');
 }
 
-async function dbPush() {
-    // V22.1: 优先使用 Supabase 云同步，同时保留本地备份
+function _cloudRemoteEnabled(options = {}) {
+    if (options.manual) return true;
+    if (localStorage.getItem(CLOUD_KEY_ENABLED) !== '1') return false;
+    const until = parseInt(localStorage.getItem(CLOUD_KEY_BACKOFF_UNTIL) || '0', 10);
+    return !until || Date.now() >= until;
+}
+
+function _cloudSetBackoff(context, err) {
+    const until = Date.now() + CLOUD_BACKOFF_MS;
+    localStorage.setItem(CLOUD_KEY_BACKOFF_UNTIL, String(until));
+    const now = Date.now();
+    if (now - _cloudLastNetworkNoticeAt > 30000) {
+        _cloudLastNetworkNoticeAt = now;
+        console.info(`[${context}] 云端暂时不可达，自动同步 ${Math.round(CLOUD_BACKOFF_MS / 60000)} 分钟内只写本机:`, err.message);
+    }
+}
+
+function _cloudClearBackoff() {
+    localStorage.removeItem(CLOUD_KEY_BACKOFF_UNTIL);
+}
+
+function _cloudLocalOnlyMsg(code) {
+    const blocked = parseInt(localStorage.getItem(CLOUD_KEY_BACKOFF_UNTIL) || '0', 10);
+    if (localStorage.getItem(CLOUD_KEY_ENABLED) === '1' && blocked && Date.now() < blocked) {
+        return '✓ 已保存到本机，云端暂不可达，稍后自动重试 (code: ' + code + ')';
+    }
+    return '✓ 已保存到本机 (code: ' + code + ')';
+}
+
+function markCloudDirty(timestamp = Date.now()) {
+    localStorage.setItem(CLOUD_KEY_LOCAL_UPDATED_AT, String(timestamp));
+    localStorage.setItem(CLOUD_KEY_PENDING, '1');
+}
+
+function _cloudDataTimestamp(data) {
+    return Math.max(
+        Number(data?._savedAt || 0),
+        Number(data?.timestamp || 0),
+        Number(data?.currentRoute?.timestamp || 0),
+    );
+}
+
+function _cloudParsePayload(value) {
+    if (!value) return null;
+    if (typeof value === 'object') return value;
+    return JSON.parse(value);
+}
+
+function _cloudHeaders(extra = {}) {
+    return {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        ...extra,
+    };
+}
+
+function _cloudErrorMessage(status, body, fallback) {
+    const detail = body?.message || body?.error_description || body?.hint || body?.details || '';
+    if (status === 401 || status === 403) return `云端权限被拒绝 HTTP ${status}，请检查 Supabase RLS 策略`;
+    if (status === 404) return `云端表 ${DB_TABLE} 不存在或接口路径错误`;
+    if (status === 409) return '团队码存在重复记录或缺少唯一约束，请检查数据库表结构';
+    return `${fallback || '云端请求失败'} HTTP ${status}${detail ? `：${detail}` : ''}`;
+}
+
+async function _cloudRequest(url, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CLOUD_REQUEST_TIMEOUT_MS);
+    let response;
+    let text = '';
+    try {
+        response = await fetch(url, { ...options, signal: controller.signal });
+        text = await response.text();
+    } catch (error) {
+        if (error.name === 'AbortError') throw new Error(`云端请求超过 ${Math.round(CLOUD_REQUEST_TIMEOUT_MS / 1000)} 秒`);
+        throw new Error('无法连接 Supabase：' + (error.message || error));
+    } finally {
+        clearTimeout(timer);
+    }
+    let body = null;
+    if (text) {
+        try { body = JSON.parse(text); } catch (error) { body = text; }
+    }
+    if (!response.ok) throw new Error(_cloudErrorMessage(response.status, body, options.errorLabel));
+    return { response, body };
+}
+
+async function _cloudReadRemote(code) {
+    const encodedCode = encodeURIComponent(code);
+    const url = `${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${encodedCode}&select=code,data,updated_at&order=updated_at.desc&limit=1`;
+    const { body } = await _cloudRequest(url, {
+        method: 'GET',
+        headers: _cloudHeaders(),
+        errorLabel: '云端读取失败',
+    });
+    const row = Array.isArray(body) ? body[0] : null;
+    if (!row) return { found: false, envelope: null, updatedAt: 0 };
+    const envelope = _cloudParsePayload(row.data);
+    return {
+        found: Boolean(envelope),
+        envelope,
+        updatedAt: Date.parse(row.updated_at || '') || Number(envelope?._savedAt || 0),
+    };
+}
+
+async function _cloudWriteRemote(code, envelope) {
+    const remote = await _cloudReadRemote(code);
+    const updatedAt = new Date().toISOString();
+    if (remote.found) {
+        const encodedCode = encodeURIComponent(code);
+        await _cloudRequest(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${encodedCode}`, {
+            method: 'PATCH',
+            headers: _cloudHeaders({ Prefer: 'return=minimal' }),
+            body: JSON.stringify({ data: JSON.stringify(envelope), updated_at: updatedAt }),
+            errorLabel: '云端更新失败',
+        });
+    } else {
+        await _cloudRequest(`${SUPABASE_URL}/rest/v1/${DB_TABLE}`, {
+            method: 'POST',
+            headers: _cloudHeaders({ Prefer: 'return=minimal' }),
+            body: JSON.stringify({ code, data: JSON.stringify(envelope), updated_at: updatedAt }),
+            errorLabel: '云端创建房间失败',
+        });
+    }
+    return { updatedAt: Date.parse(updatedAt) };
+}
+
+async function dbPush(options = {}) {
     const code = _dbGetUserId();
+    saveToLocal({ sync: false });
     const data = _cloudGetAllData();
-    const payload = JSON.stringify({
+    const envelope = {
         ...data,
         _savedAt: Date.now(),
         _code: code,
-    });
+    };
+    localStorage.setItem(_roomKey(code), JSON.stringify(envelope));
+
+    if (!_cloudRemoteEnabled(options)) {
+        if (localStorage.getItem(CLOUD_KEY_ENABLED) === '1') localStorage.setItem(CLOUD_KEY_PENDING, '1');
+        return { ok: true, localOk: true, cloudOk: false, skipped: true, msg: _cloudLocalOnlyMsg(code) };
+    }
 
     try {
-        // 1. 先存本地备份
-        const key = _roomKey(code);
-        localStorage.setItem(key, payload);
-
-        // 2. 尝试云同步到 Supabase
-        const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
-        if (useCloud) {
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
-                method: 'GET',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-            const existing = await r.json();
-
-            if (existing && existing.length > 0) {
-                // 更新现有记录
-                await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify({ data: payload, updated_at: new Date().toISOString() })
-                });
-            } else {
-                // 插入新记录
-                await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify({ code: code, data: payload, updated_at: new Date().toISOString() })
-                });
-            }
-            return { ok: true, msg: '✓ 已同步到云端 (code: ' + code + ')' };
-        }
-        return { ok: true, msg: '✓ 已保存到本机 (code: ' + code + ')' };
-    } catch (e) {
-        console.warn('[db push] 云同步失败，使用本地存储:', e.message);
-        return { ok: true, msg: '✓ 已保存到本机 (code: ' + code + ')' };
+        await _cloudWriteRemote(code, envelope);
+        _cloudClearBackoff();
+        localStorage.removeItem(CLOUD_KEY_PENDING);
+        localStorage.setItem(CLOUD_KEY_LAST_SYNC_AT, String(envelope._savedAt));
+        updateRouteSaveStatus(`✓ 本机与云端均已保存（团队码 ${code}，${new Date(envelope._savedAt).toLocaleTimeString('zh-CN')}）`, 'synced');
+        return { ok: true, localOk: true, cloudOk: true, msg: '✓ 已保存到云端 (code: ' + code + ')' };
+    } catch (error) {
+        _cloudSetBackoff('db push', error);
+        localStorage.setItem(CLOUD_KEY_PENDING, '1');
+        updateRouteSaveStatus(`本机已保存，但云端失败：${error.message}`, 'error');
+        return {
+            ok: false,
+            localOk: true,
+            cloudOk: false,
+            msg: `本机已保存；云端保存失败：${error.message}`,
+            error,
+        };
     }
 }
 
-async function dbPull() {
+async function dbPull(options = {}) {
     const code = _dbGetUserId();
-    const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
-
-    try {
-        // 1. 优先从云端拉取（如果开启）
-        if (useCloud) {
-            try {
-                const r = await fetch(`${SUPABASE_URL}/rest/v1/${DB_TABLE}?code=eq.${code}&order=updated_at.desc&limit=1`, {
-                    method: 'GET',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    }
-                });
-                const cloudData = await r.json();
-                if (cloudData && cloudData.length > 0) {
-                    const payload = JSON.parse(cloudData[0].data);
-                    const { _savedAt, _code, ...data } = payload;
-                    // 保存到本地备份
-                    localStorage.setItem(_roomKey(code), cloudData[0].data);
-                    if (_cloudApplyData(data)) {
-                        return { ok: true, msg: `✓ 已从云端恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
-                    }
-                }
-            } catch (e) {
-                console.warn('[db pull] 云端拉取失败，使用本地数据:', e.message);
+    let remoteError = null;
+    if (_cloudRemoteEnabled(options)) {
+        try {
+            const remote = await _cloudReadRemote(code);
+            if (remote.found) {
+                const { _savedAt, _code, ...remoteData } = remote.envelope;
+                const appliedData = options.merge ? _mergeCloudData(_cloudGetAllData(), remoteData) : remoteData;
+                if (!_cloudApplyData(appliedData)) throw new Error('云端数据格式不完整');
+                const appliedAt = Math.max(Number(_savedAt || 0), Number(appliedData.timestamp || 0), remote.updatedAt || 0) || Date.now();
+                localStorage.setItem(_roomKey(code), JSON.stringify({ ...appliedData, _savedAt: appliedAt, _code: code }));
+                localStorage.setItem(CLOUD_KEY_LOCAL_UPDATED_AT, String(appliedAt));
+                localStorage.setItem(CLOUD_KEY_LAST_SYNC_AT, String(appliedAt));
+                localStorage.removeItem(CLOUD_KEY_PENDING);
+                _cloudClearBackoff();
+                updateRouteSaveStatus(`✓ 已从云端${options.merge ? '合并' : '恢复'}数据（团队码 ${code}）`, 'synced');
+                return {
+                    ok: true,
+                    cloudOk: true,
+                    remoteFound: true,
+                    data: appliedData,
+                    msg: `✓ 已从云端${options.merge ? '合并' : '恢复'} (${new Date(appliedAt).toLocaleString('zh-CN')})`,
+                };
+            }
+            if (options.allowLocalFallback === false) {
+                return { ok: false, cloudOk: true, remoteFound: false, notFound: true, msg: `云端团队码 ${code} 暂无数据` };
+            }
+        } catch (error) {
+            remoteError = error;
+            _cloudSetBackoff('db pull', error);
+            if (options.allowLocalFallback === false) {
+                return { ok: false, cloudOk: false, remoteFound: false, msg: '云端读取失败：' + error.message, error };
             }
         }
+    }
 
-        // 2. 从本地恢复
+    try {
         const raw = localStorage.getItem(_roomKey(code));
         if (!raw) {
-            return { ok: false, msg: '没有找到数据，请先开启"云端同步"并上传' };
+            return { ok: false, cloudOk: false, remoteFound: false, msg: remoteError ? '云端读取失败且本机无备份：' + remoteError.message : '本机和云端都没有找到该团队码的数据' };
         }
-        const payload = JSON.parse(raw);
+        const payload = _cloudParsePayload(raw);
         const { _savedAt, _code, ...data } = payload;
         if (_cloudApplyData(data)) {
-            return { ok: true, msg: `✓ 已从本机恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
+            return { ok: true, localOk: true, cloudOk: false, remoteFound: false, msg: `✓ 已从本机备份恢复 (${new Date(_savedAt).toLocaleString('zh-CN')})` };
         }
         return { ok: false, msg: '数据格式不对' };
-    } catch (e) {
-        return { ok: false, msg: '读取失败: ' + e.message };
+    } catch (error) {
+        return { ok: false, msg: '读取失败: ' + error.message, error };
     }
 }
 
-async function dbAuto() {
-    // V22.1: 自动同步，支持云端
-    return await dbPush();
+async function dbAuto(options = {}) {
+    if (!_cloudRemoteEnabled(options)) return dbPush(options);
+    const code = _dbGetUserId();
+    try {
+        const remote = await _cloudReadRemote(code);
+        if (!remote.found) return dbPush(options);
+        const { _savedAt, _code, ...remoteData } = remote.envelope;
+        const merged = _mergeCloudData(_cloudGetAllData(), remoteData);
+        _cloudApplyData(merged);
+        markCloudDirty(Math.max(Date.now(), Number(_savedAt || 0), Number(merged.timestamp || 0)));
+        return dbPush(options);
+    } catch (error) {
+        _cloudSetBackoff('db sync', error);
+        return { ok: false, localOk: true, cloudOk: false, msg: `本机数据安全；双向同步失败：${error.message}`, error };
+    }
 }
 
-// V21.3: 自动静默同步 (替换 cloudSilentSync)
-let _dbAutoTimer = null;
-async function _triggerAutoSync() {
-    if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
-    clearTimeout(_dbAutoTimer);
-    _dbAutoTimer = setTimeout(async () => {
-        const r = await dbPush();
-        if (!r.ok) {
-            console.warn('[db sync]', r.msg);
-            // V21.7: 屏幕上也提示, 不再静默
-            if (typeof showToast === 'function') showToast('☁️ 自动保存失败: ' + r.msg, 'error');
-            if (typeof _cloudSetStatus === 'function') _cloudSetStatus(r.msg, false);
-        }
-    }, 5000);
-}
-
-// V21.3: 重写旧函数 - 用数据库
 async function cloudUpload() {
-    _cloudSetStatus('上传中...', true);
-    const r = await dbPush();
+    _cloudSetStatus('正在保存到本机和云端...', true);
+    const r = await dbPush({ manual: true });
     _cloudSetStatus(r.msg, r.ok);
-    if (r.ok) showToast('✓ 已上传到团队房间', 'success');
+    if (r.cloudOk) showToast('✓ 云保存成功', 'success');
+    else showToast(r.msg, r.localOk ? 'warning' : 'error');
 }
 async function cloudDownload() {
     if (!confirm('下载会覆盖本地当前路线 + 已保存路线 + 装备清单, 确定吗?')) return;
-    _cloudSetStatus('下载中...', true);
-    const r = await dbPull();
+    _cloudSetStatus('正在读取云端数据...', true);
+    const r = await dbPull({ manual: true, merge: false, allowLocalFallback: false });
     _cloudSetStatus(r.msg, r.ok);
-    if (r.ok) showToast('✓ 已从团队房间恢复', 'success');
+    if (r.cloudOk && r.remoteFound) showToast('✓ 已从云端恢复', 'success');
+    else showToast(r.msg, 'error');
 }
 async function cloudAutoSync() {
-    _cloudSetStatus('同步中...', true);
-    const r = await dbAuto();
+    _cloudSetStatus('正在比较本机与云端并合并...', true);
+    const r = await dbAuto({ manual: true });
     _cloudSetStatus(r.msg, r.ok);
-    if (r.ok) showToast('🔄 数据库同步完成', 'success');
+    if (r.cloudOk) showToast('🔄 双向同步完成', 'success');
+    else showToast(r.msg, r.localOk ? 'warning' : 'error');
 }
 async function cloudSilentSync() {
-    if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1') return;
-    const r = await dbPush();
-    if (!r.ok) console.warn('[db sync]', r.msg);
+    if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) !== '1' || localStorage.getItem(CLOUD_KEY_ENABLED) !== '1') return;
+    const r = await dbAuto();
+    if (!r.ok) {
+        console.warn('[db sync]', r.msg);
+        if (typeof _cloudSetStatus === 'function') _cloudSetStatus(r.msg, false);
+    }
 }
-const CLOUD_KEY_AUTOSYNC = 'travelmind_cloud_autosync';
 
 function openCloudPanel() {
     // V22.1: 显示配对码 + 云端开关状态
@@ -4207,28 +5391,56 @@ function openCloudPanel() {
     const uidEl = document.getElementById('cloudDbUid');
     if (uidEl) uidEl.textContent = code;
     document.getElementById('cloudAutoSyncChk').checked = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
-    document.getElementById('useCloudChk').checked = localStorage.getItem('travelmind_use_cloud') === '1';
+    document.getElementById('useCloudChk').checked = localStorage.getItem(CLOUD_KEY_ENABLED) === '1';
     updateCloudStatusText();
     document.getElementById('cloudModal').style.display = 'flex';
 }
 
+function toggleCloudEnabled(enabled) {
+    localStorage.setItem(CLOUD_KEY_ENABLED, enabled ? '1' : '0');
+    if (enabled) {
+        _cloudClearBackoff();
+        markCloudDirty();
+        showToast('已开启云端同步；建议先点击“测试云端”', 'success');
+        if (localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1') _triggerAutoSync({ delay: 300 });
+    } else {
+        showToast('已关闭云端请求，本机自动保存仍然有效', 'warning');
+    }
+    updateCloudStatusText();
+}
+
+function toggleCloudAutoSync(enabled) {
+    localStorage.setItem(CLOUD_KEY_AUTOSYNC, enabled ? '1' : '0');
+    if (enabled && localStorage.getItem(CLOUD_KEY_ENABLED) === '1') _triggerAutoSync({ delay: 300 });
+    updateCloudStatusText();
+}
+
 function updateCloudStatusText() {
-    const useCloud = localStorage.getItem('travelmind_use_cloud') === '1';
+    const useCloud = localStorage.getItem(CLOUD_KEY_ENABLED) === '1';
     const autoSync = localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1';
     const hintEl = document.getElementById('cloudToggleHint');
     const statusEl = document.getElementById('cloudStatus');
+    const pending = localStorage.getItem(CLOUD_KEY_PENDING) === '1';
+    const lastSyncAt = Number(localStorage.getItem(CLOUD_KEY_LAST_SYNC_AT) || 0);
 
     if (hintEl) {
         hintEl.innerHTML = useCloud
-            ? '✓ 已开启云端同步，数据会自动同步到 Supabase'
-            : '☁️ 开启后可跨设备自动同步（需联网）';
+            ? '✓ 云端通道已开启；只有 Supabase 返回成功后才会标记“已同步”'
+            : '☁️ 当前仅保存本机；开启后可跨设备同步（需联网）';
     }
 
-    if (autoSync) {
-        const syncType = useCloud ? '云端 + 本机' : '仅本机';
-        if (statusEl) statusEl.textContent = `✓ 自动同步已开启 (${syncType})`;
+    if (!statusEl) return;
+    const blocked = parseInt(localStorage.getItem(CLOUD_KEY_BACKOFF_UNTIL) || '0', 10);
+    if (!useCloud) {
+        statusEl.textContent = '本机保存正常；云端同步未开启。';
+    } else if (blocked && Date.now() < blocked) {
+        statusEl.textContent = `本机保存正常；云端连接失败，约 ${Math.ceil((blocked - Date.now()) / 60000)} 分钟后自动重试。`;
+    } else if (pending) {
+        statusEl.textContent = autoSync ? '本机有待同步修改，自动同步已排队。' : '本机有待同步修改，请点击“立即云保存”。';
+    } else if (lastSyncAt) {
+        statusEl.textContent = `✓ 云端已同步：${new Date(lastSyncAt).toLocaleString('zh-CN')}${autoSync ? '（自动同步开启）' : ''}`;
     } else {
-        if (statusEl) statusEl.textContent = '提示: 勾选"自动同步"可让修改自动上传';
+        statusEl.textContent = '云端已开启但尚未成功同步，请先测试或立即云保存。';
     }
 }
 function closeCloudPanel() { document.getElementById('cloudModal').style.display = 'none'; }
@@ -4240,22 +5452,45 @@ function _cloudSetStatus(msg, ok) {
 }
 
 function _cloudGetAllData() {
+    const currentRoute = JSON.parse(localStorage.getItem('travelmind_route') || '{}');
+    const savedRoutes = JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]');
+    const gear = JSON.parse(localStorage.getItem(GEAR_KEY) || '[]');
+    const aiHistory = getAiHistory();
+    const localUpdatedAt = Math.max(
+        Number(localStorage.getItem(CLOUD_KEY_LOCAL_UPDATED_AT) || 0),
+        Number(currentRoute.timestamp || 0),
+        ...savedRoutes.map(route => Number(route.updatedAt || route.timestamp || 0)),
+        ...gear.map(item => Number(item.updatedAt || item.createdAt || 0)),
+        ...aiHistory.map(item => Number(item.createdAt || 0)),
+    );
     return {
-        version: 'v22.1',
-        timestamp: Date.now(),
-        currentRoute: JSON.parse(localStorage.getItem('travelmind_route') || '{}'),
-        savedRoutes: JSON.parse(localStorage.getItem(SAVED_ROUTES_KEY) || '[]'),
-        gear: JSON.parse(localStorage.getItem(GEAR_KEY) || '[]'),
+        version: 'v20260720-22.9.1',
+        timestamp: localUpdatedAt || Date.now(),
+        currentRoute,
+        savedRoutes,
+        gear,
+        aiHistory,
+        aiResult: state.aiResult || null,
+        lastAiSave: state.lastAiSave || null,
     };
 }
 
 function _cloudApplyData(data) {
     if (!data) return false;
     if (data.currentRoute && data.currentRoute.waypoints) {
-        localStorage.setItem('travelmind_route', JSON.stringify(data.currentRoute));
-        state.waypoints = data.currentRoute.waypoints;
+        const currentRoute = {
+            ...data.currentRoute,
+            aiResult: data.currentRoute.aiResult || data.aiResult || null,
+            lastAiSave: data.currentRoute.lastAiSave || data.lastAiSave || null,
+        };
+        localStorage.setItem('travelmind_route', JSON.stringify(currentRoute));
+        state.waypoints = currentRoute.waypoints;
+        state.aiResult = currentRoute.aiResult;
+        state.lastAiSave = currentRoute.lastAiSave;
+        state.activeSavedRouteId = null;
         renderPoints();
         drawRoute();
+        if (state.aiResult) renderAiResult(state.aiResult);
     }
     if (Array.isArray(data.savedRoutes)) {
         localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(data.savedRoutes));
@@ -4265,19 +5500,54 @@ function _cloudApplyData(data) {
         localStorage.setItem(GEAR_KEY, JSON.stringify(data.gear));
         renderGear();
     }
+    if (Array.isArray(data.aiHistory)) {
+        setAiHistory(data.aiHistory);
+    }
+    if (data.aiResult && !state.aiResult) {
+        state.aiResult = data.aiResult;
+        renderAiResult(state.aiResult);
+    }
+    if (data.lastAiSave && !state.lastAiSave) {
+        state.lastAiSave = data.lastAiSave;
+    }
+    updateRouteFlow();
     return true;
 }
 
 function _mergeById(localArr, remoteArr, idKey, tsKey) {
     const map = new Map();
-    [...(remoteArr || []), ...(localArr || [])].forEach(item => {
+    [...(remoteArr || []), ...(localArr || [])].forEach((item, index) => {
         const id = item[idKey];
         if (!id) return;
         const existing = map.get(id);
-        if (!existing || (tsKey && item[tsKey] > (existing[tsKey] || 0))) map.set(id, item);
-        else if (!existing) map.set(id, item);
+        const itemTs = Number(item[tsKey] || item.updatedAt || item.timestamp || item.createdAt || 0);
+        const existingTs = Number(existing?.[tsKey] || existing?.updatedAt || existing?.timestamp || existing?.createdAt || 0);
+        if (!existing || itemTs > existingTs || (itemTs === existingTs && index >= (remoteArr || []).length)) map.set(id, item);
     });
     return Array.from(map.values());
+}
+
+function _mergeCloudData(localData, remoteData) {
+    const localTimestamp = _cloudDataTimestamp(localData);
+    const remoteTimestamp = _cloudDataTimestamp(remoteData);
+    const newer = remoteTimestamp > localTimestamp ? remoteData : localData;
+    const localAiTime = Number(localData?.lastAiSave?.createdAt || 0);
+    const remoteAiTime = Number(remoteData?.lastAiSave?.createdAt || 0);
+    return {
+        ...newer,
+        version: 'v20260720-22.9.1',
+        timestamp: Math.max(localTimestamp, remoteTimestamp),
+        currentRoute: remoteTimestamp > localTimestamp ? remoteData.currentRoute : localData.currentRoute,
+        savedRoutes: _mergeById(localData.savedRoutes, remoteData.savedRoutes, 'id', 'updatedAt')
+            .sort((a, b) => Number(b.updatedAt || b.timestamp || 0) - Number(a.updatedAt || a.timestamp || 0))
+            .slice(0, 40),
+        gear: _mergeById(localData.gear, remoteData.gear, 'id', 'updatedAt'),
+        aiHistory: _mergeById(localData.aiHistory, remoteData.aiHistory, 'id', 'createdAt')
+            .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+            .slice(0, 60),
+        aiResult: remoteAiTime > localAiTime ? remoteData.aiResult : localData.aiResult,
+        lastAiSave: remoteAiTime > localAiTime ? remoteData.lastAiSave : localData.lastAiSave,
+    };
 }
 
 // ====== V21.2: 手动导入/导出 (零依赖兜底) ======
@@ -4304,6 +5574,8 @@ function cloudImport() {
         const data = JSON.parse(json);
         if (!confirm('导入会覆盖本地所有数据, 确定吗?')) return;
         if (_cloudApplyData(data)) {
+            markCloudDirty(Number(data.timestamp || Date.now()));
+            _triggerAutoSync({ delay: 300 });
             showToast('📥 导入成功', 'success');
             _cloudSetStatus(`✓ 已导入备份 (${new Date(data.timestamp).toLocaleString('zh-CN')})`, true);
         } else {
@@ -4315,19 +5587,23 @@ function cloudImport() {
 }
 
 async function cloudTest() {
-    // V21.7: 已纯本地, 检查本机房间是否有数据
     const code = _dbGetUserId();
-    const key = _roomKey(code);
-    const raw = localStorage.getItem(key);
-    const localKeys = Object.keys(localStorage).filter(k => k.startsWith('tm-room-')).length;
-    if (raw) {
-        let ts = '未知';
-        try { ts = new Date(JSON.parse(raw)._savedAt).toLocaleString('zh-CN'); } catch(e) {}
-        _cloudSetStatus(`✓ 本机团队房间 OK (团队码 ${code}, 最后保存 ${ts}, 共 ${localKeys} 个房间)`, true);
-        showToast('🔧 本房间 OK', 'success');
-    } else {
-        _cloudSetStatus(`ℹ️ 本机团队码 ${code} 房间暂无数据 (共 ${localKeys} 个房间)`, true);
-        showToast('ℹ️ 房间为空, 点"上传"写一份', 'success');
+    _cloudSetStatus('正在测试 Supabase 读取...', true);
+    try {
+        const remote = await _cloudReadRemote(code);
+        _cloudClearBackoff();
+        if (remote.found) {
+            const savedAt = Number(remote.envelope?._savedAt || remote.updatedAt || 0);
+            _cloudSetStatus(`✓ 云端可连接，团队码 ${code} 有数据${savedAt ? `（${new Date(savedAt).toLocaleString('zh-CN')}）` : ''}`, true);
+            showToast('✓ 云端读取正常', 'success');
+        } else {
+            _cloudSetStatus(`✓ 云端可连接，团队码 ${code} 尚未创建；点击“立即云保存”即可创建。`, true);
+            showToast('✓ 云端连接正常，当前房间为空', 'success');
+        }
+    } catch (error) {
+        _cloudSetBackoff('cloud test', error);
+        _cloudSetStatus('云端测试失败：' + error.message, false);
+        showToast('云端测试失败：' + error.message, 'error');
     }
 }
 
@@ -4344,58 +5620,57 @@ async function joinPair() {
         alert('❌ 团队码必须是 4 位数字 (0000-9999)');
         return;
     }
+    if (trimmed === currentCode) {
+        showToast('当前已经在该团队码下', 'warning');
+        return;
+    }
     try {
-        // 检查该团队码房间在本机是否有数据
-        const existing = localStorage.getItem(_roomKey(trimmed));
         localStorage.setItem(DB_KEY_USERID, trimmed);
         _currentUid = null;
+        localStorage.setItem(CLOUD_KEY_ENABLED, '1');
+        _cloudSetStatus(`正在读取团队码 ${trimmed} 的云端数据...`, true);
+        const remote = await _cloudReadRemote(trimmed);
 
-        if (!existing) {
-            // 没有: 这个团队房间还没数据
-            const ok = confirm('ℹ️ 本机没找到团队码 "' + trimmed + '" 的数据。\n\n确定要使用这个团队码吗?\n\n(之后所有用此码的设备都共享你这台机器的数据。\n跨设备共享用"📋 导出 JSON → 微信发队友 → 📥 导入"流程)');
-            if (!ok) {
-                // 恢复原码
-                localStorage.setItem(DB_KEY_USERID, currentCode);
-                return;
-            }
-            // 本机数据上传到新房间
-            await dbPush();
-            showToast('✓ 已使用团队码 "' + trimmed + '" (本房间)', 'success');
-            _cloudSetStatus('✓ 已加入团队码 ' + trimmed + ' (本房间, 未跨设备)', true);
-        } else {
-            // 有: 询问怎么处理
-            const ts = (() => {
-                try { return new Date(JSON.parse(existing)._savedAt).toLocaleString('zh-CN'); }
-                catch(e) { return '未知时间'; }
-            })();
+        if (remote.found) {
+            const savedAt = Number(remote.envelope?._savedAt || remote.updatedAt || 0);
             const choice = prompt(
-                `✓ 本机有团队码 "${trimmed}" 的备份 (最后更新: ${ts})\n\n` +
-                `输入 "1" = 从该房间恢复本机数据\n` +
-                `输入 "2" = 把本机数据写回该房间 (覆盖)\n` +
-                `输入 "3" = 双向合并 (推荐)\n\n` +
+                `云端已找到团队码 "${trimmed}" 的数据${savedAt ? `（${new Date(savedAt).toLocaleString('zh-CN')}）` : ''}\n\n` +
+                `输入 "1" = 以云端为准恢复到本机（推荐新设备）\n` +
+                `输入 "2" = 双向合并后写回云端\n\n` +
                 `直接回车 = 取消`,
                 '1'
             );
-            if (!choice) return;
-            if (choice === '1') await dbPull();
-            else if (choice === '2') await dbPush();
-            else if (choice === '3') {
-                // 从房间下载 → 合并 → 上传
-                const oldKey = _roomKey(currentCode);
-                const old = localStorage.getItem(oldKey);
-                if (old) {
-                    // 推到新房间 (再让自动同步从老房间拉)
-                    const { _savedAt: oTs, _code: oC, ...oData } = JSON.parse(old);
-                    _cloudApplyData(oData);
-                }
-                await dbAuto();
-            } else return;
-            showToast('✓ 已切换到团队码 ' + trimmed, 'success');
-            _cloudSetStatus('✓ 已切换到团队码 ' + trimmed, true);
+            if (!choice) throw new Error('已取消切换团队码');
+            if (choice === '1') {
+                const { _savedAt, _code, ...remoteData } = remote.envelope;
+                _cloudApplyData(remoteData);
+                const appliedAt = Math.max(Number(_savedAt || 0), Number(remoteData.timestamp || 0), remote.updatedAt || 0) || Date.now();
+                localStorage.setItem(_roomKey(trimmed), JSON.stringify({ ...remoteData, _savedAt: appliedAt, _code: trimmed }));
+                localStorage.setItem(CLOUD_KEY_LOCAL_UPDATED_AT, String(appliedAt));
+                localStorage.setItem(CLOUD_KEY_LAST_SYNC_AT, String(appliedAt));
+                localStorage.removeItem(CLOUD_KEY_PENDING);
+            } else if (choice === '2') {
+                const syncResult = await dbAuto({ manual: true });
+                if (!syncResult.cloudOk) throw new Error(syncResult.msg);
+            } else {
+                throw new Error('已取消切换团队码');
+            }
+        } else {
+            const create = confirm(`云端没有团队码 "${trimmed}"。\n\n是否创建新房间并把当前本机数据保存到云端？`);
+            if (!create) throw new Error('已取消创建团队房间');
+            const pushResult = await dbPush({ manual: true });
+            if (!pushResult.cloudOk) throw new Error(pushResult.msg);
         }
+        localStorage.setItem(CLOUD_KEY_AUTOSYNC, '1');
+        _cloudClearBackoff();
+        showToast('✓ 已安全加入团队码 ' + trimmed, 'success');
+        _cloudSetStatus('✓ 已加入团队码 ' + trimmed + '，自动同步已开启', true);
         openCloudPanel();
-    } catch (e) {
-        alert('配对失败: ' + e.message);
+    } catch (error) {
+        localStorage.setItem(DB_KEY_USERID, currentCode || _gen4DigitCode());
+        _currentUid = null;
+        if (!/已取消/.test(error.message)) alert('配对失败: ' + error.message);
+        else showToast(error.message, 'warning');
     }
 }
 
@@ -4404,8 +5679,14 @@ function leavePair() {
     if (!confirm('⚠️ 生成新团队码?\n\n当前团队码: ' + cur + '\n\n新团队码将脱离当前共享数据 (本地旧数据不会丢, 只是写入新房间)。')) return;
     const newCode = String(Math.floor(1000 + Math.random() * 9000));
     localStorage.setItem(DB_KEY_USERID, newCode);
+    localStorage.removeItem(CLOUD_KEY_LAST_SYNC_AT);
+    localStorage.removeItem(CLOUD_KEY_BACKOFF_UNTIL);
+    markCloudDirty();
     _currentUid = null;
-    showToast('✓ 新团队码: ' + newCode, 'success');
+    if (localStorage.getItem(CLOUD_KEY_ENABLED) === '1' && localStorage.getItem(CLOUD_KEY_AUTOSYNC) === '1') {
+        _triggerAutoSync({ delay: 300 });
+    }
+    showToast('✓ 新团队码: ' + newCode + '，等待首次云保存', 'success');
     openCloudPanel();
 }
 
@@ -4546,6 +5827,7 @@ window.addEventListener('resize', () => {
 
 // ====== 启动 ======
 window.addEventListener('load', () => {
+    warnIfFileProtocol();
     initMap();
     loadFromLocal();
     initSavedRoutes();
@@ -4554,7 +5836,7 @@ window.addEventListener('load', () => {
 
     // V22.2: 每 5 秒自动保存到 localStorage
     setInterval(() => {
-        if (typeof saveToLocal === 'function') saveToLocal();
+        if (typeof saveToLocal === 'function') saveToLocal({ sync: false });
     }, 5000);
 
     // V21: 第一次自动启动引导(等 renderPoints 后才能找到 #statsBar)
@@ -4568,17 +5850,18 @@ window.addEventListener('load', () => {
     setupAutocomplete('startInput', (lng, lat, name) => {
         if (state.waypoints.length > 0) state.waypoints[0] = { name, lng, lat };
         else state.waypoints.push({ name, lng, lat });
-        renderPoints();
-        drawRoute();
+        commitRouteChange();
     });
     setupAutocomplete('endInput', (lng, lat, name) => {
-        if (state.waypoints.length > 0) {
+        if (state.waypoints.length >= 2) {
             state.waypoints[state.waypoints.length - 1] = { name, lng, lat };
+        } else if (state.waypoints.length === 1) {
+            state.waypoints.push({ name, lng, lat });
         } else {
             state.waypoints.push({ name, lng, lat });
+            showToast('当前只有终点，请继续设置起点', 'warning');
         }
-        renderPoints();
-        drawRoute();
+        commitRouteChange();
     });
 });
 
