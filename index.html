@@ -1975,7 +1975,6 @@ function commitRouteChange(options = {}) {
     renderPoints();
     if (draw) drawRoute();
     if (save) saveToLocal({ markDirty });
-    scheduleMissingWaypointElevationLookup();
     if (message) showToast(message, 'success');
 }
 
@@ -2254,6 +2253,7 @@ function renderPoints() {
     // 拖拽排序（V15: 改用 🤏 抓手 + 600ms 长按, 避免误触）
     attachDragHandlers();
     drawMarkers();
+    scheduleMissingWaypointElevationLookup();
 }
 
 // ====== 拖拽排序 (V18: 长按 250ms 更灵敏 + 加 ↑↓ 兜底) ======
