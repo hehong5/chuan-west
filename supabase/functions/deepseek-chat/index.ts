@@ -44,7 +44,7 @@ Deno.serve(async (request) => {
 
     if (!messages.length) return json({ error: { message: "Messages are required" } }, 400, origin);
 
-    const maxTokens = Math.max(128, Math.min(Number(payload?.max_tokens) || 1200, 2400));
+    const maxTokens = Math.max(128, Math.min(Number(payload?.max_tokens) || 1200, 3200));
     const deepseekRequest = {
       model: DEEPSEEK_MODEL,
       messages,

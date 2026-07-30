@@ -1794,6 +1794,61 @@ function clampStayDays(value) {
     return Math.max(0, Math.min(30, n));
 }
 
+const ELEVATION_ENDPOINT = 'https://api.open-meteo.com/v1/elevation';
+let _elevationLookupTimer = null;
+
+function hasConfirmedAltitude(value) {
+    if (value === null || value === undefined || String(value).trim() === '') return false;
+    const altitude = Number(value);
+    return Number.isFinite(altitude) && altitude >= -500 && altitude <= 9000;
+}
+
+function formatWaypointAltitude(value) {
+    return hasConfirmedAltitude(value)
+        ? `海拔 ${Math.round(Number(value))} m`
+        : '海拔待核验';
+}
+
+function scheduleMissingWaypointElevationLookup() {
+    clearTimeout(_elevationLookupTimer);
+    const missing = state.waypoints.filter(point =>
+        point && !hasConfirmedAltitude(point.alt) &&
+        Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lng))
+    );
+    if (!missing.length) return;
+
+    _elevationLookupTimer = setTimeout(async () => {
+        try {
+            const latitude = missing.map(point => Number(point.lat).toFixed(5)).join(',');
+            const longitude = missing.map(point => Number(point.lng).toFixed(5)).join(',');
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 10000);
+            const response = await fetch(`${ELEVATION_ENDPOINT}?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`, {
+                signal: controller.signal,
+            });
+            clearTimeout(timer);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            const elevations = Array.isArray(payload?.elevation) ? payload.elevation : [];
+            let updated = 0;
+            missing.forEach((point, index) => {
+                const elevation = Number(elevations[index]);
+                if (state.waypoints.includes(point) && !hasConfirmedAltitude(point.alt) && hasConfirmedAltitude(elevation)) {
+                    point.alt = Math.round(elevation);
+                    updated += 1;
+                }
+            });
+            if (!updated) return;
+            renderPoints();
+            const saved = saveToLocal({ markDirty: false });
+            persistAiToActiveSavedRoute();
+            if (!saved?.ok) console.warn('[elevation save] Failed to save resolved elevations locally.');
+        } catch (error) {
+            console.info('[elevation lookup]', error.message);
+        }
+    }, 250);
+}
+
 function normalizeWaypoints() {
     const valid = state.waypoints
         .filter(p => p && Number.isFinite(Number(p.lng)) && Number.isFinite(Number(p.lat)));
@@ -1920,6 +1975,7 @@ function commitRouteChange(options = {}) {
     renderPoints();
     if (draw) drawRoute();
     if (save) saveToLocal({ markDirty });
+    scheduleMissingWaypointElevationLookup();
     if (message) showToast(message, 'success');
 }
 
@@ -2168,7 +2224,7 @@ function renderPoints() {
                 <span class="stay-value">${stayDays}天</span>
                 <button class="stay-btn" onclick="event.stopPropagation();adjustStay(${i}, 1)" title="加 1 天" aria-label="加 1 天">+</button>
                </span>`;
-        const altText = p.alt ? `${escapeHtml(String(p.alt))}m` : '海拔待填';
+        const altText = formatWaypointAltitude(p.alt);
         const altHigh = Number(p.alt) >= 3500 ? ' high' : '';
         const dayRangeCls = p.dayStart !== p.dayEnd ? ' range' : '';
 
@@ -2578,7 +2634,7 @@ function openPoiDetail(i, position) {
             </style>
             <div class="d-head">
                 <button class="d-close" onclick="closePoiDetail()" title="关闭">×</button>
-                <div style="font-size:11px;opacity:.85;letter-spacing:1px;">${dayInfo ? escapeHtml(dayInfo.d) : ''} · 海拔 ${p.alt || '—'}m</div>
+                <div style="font-size:11px;opacity:.85;letter-spacing:1px;">${dayInfo ? escapeHtml(dayInfo.d) + ' · ' : ''}${formatWaypointAltitude(p.alt)}</div>
                 <h2 style="margin:6px 0 0 0; font-size:20px; line-height:1.3;">${escapeHtml(cleanName)}</h2>
                 <div>
                     <span class="d-tag">📍 ${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}</span>
@@ -2984,7 +3040,7 @@ function buildAiRouteContext() {
             name: point.name,
             lng: Number(point.lng),
             lat: Number(point.lat),
-            altitude: point.alt || null,
+            altitude: hasConfirmedAltitude(point.alt) ? Math.round(Number(point.alt)) : null,
             stayDays: point.stayDays || 0,
             note: String(point.note || point.wiki || '').slice(0, 180),
         })),
@@ -3143,20 +3199,22 @@ async function askTravelAI(presetQuestion = '') {
 【当前天气观测】${JSON.stringify(grounding.weather)}
 
 请用中文回答，并严格遵守：
-1. 先给“结论先行”，再给可执行清单。
-2. 使用“路线数据：”“高德 POI：”“AI 推断：”“需实时核验：”这四类短标题，不使用方括号。
+1. 先给“结论先行”，再给可执行清单；回答应有足够细节支持实际出发决策。
+2. 使用“路线数据：”“逐点海拔：”“高德 POI：”“AI 推断：”“需实时核验：”这五类短标题，不使用方括号。
 3. 不得编造实时封路、营业时间、价格、油品或充电桩可用状态；没有依据就明确说未知。
-4. 对高原路线优先检查海拔爬升、连续驾驶、补给薄弱段、夜间行车和天气风险。
-5. 推荐地点时优先引用提供的高德 POI 名称和相对锚点；没有 POI 时只给筛选方法。
-6. 答案控制在 900 字以内，避免泛泛而谈。
-7. 不使用 Markdown、表情、星号、分隔线或装饰性符号；每段不超过 3 行。`;
+4. “逐点海拔：”必须按路线顺序列出每个地点的名称和程序提供的海拔；缺失数据写“海拔待核验”，不得猜测。
+5. 对高原路线优先检查海拔爬升、连续驾驶、补给薄弱段、夜间行车和天气风险，并给出对应的行动建议。
+6. 推荐地点时优先引用提供的高德 POI 名称和相对锚点；没有 POI 时只给筛选方法。
+7. 给出按早、中、晚或按路段拆分的时间安排时，明确说明这是经验性建议，不得伪装成实时信息。
+8. 答案控制在 1200 至 1500 字，避免泛泛而谈；每条建议包含原因和动作。
+9. 不使用 Markdown、表情、星号、分隔线或装饰性符号；每段不超过 4 行。`;
         const result = await deepSeekChat({
             messages: [
                 { role: 'system', content: '你是谨慎、可核验的川西自驾旅行研究助手。事实与推断必须分开，优先使用用户路线和高德数据。' },
                 { role: 'user', content: prompt },
             ],
             temperature: 0.35,
-            max_tokens: 2600,
+            max_tokens: 3200,
         });
         hideLoading();
         const answer = cleanAiGeneratedText(result.content);
@@ -3213,7 +3271,7 @@ async function generateItineraryWithAI(i) {
     if (!ta || !statusEl || !btn) return;
 
     const placeName = cleanWaypointName(p.name);
-    const altitude = p.alt || '未知';
+    const altitudeText = formatWaypointAltitude(p.alt);
     const coords = `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
 
     // 获取前后途经点信息用于时间规划
@@ -3255,22 +3313,24 @@ async function generateItineraryWithAI(i) {
 
 景点信息：
 - 名称：${placeName}
-- 海拔：${altitude}m
+- ${altitudeText}
 - 坐标：${coords}
 ${prevPoint ? `- 上一站：${prevPoint.name}` : '- 起点站'}
 ${nextPoint ? `- 下一站：${nextPoint.name}` : '- 终点站'}
 - 途经点序号：第 ${i + 1} 站，共 ${state.waypoints.length} 站
 ${weatherInfo ? `\n${weatherInfo}` : ''}
 
-请用简洁纯文本生成攻略，控制在 650 字以内，只保留以下六个分节：
-到达与离开：建议到达时间、游玩时长、出发时间。
-游玩顺序：2 至 4 个主要点位和推荐顺序。
-餐饮与住宿：补给、住宿位置或选择原则。
-高原与天气：海拔适应、穿衣和天气风险。
-交通与费用：道路、停车、门票等无法确定的项目明确写“出发前核验”。
-实用提醒：最多 3 条。
+请用详尽但清爽的纯文本生成攻略，控制在 1000 至 1400 字，按以下八个分节输出：
+到达与离开：建议到达时间、游玩时长、出发时间和与前后站的衔接原则。
+当日节奏：按早晨、上午、下午、傍晚给出可执行的顺序、时长和关键取舍。
+核心看点：列出 3 至 5 个主要点位，说明各自适合的时间、拍摄或体验重点。
+餐饮与住宿：补给、用餐、住宿位置或选择原则；没有可靠资料时写“出发前核验”。
+海拔与身体：结合当前海拔说明适应节奏、饮水、活动强度、需要停止上升或就医的信号。
+天气与穿衣：按昼夜温差、雨雪、日晒和风力给出分层穿衣与备选安排；天气数据只作参考。
+交通与费用：道路类型、驾驶时间预留、停车、门票等；无法确定的项目明确写“出发前核验”。
+实用提醒：给出 4 至 6 条具体提醒，覆盖离线地图、通信、补给、环保或当地礼仪。
 
-不要使用 Markdown、表情、星号、方括号、装饰性分隔线或重复项目符号。每个分节用“标题：内容”的单行格式；天气信息仅作为参考，不得编造实时预警。`;
+不要使用 Markdown、表情、星号、方括号、装饰性分隔线或重复项目符号。每个分节以“标题：”开头，可在其后用 1 至 3 个自然段详细说明；不要杜撰具体营业时间、票价、封路或实时预警。`;
 
     try {
         const { content, data, model } = await deepSeekChat({
@@ -3279,7 +3339,7 @@ ${weatherInfo ? `\n${weatherInfo}` : ''}
                 { role: 'user', content: prompt }
             ],
             temperature: 0.7,
-            max_tokens: 2000,
+            max_tokens: 3200,
         });
 
         if (content) {
@@ -4885,7 +4945,7 @@ async function aiOptimize() {
     try {
         const routeContext = buildAiRouteContext();
         const waypointText = state.waypoints.map((p, i) =>
-            `${p.dayLabel || `D${i + 1}`} ${p.name}${p.alt ? ' (海拔 ' + p.alt + 'm)' : ''}${p.stayDays ? `，额外停留 ${p.stayDays} 天` : ''}${p.note ? `，备注：${String(p.note).slice(0, 80)}` : ''}`
+            `${p.dayLabel || `D${i + 1}`} ${p.name}（${formatWaypointAltitude(p.alt)}）${p.stayDays ? `，额外停留 ${p.stayDays} 天` : ''}${p.note ? `，备注：${String(p.note).slice(0, 80)}` : ''}`
         ).join('\n');
 
         const prompt = `你是资深川西/川藏线自驾游规划师，擅长高原自驾生存学、地形气候分析与应急准备。
@@ -4904,11 +4964,11 @@ ${new Date().toLocaleDateString('zh-CN')}
 
 【输出格式: 严格 JSON, 不要任何额外文字或 markdown 代码块】
 {
-  "summary": "100 字内整体评价（涵盖强度/海拔梯度/风景类型/季节建议）",
-  "suggestions": ["5 条具体优化建议（按优先级排列，含距离/时长/分段住宿建议）"],
-  "highAltitudeWarning": "针对本路线所有 >3500m 点位的高反预防（提前准备/分段适应/药物/症状处理/海拔上限/儿童老人注意事项）",
-  "bestSeason": "最佳出行月份 + 应避开时段（如冰雪/雨季）+ 节庆提示",
-  "tips": ["6 条贴士：含装备/驾驶/通讯/现金/语言/文化禁忌"],
+  "summary": "160 字内整体评价（涵盖强度、海拔梯度、风景类型、季节和适合人群）",
+  "suggestions": ["8 条具体优化建议，按优先级排列，说明理由、适用路段、距离/时长或分段住宿原则"],
+  "highAltitudeWarning": "针对本路线所有 >3500m 点位的分级高反方案：出发前、抵达首日、夜间、轻重症信号、停止上升和就医原则，以及儿童老人注意事项",
+  "bestSeason": "最佳出行月份、各时段景观差异、应避开时段（冰雪/雨季）和节庆出行提醒",
+  "tips": ["10 条具体贴士，覆盖装备、驾驶、通讯、现金、补给、环保、语言和文化礼仪"],
   "gear": {
     "title": "自驾必带物品",
     "must": ["证件类（驾照/行驶证/身份证/边防证（如需））", "高反药物（红景天/葡萄糖/头痛药）", "..."],
@@ -4921,13 +4981,13 @@ ${new Date().toLocaleDateString('zh-CN')}
   },
   "charging": {
     "title": "沿线充电与加油",
-    "stations": ["主要加油站/充电桩位置（如：新都桥/理塘/稻城/亚丁有 92#，高原充电桩主要在县城酒店）"],
+    "stations": ["按路线顺序说明主要加油站/充电桩的补给策略；无法确认具体站点、油品或桩况时标注‘出发前实时核验’"],
     "range": "电动 SUV 实测续航下降 30-50%（高海拔低温），建议混动/油车为主",
     "tip": "低油量焦虑线段提示：如理塘→稻城 150km 无 95#、格聂之眼下山 80km 无人区"
   },
   "road": {
     "title": "路况与危险路段",
-    "warning": ["危险路段：如折多山 4298m 冬季暗冰、觉巴山/东达山落石、格聂南线 60km 砂石路、雅砻江峡谷临崖"],
+    "warning": ["按路线顺序列出危险路段、风险类型、驾驶动作和不宜夜行的原因；实时路况必须标注‘出发前实时核验’"],
     "season": "季节性路况：6-8 月雨季塌方、11-4 月垭口冰雪（链子必备）",
     "tip": "驾驶技巧：避免夜间行车（无灯+落石+动物）、S 弯鸣笛、保持车距"
   },
@@ -4936,7 +4996,7 @@ ${new Date().toLocaleDateString('zh-CN')}
     "strategy": "高原住宿策略：分段适应（第 1 晚 <3000m，第 2 晚 3000-3500m，第 3 晚再上 4000m）",
     "options": "住宿形式选择：县城酒店（标间/氧气）vs 藏家民宿（体验+海拔低）vs 自驾露营（需备案）",
     "booking": "预订节奏：旺季（5月/10月）提前 2 周；稻城/亚丁/新都桥 7-8 月几乎订满",
-    "altitudes": "各点住宿海拔提醒（如：理塘 4014m 不洗澡/亚丁村 3700m 头微痛为正常）"
+    "altitudes": "结合程序提供的逐点海拔，说明每个高海拔住宿点的适应、睡眠和活动建议；不得编造缺失地点海拔"
   }
 }`;
 
@@ -4946,7 +5006,7 @@ ${new Date().toLocaleDateString('zh-CN')}
                 { role: 'user', content: prompt }
             ],
             temperature: 0.7,
-            max_tokens: 4000,
+            max_tokens: 3200,
             json: true,
         });
         hideLoading();
@@ -5003,6 +5063,13 @@ function renderAiResult(r) {
     const section = (title, html) => html
         ? `<div class="ai-result"><h4>${escapeHtml(cleanAiSectionTitle(title, '路线建议'))}</h4>${html}</div>` : '';
 
+    const altitudeHtml = state.waypoints.length
+        ? `<ul>${state.waypoints.map((point, index) => {
+            const day = point.dayLabel || `D${index + 1}`;
+            return `<li>${escapeHtml(day)} ${escapeHtml(cleanWaypointName(point.name))}：${escapeHtml(formatWaypointAltitude(point.alt))}</li>`;
+        }).join('')}</ul>`
+        : '';
+
     // gear 章节的特殊渲染（分组）
     let gearHtml = '';
     if (r.gear && typeof r.gear === 'object') {
@@ -5055,6 +5122,7 @@ function renderAiResult(r) {
             <h4>路线整体评价</h4>
             <p>${escapeHtml(cleanAiGeneratedText(r.summary || ''))}</p>
         </div>
+        ${section('逐点海拔', altitudeHtml)}
         ${section('优化建议', ul(r.suggestions))}
         ${section('高反预防', `<p>${escapeHtml(cleanAiGeneratedText(r.highAltitudeWarning || ''))}</p>`)}
         ${section('最佳出行季节', `<p>${escapeHtml(cleanAiGeneratedText(r.bestSeason || ''))}</p>`)}
