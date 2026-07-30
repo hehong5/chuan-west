@@ -1840,7 +1840,7 @@ function scheduleMissingWaypointElevationLookup() {
             });
             if (!updated) return;
             renderPoints();
-            const saved = saveToLocal({ markDirty: false });
+            const saved = saveToLocal();
             persistAiToActiveSavedRoute();
             if (!saved?.ok) console.warn('[elevation save] Failed to save resolved elevations locally.');
         } catch (error) {
