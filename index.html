@@ -5943,6 +5943,7 @@ function persistAccommodationToActiveSavedRoute() {
 function saveAccommodationState() {
     const saved = saveToLocal();
     persistAccommodationToActiveSavedRoute();
+    queueAccommodationCloudSync();
     if (!saved.ok) showToast('住宿订单本机保存失败', 'error');
     renderLodging();
 }
@@ -6340,6 +6341,24 @@ async function dbPush(options = {}) {
     }
 }
 
+let _accommodationCloudSyncTimer = null;
+function queueAccommodationCloudSync() {
+    if (localStorage.getItem(CLOUD_KEY_ENABLED) !== '1') return;
+    clearTimeout(_accommodationCloudSyncTimer);
+    _accommodationCloudSyncTimer = setTimeout(async () => {
+        const result = await dbAuto();
+        if (!result.cloudOk && !result.skipped) {
+            console.warn('[accommodation cloud sync]', result.msg);
+        }
+    }, 450);
+}
+
+async function initCloudAutoRestore() {
+    if (localStorage.getItem(CLOUD_KEY_ENABLED) !== '1') return;
+    const result = await dbAuto();
+    if (!result.ok) console.warn('[cloud startup sync]', result.msg);
+}
+
 async function dbPull(options = {}) {
     const code = _dbGetUserId();
     let remoteError = null;
@@ -6579,11 +6598,18 @@ function _mergeById(localArr, remoteArr, idKey, tsKey) {
         const id = item[idKey];
         if (!id) return;
         const existing = map.get(id);
-        const itemTs = Number(item[tsKey] || item.updatedAt || item.timestamp || item.createdAt || 0);
-        const existingTs = Number(existing?.[tsKey] || existing?.updatedAt || existing?.timestamp || existing?.createdAt || 0);
+        const itemTs = _cloudTimestampValue(item[tsKey] || item.updatedAt || item.timestamp || item.createdAt);
+        const existingTs = _cloudTimestampValue(existing?.[tsKey] || existing?.updatedAt || existing?.timestamp || existing?.createdAt);
         if (!existing || itemTs > existingTs || (itemTs === existingTs && index >= (remoteArr || []).length)) map.set(id, item);
     });
     return Array.from(map.values());
+}
+
+function _cloudTimestampValue(value) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+    const parsed = Date.parse(value || '');
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function _mergeCloudData(localData, remoteData) {
@@ -6592,11 +6618,30 @@ function _mergeCloudData(localData, remoteData) {
     const newer = remoteTimestamp > localTimestamp ? remoteData : localData;
     const localAiTime = Number(localData?.lastAiSave?.createdAt || 0);
     const remoteAiTime = Number(remoteData?.lastAiSave?.createdAt || 0);
+    const localRoute = localData.currentRoute || {};
+    const remoteRoute = remoteData.currentRoute || {};
+    const localRouteTimestamp = _cloudTimestampValue(localRoute.timestamp);
+    const remoteRouteTimestamp = _cloudTimestampValue(remoteRoute.timestamp);
+    const preferredRoute = remoteRouteTimestamp > localRouteTimestamp ? remoteRoute : localRoute;
+    const accommodations = _mergeById(
+        localRoute.accommodations,
+        remoteRoute.accommodations,
+        'id',
+        'updatedAt'
+    ).sort((left, right) => String(left.checkIn || '').localeCompare(String(right.checkIn || '')));
+    const accommodationTimestamp = accommodations.reduce(
+        (latest, record) => Math.max(latest, _cloudTimestampValue(record.updatedAt || record.createdAt)),
+        0
+    );
     return {
         ...newer,
         version: 'v20260720-22.9.1',
         timestamp: Math.max(localTimestamp, remoteTimestamp),
-        currentRoute: remoteTimestamp > localTimestamp ? remoteData.currentRoute : localData.currentRoute,
+        currentRoute: {
+            ...preferredRoute,
+            accommodations,
+            timestamp: Math.max(localRouteTimestamp, remoteRouteTimestamp, accommodationTimestamp),
+        },
         savedRoutes: _mergeById(localData.savedRoutes, remoteData.savedRoutes, 'id', 'updatedAt')
             .sort((a, b) => Number(b.updatedAt || b.timestamp || 0) - Number(a.updatedAt || a.timestamp || 0))
             .slice(0, 40),
@@ -6893,6 +6938,7 @@ window.addEventListener('load', () => {
     initSavedRoutes();
     initGear();
     initLodging();
+    setTimeout(initCloudAutoRestore, 1200);
     showHelpFab();  // V21: 帮助按钮永久显示
 
     // V22.2: 每 5 秒自动保存到 localStorage
