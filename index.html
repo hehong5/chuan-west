@@ -174,11 +174,13 @@
             display: flex;
             border-bottom: 1px solid var(--border);
             background: #f8fafc;
+            overflow-x: auto;
         }
 
         .tab {
-            flex: 1;
-            padding: 14px;
+            flex: 1 0 auto;
+            min-width: 86px;
+            padding: 14px 10px;
             text-align: center;
             cursor: pointer;
             font-size: 14px;
@@ -186,6 +188,7 @@
             color: var(--text-light);
             border-bottom: 2px solid transparent;
             transition: all 0.2s;
+            white-space: nowrap;
         }
         .tab:hover { background: white; }
         .tab.active {
@@ -202,6 +205,111 @@
 
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
+
+        .lodging-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 9px 10px;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 12px;
+        }
+        .lodging-source-actions,
+        .lodging-form-actions,
+        .lodging-card-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .lodging-source-actions { margin-bottom: 12px; }
+        .lodging-source-actions .btn { flex: 1; padding: 8px 6px; font-size: 12px; }
+        .lodging-paste {
+            margin-bottom: 14px;
+            padding-bottom: 14px;
+            border-bottom: 1px dashed var(--border);
+        }
+        .lodging-paste textarea { min-height: 72px; resize: vertical; line-height: 1.5; }
+        .lodging-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+            margin-bottom: 14px;
+        }
+        .lodging-field { min-width: 0; }
+        .lodging-field.full { grid-column: 1 / -1; }
+        .lodging-field label {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--text-light);
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .lodging-field .input { font-size: 13px; }
+        .lodging-form-actions { grid-column: 1 / -1; justify-content: flex-end; }
+        .lodging-form-actions .btn { padding: 8px 12px; font-size: 13px; }
+        .lodging-list { display: flex; flex-direction: column; gap: 8px; }
+        .lodging-card {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-left: 3px solid #0ea5e9;
+            border-radius: 6px;
+            background: white;
+        }
+        .lodging-card-head { display: flex; align-items: flex-start; gap: 8px; }
+        .lodging-card-name { flex: 1; min-width: 0; color: var(--text); font-size: 14px; font-weight: 700; }
+        .lodging-card-meta { margin-top: 5px; color: var(--text-light); font-size: 12px; line-height: 1.5; }
+        .lodging-card-note { margin-top: 5px; color: #475569; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+        .lodging-status {
+            flex: 0 0 auto;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #dcfce7;
+            color: #166534;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .lodging-status.pending { background: #fef3c7; color: #92400e; }
+        .lodging-card-actions { justify-content: flex-end; margin-top: 8px; }
+        .lodging-card-actions button,
+        .lodging-card-actions a {
+            display: inline-flex;
+            width: 26px;
+            height: 26px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: white;
+            color: var(--text-light);
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .lodging-card-actions button:hover,
+        .lodging-card-actions a:hover { border-color: #93c5fd; color: var(--primary); }
+        .lodging-card-actions .danger:hover { border-color: #fecaca; color: var(--danger); }
+        .lodging-reminder {
+            position: fixed;
+            right: 20px;
+            bottom: 82px;
+            z-index: 1200;
+            display: none;
+            width: min(330px, calc(100vw - 40px));
+            padding: 12px;
+            border: 1px solid #fbbf24;
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            background: #fffbeb;
+            box-shadow: 0 8px 24px rgba(15,23,42,.18);
+            color: #78350f;
+        }
+        .lodging-reminder-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; }
+        .lodging-reminder-close { margin-left: auto; border: none; background: transparent; color: #a16207; cursor: pointer; font-size: 18px; line-height: 1; }
+        .lodging-reminder-item { margin-top: 8px; padding-top: 8px; border-top: 1px solid #fde68a; font-size: 12px; line-height: 1.55; }
+        .lodging-reminder-name { color: #92400e; font-size: 13px; font-weight: 800; }
 
         /* ===== 路线点列表 ===== */
         .route-input {
@@ -1029,6 +1137,10 @@
             .ai-query-row .btn { flex-basis: auto; }
             .point-item { padding: 9px 8px; }
             .point-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 60px; }
+            .tab { min-width: 82px; padding: 12px 8px; font-size: 12px; }
+            .lodging-source-actions { overflow-x: auto; }
+            .lodging-reminder { right: 12px; bottom: 72px; width: min(330px, calc(100vw - 24px)); }
+            body.sidebar-open .lodging-reminder { display: none !important; }
         }
         @media (min-width: 769px) {
             .mobile-menu-btn { display: none !important; }
@@ -1146,6 +1258,7 @@
             <div class="tab active" data-tab="route" onclick="switchTab('route')">🗺 路线规划</div>
             <div class="tab" data-tab="nearby" onclick="switchTab('nearby')">📍 周边探索</div>
             <div class="tab" data-tab="ai" onclick="switchTab('ai')">🤖 AI 建议</div>
+            <div class="tab" data-tab="lodging" onclick="switchTab('lodging')">🏨 住宿订单</div>
             <div class="tab" data-tab="gear" onclick="switchTab('gear')">🎒 装备清单</div>
         </div>
 
@@ -1373,6 +1486,94 @@
                 <!-- 物品清单 -->
                 <div id="gearList"></div>
             </div>
+
+            <div class="tab-panel" id="panel-lodging">
+                <div class="lodging-summary">
+                    <span>已关联 <strong id="lodgingCount">0</strong> 笔住宿订单</span>
+                    <span id="lodgingTodayCount"></span>
+                </div>
+
+                <div class="lodging-source-actions" aria-label="住宿订单网站入口">
+                    <button class="btn btn-secondary" type="button" onclick="openAccommodationOrderSite('qunar')">去哪儿订单</button>
+                    <button class="btn btn-secondary" type="button" onclick="openAccommodationOrderSite('ctrip')">携程订单</button>
+                    <button class="btn btn-secondary" type="button" onclick="openAccommodationOrderSite('mafengwo')">马蜂窝订单</button>
+                </div>
+
+                <div class="lodging-paste">
+                    <div class="input-label">粘贴订单详情</div>
+                    <textarea id="lodgingPasteInput" class="input" placeholder="粘贴平台订单的酒店、入住日期、订单号和金额"></textarea>
+                    <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+                        <button class="btn btn-ai" type="button" onclick="aiParseAccommodationOrderText()" style="font-size:13px;padding:8px 12px;">AI 识别并填入</button>
+                    </div>
+                </div>
+
+                <div class="lodging-form" id="lodgingForm">
+                    <div class="lodging-field full">
+                        <label for="lodgingHotelName">酒店/民宿名称</label>
+                        <input id="lodgingHotelName" class="input" maxlength="80" placeholder="例如：康定云端观景酒店">
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingWaypoint">关联途经点</label>
+                        <select id="lodgingWaypoint" class="input"></select>
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingPlatform">预订平台</label>
+                        <select id="lodgingPlatform" class="input">
+                            <option value="ctrip">携程</option>
+                            <option value="qunar">去哪儿</option>
+                            <option value="mafengwo">马蜂窝</option>
+                            <option value="meituan">美团</option>
+                            <option value="fliggy">飞猪</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingCheckIn">入住日期</label>
+                        <input id="lodgingCheckIn" type="date" class="input">
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingCheckOut">离店日期</label>
+                        <input id="lodgingCheckOut" type="date" class="input">
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingStatus">订单状态</label>
+                        <select id="lodgingStatus" class="input">
+                            <option value="confirmed">已确认</option>
+                            <option value="pending">待确认</option>
+                        </select>
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingConfirmation">订单号</label>
+                        <input id="lodgingConfirmation" class="input" maxlength="60" placeholder="订单号/确认码">
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingPrice">金额</label>
+                        <input id="lodgingPrice" type="number" min="0" step="0.01" class="input" placeholder="元">
+                    </div>
+                    <div class="lodging-field">
+                        <label for="lodgingPhone">酒店电话</label>
+                        <input id="lodgingPhone" type="tel" class="input" maxlength="30" placeholder="联系电话">
+                    </div>
+                    <div class="lodging-field full">
+                        <label for="lodgingAddress">酒店地址</label>
+                        <input id="lodgingAddress" class="input" maxlength="160" placeholder="地址或接待点">
+                    </div>
+                    <div class="lodging-field full">
+                        <label for="lodgingBookingUrl">订单链接</label>
+                        <input id="lodgingBookingUrl" type="url" class="input" maxlength="500" placeholder="https://">
+                    </div>
+                    <div class="lodging-field full">
+                        <label for="lodgingNote">入住备注</label>
+                        <textarea id="lodgingNote" class="input" rows="3" maxlength="500" placeholder="房型、早餐、停车、到店时间等"></textarea>
+                    </div>
+                    <div class="lodging-form-actions">
+                        <button class="btn btn-secondary" id="lodgingCancelEdit" type="button" onclick="resetAccommodationForm()" style="display:none;">取消编辑</button>
+                        <button class="btn btn-primary" id="lodgingSaveBtn" type="button" onclick="saveAccommodationRecord()">添加住宿</button>
+                    </div>
+                </div>
+
+                <div class="lodging-list" id="lodgingList"></div>
+            </div>
         </div>
     </div>
 
@@ -1494,6 +1695,7 @@
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+<div class="lodging-reminder" id="lodgingReminder" role="status" aria-live="polite"></div>
 
 <script>
 /* =========================================================
@@ -1517,6 +1719,8 @@ const state = {
     currentMapStyle: 'normal',
     aiResult: null,
     activeSavedRouteId: null,
+    accommodations: [],
+    editingAccommodationId: null,
 };
 
 // ====== 和风天气 API 配置 (V22.4) ======
@@ -4994,6 +5198,7 @@ function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
     if (name === 'gear') renderGear();  // V20: 切到装备 tab 时刷新
+    if (name === 'lodging') renderLodging();
     if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('open');
         document.body.classList.remove('sidebar-open');
@@ -5131,12 +5336,14 @@ function saveToLocal(options = {}) {
         const previous = JSON.parse(localStorage.getItem('travelmind_route') || '{}');
         const core = {
             waypoints: state.waypoints,
+            accommodations: state.accommodations,
             aiResult: state.aiResult || null,
             lastAiSave: state.lastAiSave || null,
             dayStats: state.dayStats || null,
         };
         const previousCore = {
             waypoints: previous.waypoints || [],
+            accommodations: previous.accommodations || [],
             aiResult: previous.aiResult || null,
             lastAiSave: previous.lastAiSave || null,
             dayStats: previous.dayStats || null,
@@ -5159,6 +5366,7 @@ function saveToLocal(options = {}) {
 function loadFromLocal() {
     try {
         const data = JSON.parse(localStorage.getItem('travelmind_route') || '{}');
+        state.accommodations = Array.isArray(data.accommodations) ? data.accommodations : [];
         if (data.waypoints && data.waypoints.length > 0) {
             state.waypoints = data.waypoints;
             state.aiResult = data.aiResult || null;
@@ -5213,6 +5421,7 @@ function saveCurrentRoute() {
         endName: state.waypoints[state.waypoints.length - 1]?.name || '',
         aiResult: state.aiResult ? JSON.parse(JSON.stringify(state.aiResult)) : null,
         lastAiSave: state.lastAiSave ? { ...state.lastAiSave } : null,
+        accommodations: JSON.parse(JSON.stringify(state.accommodations)),
     };
     routes.unshift(route);
     if (routes.length > 20) routes.length = 20;  // 最多保留 20 条
@@ -5233,6 +5442,7 @@ function loadSavedRoute(id) {
     if (!confirm(`加载【${r.name}】？\n当前路线会被覆盖（${state.waypoints.length} 个点）。`)) return;
 
     state.waypoints = JSON.parse(JSON.stringify(r.waypoints));
+    state.accommodations = Array.isArray(r.accommodations) ? JSON.parse(JSON.stringify(r.accommodations)) : [];
     state.aiResult = r.aiResult ? JSON.parse(JSON.stringify(r.aiResult)) : null;
     state.lastAiSave = r.lastAiSave ? { ...r.lastAiSave } : null;
     state.activeSavedRouteId = r.id;
@@ -5258,6 +5468,7 @@ function updateSavedRoute(id) {
         waypoints: JSON.parse(JSON.stringify(state.waypoints)),
         aiResult: state.aiResult ? JSON.parse(JSON.stringify(state.aiResult)) : null,
         lastAiSave: state.lastAiSave ? { ...state.lastAiSave } : null,
+        accommodations: JSON.parse(JSON.stringify(state.accommodations)),
         timestamp: route.timestamp || Date.now(),
         updatedAt: Date.now(),
         pointCount: state.waypoints.length,
@@ -5285,6 +5496,7 @@ function persistAiToActiveSavedRoute() {
         waypoints: JSON.parse(JSON.stringify(state.waypoints)),
         aiResult: state.aiResult ? JSON.parse(JSON.stringify(state.aiResult)) : null,
         lastAiSave: state.lastAiSave ? { ...state.lastAiSave } : null,
+        accommodations: JSON.parse(JSON.stringify(state.accommodations)),
         updatedAt: Date.now(),
     };
     setSavedRoutes(routes);
@@ -5521,6 +5733,403 @@ function renderGear() {
 }
 
 function initGear() { renderGear(); }
+
+// ====== 住宿订单 ======
+const ACCOMMODATION_PLATFORM_LABELS = {
+    ctrip: '携程',
+    qunar: '去哪儿',
+    mafengwo: '马蜂窝',
+    meituan: '美团',
+    fliggy: '飞猪',
+    other: '其他',
+};
+const ACCOMMODATION_ORDER_URLS = {
+    ctrip: 'https://m.ctrip.com/webapp/myctrip/',
+    qunar: 'https://user.qunar.com/',
+    mafengwo: 'https://www.mafengwo.cn/',
+};
+let _aiAccommodationParsing = false;
+
+function getLocalDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function normalizeAccommodationDate(value) {
+    const text = String(value || '').trim();
+    const full = text.match(/(20\d{2})\D(\d{1,2})\D(\d{1,2})/);
+    if (full) return `${full[1]}-${full[2].padStart(2, '0')}-${full[3].padStart(2, '0')}`;
+    return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+
+function ensureAccommodationWaypointIds() {
+    const usedIds = new Set();
+    state.waypoints.forEach((point, index) => {
+        const existingId = String(point.stayPointId || '');
+        if (!existingId || usedIds.has(existingId)) {
+            point.stayPointId = `wp_${Date.now().toString(36)}_${index}_${Math.random().toString(36).slice(2, 6)}`;
+        }
+        usedIds.add(point.stayPointId);
+    });
+}
+
+function getAccommodationWaypoint(waypointId) {
+    return state.waypoints.find(point => point.stayPointId === waypointId) || null;
+}
+
+function getAccommodationPlatformLabel(platform) {
+    return ACCOMMODATION_PLATFORM_LABELS[platform] || ACCOMMODATION_PLATFORM_LABELS.other;
+}
+
+function getAccommodationStatusLabel(status) {
+    return status === 'pending' ? '待确认' : '已确认';
+}
+
+function normalizeBookingUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+        const url = new URL(candidate);
+        return /^https?:$/.test(url.protocol) ? url.href : '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function openAccommodationOrderSite(platform) {
+    const url = ACCOMMODATION_ORDER_URLS[platform];
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function getAccommodationFormData() {
+    return {
+        name: (document.getElementById('lodgingHotelName')?.value || '').trim(),
+        waypointId: document.getElementById('lodgingWaypoint')?.value || '',
+        platform: document.getElementById('lodgingPlatform')?.value || 'other',
+        checkIn: normalizeAccommodationDate(document.getElementById('lodgingCheckIn')?.value),
+        checkOut: normalizeAccommodationDate(document.getElementById('lodgingCheckOut')?.value),
+        status: document.getElementById('lodgingStatus')?.value === 'pending' ? 'pending' : 'confirmed',
+        confirmation: (document.getElementById('lodgingConfirmation')?.value || '').trim(),
+        price: (document.getElementById('lodgingPrice')?.value || '').trim(),
+        phone: (document.getElementById('lodgingPhone')?.value || '').trim(),
+        address: (document.getElementById('lodgingAddress')?.value || '').trim(),
+        bookingUrl: normalizeBookingUrl(document.getElementById('lodgingBookingUrl')?.value),
+        note: (document.getElementById('lodgingNote')?.value || '').trim(),
+    };
+}
+
+function fillAccommodationForm(data = {}, rawText = '') {
+    ensureAccommodationWaypointIds();
+    const setValue = (id, value) => {
+        const input = document.getElementById(id);
+        if (input && value != null && value !== '') input.value = value;
+    };
+    const platform = String(data.platform || '').toLowerCase();
+    const platformMap = {
+        ctrip: 'ctrip', '携程': 'ctrip', qunar: 'qunar', '去哪儿': 'qunar',
+        mafengwo: 'mafengwo', '马蜂窝': 'mafengwo', meituan: 'meituan', '美团': 'meituan',
+        fliggy: 'fliggy', '飞猪': 'fliggy', other: 'other', '其他': 'other',
+    };
+    const sourceText = `${rawText}\n${data.waypoint_name || ''}`.replace(/\s+/g, ' ');
+    const linkedPoint = state.waypoints.find(point => {
+        const pointName = String(point.name || '').trim();
+        return pointName && (sourceText.includes(pointName) || pointName.includes(String(data.waypoint_name || '').trim()));
+    });
+    const currentSelection = document.getElementById('lodgingWaypoint')?.value || '';
+
+    setValue('lodgingHotelName', data.name || data.hotel_name || '');
+    setValue('lodgingPlatform', platformMap[platform] || 'other');
+    setValue('lodgingCheckIn', normalizeAccommodationDate(data.check_in || data.checkIn));
+    setValue('lodgingCheckOut', normalizeAccommodationDate(data.check_out || data.checkOut));
+    setValue('lodgingStatus', data.status === 'pending' || data.status === '待确认' ? 'pending' : 'confirmed');
+    setValue('lodgingConfirmation', data.confirmation || data.order_number || '');
+    setValue('lodgingPrice', data.price || data.amount || '');
+    setValue('lodgingPhone', data.phone || data.contact_phone || '');
+    setValue('lodgingAddress', data.address || '');
+    setValue('lodgingBookingUrl', data.booking_url || data.bookingUrl || '');
+    setValue('lodgingNote', data.note || data.remark || '');
+    setValue('lodgingWaypoint', linkedPoint?.stayPointId || currentSelection);
+}
+
+function parseAccommodationOrderText(text = document.getElementById('lodgingPasteInput')?.value || '') {
+    const source = String(text || '').trim();
+    if (!source) return null;
+    const matchValue = patterns => {
+        for (const pattern of patterns) {
+            const match = source.match(pattern);
+            if (match?.[1]) return match[1].trim();
+        }
+        return '';
+    };
+    const lines = source.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const hotelLine = lines.find(line => /酒店|宾馆|客栈|民宿|旅舍|度假村/.test(line)) || '';
+    const platform = /携程|ctrip/i.test(source) ? 'ctrip'
+        : /去哪儿|qunar/i.test(source) ? 'qunar'
+        : /马蜂窝/i.test(source) ? 'mafengwo'
+        : /美团/i.test(source) ? 'meituan'
+        : /飞猪|fliggy/i.test(source) ? 'fliggy' : 'other';
+    const dates = [...source.matchAll(/20\d{2}\D\d{1,2}\D\d{1,2}/g)].map(match => normalizeAccommodationDate(match[0])).filter(Boolean);
+    return {
+        name: matchValue([/(?:酒店名称|入住酒店|预订酒店|住宿名称)\s*[：:]?\s*([^\n]+)/i]) || hotelLine.replace(/^(?:酒店名称|入住酒店|预订酒店)\s*[：:]?\s*/i, ''),
+        platform,
+        check_in: dates[0] || '',
+        check_out: dates[1] || '',
+        confirmation: matchValue([/(?:订单号|确认号|预订号)\s*[：:]?\s*([A-Za-z0-9_-]+)/i]),
+        price: matchValue([/(?:实付|总价|金额|支付)\s*[：:]?\s*[¥￥]?\s*(\d+(?:\.\d{1,2})?)/i]),
+        phone: matchValue([/(?:电话|联系电话|酒店电话)\s*[：:]?\s*([0-9+\-() ]{6,})/i]),
+        address: matchValue([/(?:地址|酒店地址)\s*[：:]?\s*([^\n]+)/i]),
+        note: '',
+    };
+}
+
+async function aiParseAccommodationOrderText() {
+    if (_aiAccommodationParsing) return;
+    const input = document.getElementById('lodgingPasteInput');
+    const sourceText = (input?.value || '').trim();
+    if (!sourceText) {
+        showToast('请先粘贴住宿订单内容', 'error');
+        return;
+    }
+
+    _aiAccommodationParsing = true;
+    showLoading('AI 正在识别住宿订单...');
+    try {
+        const { content } = await deepSeekChat({
+            messages: [
+                { role: 'system', content: '你是住宿订单信息提取助手。只输出严格 JSON，不要 markdown 或解释。' },
+                { role: 'user', content: `从以下订单文本提取住宿主要信息。日期必须输出 YYYY-MM-DD；无法确认的字段输出空字符串。status 只能为 confirmed 或 pending；platform 只能为 ctrip/qunar/mafengwo/meituan/fliggy/other。\n\n订单文本：\n${sourceText}\n\n输出：\n{\n  "name":"酒店或民宿名称",\n  "platform":"平台",\n  "check_in":"YYYY-MM-DD",\n  "check_out":"YYYY-MM-DD",\n  "status":"confirmed",\n  "confirmation":"订单号",\n  "price":"金额数字",\n  "phone":"酒店电话",\n  "address":"地址",\n  "booking_url":"订单链接",\n  "waypoint_name":"可关联的途经点名称",\n  "note":"房型、早餐、停车等重要备注"\n}` },
+            ],
+            temperature: 0.1,
+            max_tokens: 1000,
+            json: true,
+        });
+        const parsed = JSON.parse(extractJsonText(content));
+        fillAccommodationForm(parsed, sourceText);
+        showToast('AI 已识别主要信息，请确认后保存', 'success');
+    } catch (error) {
+        const fallback = parseAccommodationOrderText(sourceText);
+        if (fallback) {
+            fillAccommodationForm(fallback, sourceText);
+            showToast('AI 暂不可用，已用本地规则带入可识别信息', 'warning');
+        } else {
+            showToast(`订单识别失败: ${error.message}`, 'error');
+        }
+    } finally {
+        hideLoading();
+        _aiAccommodationParsing = false;
+    }
+}
+
+function persistAccommodationToActiveSavedRoute() {
+    const routeId = state.activeSavedRouteId;
+    if (!routeId) return;
+    const routes = getSavedRoutes();
+    const index = routes.findIndex(route => route.id === routeId);
+    if (index < 0) return;
+    routes[index] = {
+        ...routes[index],
+        waypoints: JSON.parse(JSON.stringify(state.waypoints)),
+        accommodations: JSON.parse(JSON.stringify(state.accommodations)),
+        updatedAt: Date.now(),
+    };
+    setSavedRoutes(routes);
+    renderSavedRoutes();
+}
+
+function saveAccommodationState() {
+    const saved = saveToLocal();
+    persistAccommodationToActiveSavedRoute();
+    if (!saved.ok) showToast('住宿订单本机保存失败', 'error');
+    renderLodging();
+}
+
+function saveAccommodationRecord() {
+    ensureAccommodationWaypointIds();
+    const data = getAccommodationFormData();
+    const linkedPoint = getAccommodationWaypoint(data.waypointId);
+    if (!data.name) {
+        showToast('请填写酒店或民宿名称', 'error');
+        return;
+    }
+    if (!linkedPoint) {
+        showToast('请先选择要关联的途经点', 'error');
+        return;
+    }
+    if (data.checkIn && data.checkOut && data.checkOut < data.checkIn) {
+        showToast('离店日期不能早于入住日期', 'error');
+        return;
+    }
+
+    const now = Date.now();
+    const editId = state.editingAccommodationId;
+    const existing = (state.accommodations || []).find(item => item.id === editId);
+    const record = {
+        ...data,
+        id: existing?.id || `stay_${now}_${Math.random().toString(36).slice(2, 7)}`,
+        waypointName: linkedPoint.name,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+    };
+    const records = [...(state.accommodations || [])];
+    const index = records.findIndex(item => item.id === record.id);
+    if (index >= 0) records[index] = record;
+    else records.unshift(record);
+    state.accommodations = records;
+    resetAccommodationForm();
+    saveAccommodationState();
+    showToast(index >= 0 ? '住宿订单已更新' : '住宿订单已添加', 'success');
+}
+
+function resetAccommodationForm() {
+    state.editingAccommodationId = null;
+    ['lodgingHotelName', 'lodgingCheckIn', 'lodgingCheckOut', 'lodgingConfirmation', 'lodgingPrice', 'lodgingPhone', 'lodgingAddress', 'lodgingBookingUrl', 'lodgingNote'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.value = '';
+    });
+    const platform = document.getElementById('lodgingPlatform');
+    const status = document.getElementById('lodgingStatus');
+    if (platform) platform.value = 'ctrip';
+    if (status) status.value = 'confirmed';
+    const button = document.getElementById('lodgingSaveBtn');
+    const cancel = document.getElementById('lodgingCancelEdit');
+    if (button) button.textContent = '添加住宿';
+    if (cancel) cancel.style.display = 'none';
+}
+
+function editAccommodationRecord(id) {
+    const record = (state.accommodations || []).find(item => item.id === id);
+    if (!record) return;
+    renderLodging();
+    state.editingAccommodationId = id;
+    fillAccommodationForm(record);
+    document.getElementById('lodgingWaypoint').value = record.waypointId || '';
+    document.getElementById('lodgingSaveBtn').textContent = '保存修改';
+    document.getElementById('lodgingCancelEdit').style.display = 'inline-flex';
+    document.getElementById('lodgingHotelName').focus();
+}
+
+function deleteAccommodationRecord(id) {
+    const record = (state.accommodations || []).find(item => item.id === id);
+    if (!record || !confirm(`删除住宿订单【${record.name}】？`)) return;
+    state.accommodations = state.accommodations.filter(item => item.id !== id);
+    if (state.editingAccommodationId === id) resetAccommodationForm();
+    saveAccommodationState();
+    showToast('住宿订单已删除', 'success');
+}
+
+function jumpToAccommodationWaypoint(waypointId) {
+    const index = state.waypoints.findIndex(point => point.stayPointId === waypointId);
+    if (index < 0) {
+        showToast('关联的途经点已不存在，请编辑订单后重新关联', 'warning');
+        return;
+    }
+    switchTab('route');
+    openAndFlyTo(index);
+}
+
+function formatAccommodationDateRange(record) {
+    if (record.checkIn && record.checkOut) return `${record.checkIn} 入住 · ${record.checkOut} 离店`;
+    if (record.checkIn) return `${record.checkIn} 入住`;
+    if (record.checkOut) return `${record.checkOut} 离店`;
+    return '未填写入住日期';
+}
+
+function renderLodging() {
+    const listBox = document.getElementById('lodgingList');
+    if (!listBox) return;
+    ensureAccommodationWaypointIds();
+    const records = Array.isArray(state.accommodations) ? state.accommodations : [];
+    const waypointSelect = document.getElementById('lodgingWaypoint');
+    const previousValue = waypointSelect?.value || '';
+    if (waypointSelect) {
+        waypointSelect.innerHTML = state.waypoints.length
+            ? state.waypoints.map((point, index) => `<option value="${escapeHtml(point.stayPointId)}">${index + 1}. ${escapeHtml(point.name)}</option>`).join('')
+            : '<option value="">请先添加路线途经点</option>';
+        waypointSelect.disabled = state.waypoints.length === 0;
+        if (previousValue && getAccommodationWaypoint(previousValue)) waypointSelect.value = previousValue;
+    }
+    const saveButton = document.getElementById('lodgingSaveBtn');
+    if (saveButton) saveButton.disabled = state.waypoints.length === 0;
+
+    const today = getLocalDateKey();
+    const todayCount = records.filter(record => record.checkIn === today).length;
+    document.getElementById('lodgingCount').textContent = records.length;
+    document.getElementById('lodgingTodayCount').textContent = todayCount ? `今日入住 ${todayCount} 笔` : '';
+
+    if (!records.length) {
+        listBox.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏨</div><p>还没有住宿订单</p></div>`;
+        updateLodgingReminder();
+        return;
+    }
+
+    const ordered = [...records].sort((left, right) => String(left.checkIn || '9999-99-99').localeCompare(String(right.checkIn || '9999-99-99')));
+    listBox.innerHTML = ordered.map(record => {
+        const linkedPoint = getAccommodationWaypoint(record.waypointId);
+        const pointText = linkedPoint?.name || record.waypointName || '未关联途经点';
+        const safeUrl = normalizeBookingUrl(record.bookingUrl);
+        const metadata = [
+            getAccommodationPlatformLabel(record.platform),
+            formatAccommodationDateRange(record),
+            `关联：${pointText}`,
+            record.confirmation ? `订单号：${record.confirmation}` : '',
+            record.price !== '' && record.price != null ? `¥${record.price}` : '',
+            record.phone ? record.phone : '',
+            record.address || '',
+        ].filter(Boolean).map(escapeHtml).join(' · ');
+        return `
+            <article class="lodging-card">
+                <div class="lodging-card-head">
+                    <div class="lodging-card-name">${escapeHtml(record.name)}</div>
+                    <span class="lodging-status${record.status === 'pending' ? ' pending' : ''}">${getAccommodationStatusLabel(record.status)}</span>
+                </div>
+                <div class="lodging-card-meta">${metadata}</div>
+                ${record.note ? `<div class="lodging-card-note">${escapeHtml(record.note)}</div>` : ''}
+                <div class="lodging-card-actions">
+                    <button type="button" onclick="jumpToAccommodationWaypoint('${record.waypointId}')" title="查看关联途经点" aria-label="查看关联途经点">📍</button>
+                    ${safeUrl ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" title="打开订单链接" aria-label="打开订单链接">↗</a>` : ''}
+                    <button type="button" onclick="editAccommodationRecord('${record.id}')" title="编辑" aria-label="编辑住宿订单">✎</button>
+                    <button class="danger" type="button" onclick="deleteAccommodationRecord('${record.id}')" title="删除" aria-label="删除住宿订单">✕</button>
+                </div>
+            </article>
+        `;
+    }).join('');
+    updateLodgingReminder();
+}
+
+function updateLodgingReminder() {
+    const reminder = document.getElementById('lodgingReminder');
+    if (!reminder) return;
+    const today = getLocalDateKey();
+    const dismissedKey = `travelmind_lodging_reminder_closed_${today}`;
+    const arrivals = (state.accommodations || []).filter(record => record.checkIn === today);
+    if (!arrivals.length || localStorage.getItem(dismissedKey) === '1') {
+        reminder.style.display = 'none';
+        return;
+    }
+    reminder.innerHTML = `
+        <div class="lodging-reminder-head">🏨 今日入住 <button class="lodging-reminder-close" type="button" onclick="dismissLodgingReminder()" title="关闭" aria-label="关闭今日入住提醒">×</button></div>
+        ${arrivals.map(record => {
+            const linkedPoint = getAccommodationWaypoint(record.waypointId);
+            return `<div class="lodging-reminder-item"><div class="lodging-reminder-name">${escapeHtml(record.name)}</div><div>${escapeHtml(linkedPoint?.name || record.waypointName || '未关联途经点')}</div>${record.note ? `<div>${escapeHtml(record.note)}</div>` : ''}</div>`;
+        }).join('')}
+    `;
+    reminder.style.display = 'block';
+}
+
+function dismissLodgingReminder() {
+    localStorage.setItem(`travelmind_lodging_reminder_closed_${getLocalDateKey()}`, '1');
+    const reminder = document.getElementById('lodgingReminder');
+    if (reminder) reminder.style.display = 'none';
+}
+
+function initLodging() {
+    renderLodging();
+    setInterval(updateLodgingReminder, 60000);
+}
 
 // ====== V22.1: 恢复 Supabase 数据库同步 ======
 const SUPABASE_URL = 'https://hbdvkuoqmgycwjcamwtr.supabase.co';
@@ -5929,15 +6538,18 @@ function _cloudApplyData(data) {
             ...data.currentRoute,
             aiResult: data.currentRoute.aiResult || data.aiResult || null,
             lastAiSave: data.currentRoute.lastAiSave || data.lastAiSave || null,
+            accommodations: Array.isArray(data.currentRoute.accommodations) ? data.currentRoute.accommodations : [],
         };
         localStorage.setItem('travelmind_route', JSON.stringify(currentRoute));
         state.waypoints = currentRoute.waypoints;
+        state.accommodations = currentRoute.accommodations;
         state.aiResult = currentRoute.aiResult;
         state.lastAiSave = currentRoute.lastAiSave;
         state.activeSavedRouteId = null;
         renderPoints();
         drawRoute();
         if (state.aiResult) renderAiResult(state.aiResult);
+        renderLodging();
     }
     if (Array.isArray(data.savedRoutes)) {
         localStorage.setItem(SAVED_ROUTES_KEY, JSON.stringify(data.savedRoutes));
@@ -6280,6 +6892,7 @@ window.addEventListener('load', () => {
     loadFromLocal();
     initSavedRoutes();
     initGear();
+    initLodging();
     showHelpFab();  // V21: 帮助按钮永久显示
 
     // V22.2: 每 5 秒自动保存到 localStorage
