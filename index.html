@@ -503,6 +503,23 @@
         }
         .point-item.start .point-index { background: var(--success); }
         .point-item.end .point-index { background: var(--danger); }
+        .point-order-input {
+            width: 30px;
+            height: 24px;
+            flex: 0 0 30px;
+            padding: 0;
+            border: 1px solid #93c5fd;
+            border-radius: 6px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+        }
+        .point-order-input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.16); }
+        .point-order-input::-webkit-inner-spin-button,
+        .point-order-input::-webkit-outer-spin-button { margin: 0; }
 
         .point-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .point-name {
@@ -678,28 +695,6 @@
         .onboard-dot.active { width: 20px; background: #8b5cf6; border-radius: 4px; }
         @media (max-width: 768px) {
             #onboardBubble { max-width: 90vw !important; }
-        }
-
-        /* V18: 拖动抓手 - 加大点击区域 + 明确视觉 */
-        .point-action-btn.drag-handle {
-            cursor: grab;
-            font-size: 16px;
-            font-weight: 700;
-            color: #64748b;
-            letter-spacing: -2px;
-            padding: 0 4px;
-        }
-        .point-action-btn.drag-handle:hover { background: #fef3c7; color: #f59e0b; }
-        .point-action-btn.drag-handle:active { cursor: grabbing; }
-        /* V18: 上下移按钮 */
-        .point-action-btn[title="上移一位"],
-        .point-action-btn[title="下移一位"] {
-            font-size: 11px;
-            color: #0ea5e9;
-        }
-        .point-action-btn[title="上移一位"]:hover,
-        .point-action-btn[title="下移一位"]:hover {
-            background: #e0f2fe; color: #0284c7;
         }
 
         .stats-bar {
@@ -1021,50 +1016,34 @@
         }
         .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
 
-        /* 路线编号Marker */
+        /* 路线编号 Marker */
         .route-marker {
-            width: 32px;
-            height: 32px;
+            width: 30px;
+            height: 30px;
             background: var(--primary);
             color: white;
-            border-radius: 50%;
-            border: 3px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            display: flex;
+            border-radius: 8px;
+            border: 2px solid white;
+            box-shadow: 0 2px 7px rgba(15,23,42,.3);
+            display: grid;
+            grid-template-columns: auto 1fr;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            font-weight: 700;
+            gap: 2px;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease;
         }
+        .route-marker:hover { transform: translateY(-2px) scale(1.08); box-shadow: 0 5px 12px rgba(15,23,42,.32); }
+        .route-marker-role {
+            padding-left: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            opacity: .9;
+        }
+        .route-marker-number { padding-right: 4px; font-size: 13px; font-weight: 800; }
         .route-marker.start { background: var(--success); }
         .route-marker.end { background: var(--danger); }
-
-        /* marker 旁的地点名称标签 */
-        .marker-name-label {
-            background: rgba(255,255,255,0.95);
-            color: #0f172a;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            padding: 2px 8px;
-            font-size: 12px;
-            font-weight: 600;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-            white-space: nowrap;
-            max-width: 240px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: pointer;
-            pointer-events: auto;
-            position: relative;
-            z-index: 100;
-        }
-        .marker-name-label:hover {
-            background: #f0f9ff;
-            border-color: #3b82f6;
-            box-shadow: 0 2px 8px rgba(59,130,246,0.25);
-        }
-        .marker-name-label.start { color: #047857; border-color: #6ee7b7; background: #ecfdf5; }
-        .marker-name-label.end   { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
     </style>
 </head>
 <body>
@@ -1155,11 +1134,10 @@
                             <option value="end">终点(替换)</option>
                         </select>
                         <input type="text" class="input" id="viaInput" placeholder="搜地点（如：稻城、塔公草原、色达…）"
-                            style="flex:1;min-width:0;"
-                            onkeydown="if(event.key==='Enter'){event.preventDefault();addViaSearch();}" />
+                            style="flex:1;min-width:0;" autocomplete="off" />
                         <button class="btn btn-secondary" type="button" onclick="addViaSearch()" style="padding:8px 14px;font-size:13px;white-space:nowrap;">➕ 加</button>
                     </div>
-                    <div id="viaHint" style="font-size:11px;color:#64748b;margin-top:4px;">输入地名后回车，高德解析后按所选角色加入。起终点会被替换。</div>
+                    <div id="viaHint" style="font-size:11px;color:#64748b;margin-top:4px;">输入至少 2 个字可查看匹配地点；选择后按当前角色加入。起终点会被替换。</div>
                 </div>
 
                 <div class="route-input">
@@ -2055,28 +2033,30 @@ function saveAltEdit(index, newAlt) {
     commitRouteChange();
 }
 
-// ====== 移动途经点 (V18: 上下移按钮) ======
-// dir: -1 = 上移, +1 = 下移
-function moveWaypoint(index, dir) {
-    const newIdx = index + dir;
-    // 起终点不动 (i=0 起点, 末尾终点)
-    if (newIdx < 1 || newIdx > state.waypoints.length - 2 || index < 1 || index > state.waypoints.length - 2) {
-        showToast('起点和终点已锁定，只能调整中间途经点', 'warning');
+function setWaypointOrder(index, requestedOrder) {
+    const lastIndex = state.waypoints.length - 1;
+    if (index < 1 || index >= lastIndex) {
+        renderPoints();
+        showToast('起点和终点的顺序固定', 'warning');
         return;
     }
-    const [moved] = state.waypoints.splice(index, 1);
-    state.waypoints.splice(newIdx, 0, moved);
-    commitRouteChange({ message: `✓ 已将【${moved.name}】移到第 ${newIdx + 1} 位` });
-}
 
-function reorderWaypoint(sourceIdx, targetIdx) {
-    const last = state.waypoints.length - 1;
-    if (sourceIdx < 1 || sourceIdx >= last) return false;
-    if (targetIdx < 1 || targetIdx >= last) return false;
-    if (sourceIdx === targetIdx) return false;
-    const [moved] = state.waypoints.splice(sourceIdx, 1);
-    state.waypoints.splice(targetIdx, 0, moved);
-    return true;
+    const parsedOrder = Number.parseInt(requestedOrder, 10);
+    if (!Number.isInteger(parsedOrder)) {
+        renderPoints();
+        showToast('请输入有效的路线序号', 'warning');
+        return;
+    }
+
+    const targetIndex = Math.min(Math.max(parsedOrder - 1, 1), lastIndex - 1);
+    if (targetIndex === index) {
+        renderPoints();
+        return;
+    }
+
+    const [moved] = state.waypoints.splice(index, 1);
+    state.waypoints.splice(targetIndex, 0, moved);
+    commitRouteChange({ message: `✓ 已将【${moved.name}】排到第 ${targetIndex + 1} 位` });
 }
 
 function haversineKm(a, b) {
@@ -2213,7 +2193,10 @@ function renderPoints() {
 
         const label = i === 0 ? '起点' : i === state.waypoints.length - 1 ? '终点' : '途经';
         // 起终点不显示长按拖动按钮（避免顺序混乱）
-        const showDrag = i > 0 && i < state.waypoints.length - 1;
+        const canReorder = i > 0 && i < state.waypoints.length - 1;
+        const orderControl = canReorder
+            ? `<input class="point-order-input" type="number" min="2" max="${state.waypoints.length - 1}" value="${i + 1}" title="输入序号后回车或离开输入框即可排序" aria-label="${escapeHtml(p.name)} 的路线序号" onclick="event.stopPropagation()" onchange="setWaypointOrder(${i}, this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();setWaypointOrder(${i}, this.value);}">`
+            : `<div class="point-index" title="${i === 0 ? '起点序号固定' : '终点序号固定'}">${i + 1}</div>`;
 
         const stayDays = p.stayDays || 0;
         const stayControl = (i === 0 || i === state.waypoints.length - 1)
@@ -2229,7 +2212,7 @@ function renderPoints() {
 
         return `
             <div class="${cls}" data-index="${i}">
-                <div class="point-index">${i + 1}</div>
+                ${orderControl}
                 <div class="point-info" onclick="openAndFlyTo(${i})" style="cursor:pointer;flex:1;" title="点击打开详情 → 在弹窗里改名/改海拔">
                     <div class="point-name">${escapeHtml(p.name)}</div>
                     <div class="point-plan-row">
@@ -2240,9 +2223,6 @@ function renderPoints() {
                 </div>
                 ${stayControl}
                 <div class="point-actions">
-                    ${showDrag ? `<button class="point-action-btn" onclick="event.stopPropagation(); moveWaypoint(${i}, -1)" title="上移一位">▲</button>` : ''}
-                    ${showDrag ? `<button class="point-action-btn" onclick="event.stopPropagation(); moveWaypoint(${i}, 1)" title="下移一位">▼</button>` : ''}
-                    ${showDrag ? `<button class="point-action-btn drag-handle" data-index="${i}" title="长按 0.25 秒拖动排序">⋮⋮</button>` : ''}
                     <button class="point-action-btn" onclick="event.stopPropagation(); openAndFlyTo(${i});" title="在地图上查看 + 搜周边">📍</button>
                     <button class="point-action-btn" onclick="event.stopPropagation(); removeWaypoint(${i});" title="删除">✕</button>
                 </div>
@@ -2250,140 +2230,8 @@ function renderPoints() {
         `;
     }).join('');
 
-    // 拖拽排序（V15: 改用 🤏 抓手 + 600ms 长按, 避免误触）
-    attachDragHandlers();
     drawMarkers();
     scheduleMissingWaypointElevationLookup();
-}
-
-// ====== 拖拽排序 (V18: 长按 250ms 更灵敏 + 加 ↑↓ 兜底) ======
-function attachDragHandlers() {
-    const handles = document.querySelectorAll('.drag-handle');
-    if (!handles.length) return;
-
-    let pressTimer = null;
-    let pressHandle = null;
-    const PRESS_MS = 250;  // V18: 从 600ms 降到 250ms (用户反馈不灵敏)
-    let dragging = null; // { sourceIdx }
-    let lastOverIdx = null;
-
-    const clearPress = () => {
-        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-        if (pressHandle) {
-            pressHandle.style.background = '';
-            pressHandle.style.transform = '';
-            pressHandle = null;
-        }
-    };
-
-    handles.forEach(handle => {
-        const sourceIdx = parseInt(handle.dataset.index);
-        const item = handle.closest('.point-item');
-
-        // 鼠标 / 触摸按下 → 启动 600ms 长按
-        const onDown = (e) => {
-            if (pressHandle) return;
-            pressHandle = handle;
-            handle.style.background = '#fef3c7';
-            handle.style.transform = 'scale(1.15)';
-            pressTimer = setTimeout(() => {
-                if (pressHandle !== handle) return;
-                // 进入拖动模式
-                dragging = { sourceIdx };
-                handle.style.background = '#f59e0b';
-                handle.style.color = '#fff';
-                if (item) {
-                    item.draggable = true;
-                    item.style.opacity = '0.7';
-                    item.style.boxShadow = '0 4px 16px rgba(245,158,11,.4)';
-                }
-                showToast('✋ 进入拖动模式，拖到目标项上松开', 'success');
-                try {
-                    const dt = (e.dataTransfer && e.dataTransfer.setData) ? e.dataTransfer : null;
-                    if (dt) dt.setData('text/plain', String(sourceIdx));
-                } catch (_) {}
-            }, PRESS_MS);
-        };
-
-        const onUp = () => {
-            // 没撑到 600ms → 取消
-            if (pressTimer) {
-                clearPress();
-                if (item && item.draggable) {
-                    item.draggable = false;
-                    item.style.opacity = '';
-                    item.style.boxShadow = '';
-                }
-                dragging = null;
-            }
-        };
-
-        handle.addEventListener('mousedown', onDown);
-        handle.addEventListener('touchstart', onDown, { passive: true });
-        handle.addEventListener('mouseup', onUp);
-        handle.addEventListener('mouseleave', onUp);
-        handle.addEventListener('touchend', onUp);
-        handle.addEventListener('touchcancel', onUp);
-
-        // 防止抓手 click 时触发 item 上的 click / 误删
-        handle.addEventListener('click', e => e.stopPropagation());
-    });
-
-    // 拖动排序: 监听 item 上的 dragover / drop (item 在 onDown 时被设为 draggable=true)
-    const items = document.querySelectorAll('.point-item');
-    items.forEach(item => {
-        item.addEventListener('dragover', e => {
-            if (!dragging) return;
-            e.preventDefault();
-            const targetIdx = parseInt(item.dataset.index);
-            if (lastOverIdx !== targetIdx) {
-                lastOverIdx = targetIdx;
-                items.forEach(el => el.style.background = '');
-                item.style.background = '#fef3c7';
-            }
-        });
-        item.addEventListener('dragleave', e => {
-            if (!dragging) return;
-            item.style.background = '';
-        });
-        item.addEventListener('drop', e => {
-            if (!dragging) return;
-            e.preventDefault();
-            const targetIdx = parseInt(item.dataset.index);
-            const src = dragging.sourceIdx;
-            if (isNaN(targetIdx) || isNaN(src) || src === targetIdx) {
-                cleanup();
-                return;
-            }
-            if (!reorderWaypoint(src, targetIdx)) {
-                cleanup();
-                showToast('起点和终点已锁定，只能调整中间途经点', 'error');
-                return;
-            }
-            cleanup();
-            commitRouteChange();
-            showToast(`✓ 已挪到第 ${targetIdx + 1} 位`, 'success');
-        });
-        item.addEventListener('dragend', cleanup);
-    });
-
-    function cleanup() {
-        items.forEach(el => {
-            el.style.background = '';
-            el.style.opacity = '';
-            el.style.boxShadow = '';
-            el.draggable = false;
-        });
-        handles.forEach(h => {
-            h.style.background = '';
-            h.style.transform = '';
-            h.style.color = '';
-        });
-        dragging = null;
-        lastOverIdx = null;
-        pressTimer = null;
-        pressHandle = null;
-    }
 }
 
 // ====== 飞到指定途经点 ======
@@ -2414,146 +2262,29 @@ function drawMarkers() {
     state.waypoints.forEach((p, i) => {
         const isStart = i === 0;
         const isEnd = i === state.waypoints.length - 1;
-
-        // 数字 + 名称 的复合内容
         const markerContent = document.createElement('div');
         markerContent.className = 'route-marker';
         if (isStart) markerContent.classList.add('start');
         else if (isEnd) markerContent.classList.add('end');
-        markerContent.textContent = i + 1;
-
-        // 名称标签（挂在 marker 右边）
-        const labelContent = document.createElement('div');
-        labelContent.className = 'marker-name-label';
-        if (isStart) labelContent.classList.add('start');
-        else if (isEnd) labelContent.classList.add('end');
-        // 截断过长的名称
-        labelContent.textContent = (p.name || `途经点 ${i + 1}`).slice(0, 20);
-        labelContent.title = p.name || `途经点 ${i + 1}`; // 鼠标悬停看完整名
-        // 点击名称标签 = 直接打开详情
-        labelContent.onclick = (e) => {
-            e.stopPropagation();
-            openPoiDetail(i, [p.lng, p.lat]);
-        };
-
-        // V15: 起终点不能拖动; 中间点默认不可拖, 600ms 长按后才开启
-        const canDrag = !(isStart || isEnd) && state.waypoints.length > 2;
+        markerContent.innerHTML = `<span class="route-marker-role">${isStart ? '起' : isEnd ? '终' : 'D'}</span><span class="route-marker-number">${i + 1}</span>`;
+        markerContent.title = `${p.dayLabel || `D${i + 1}`} ${p.name} · ${formatWaypointAltitude(p.alt)}`;
 
         const marker = new AMap.Marker({
             position: [p.lng, p.lat],
             content: markerContent,
-            offset: new AMap.Pixel(-16, -16),
+            offset: new AMap.Pixel(-15, -15),
             extData: { index: i, name: p.name },
-            draggable: false,    // V15: 默认关, 长按 600ms 才打开
-            raiseOnDrag: true,
-            cursor: canDrag ? 'grab' : 'default',
+            draggable: false,
+            cursor: 'pointer',
+            title: markerContent.title,
+            zIndex: 100 + i,
         });
-
-        // 名称 Label (地图上跟随 marker 移动的悬浮文字)
-        const nameLabel = new AMap.Text({
-            text: '',
-            anchor: 'left',     // 文字的左端对齐 marker
-            offset: new AMap.Pixel(20, -8),  // 标记圆右侧
-            style: {
-                'background': 'transparent',
-                'border': 'none',
-                'padding': '0',
-                'margin': '0',
-            },
-            position: [p.lng, p.lat],
-        });
-        // 把我们的 div 塞进 Label 内容
-        nameLabel.setContent(labelContent);
-
-        // 信息窗（点击 marker 弹出详情）
         marker.on('click', () => {
             openPoiDetail(i, marker.getPosition());
         });
 
-        // V15: 长按 marker 600ms 才进入可拖模式 (避免误触 + 一抓就拖)
-        let pressTimer = null;
-        let pressed = false;
-        const onDown = () => {
-            if (!canDrag) return;
-            if (pressTimer) return;
-            pressTimer = setTimeout(() => {
-                if (!canDrag) return;
-                pressed = true;
-                marker.setDraggable(true);
-                markerContent.style.transform = 'scale(1.2)';
-                markerContent.style.boxShadow = '0 0 0 6px rgba(245,158,11,.35)';
-                markerContent.style.transition = 'transform .15s';
-                showToast('✋ 已进入拖动模式，松开放到新位置', 'success');
-            }, 600);
-        };
-        const onUp = () => {
-            if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-            // 只有真正进入 pressed 模式后才关闭 draggable (dragend 之后由 dragend 负责重排)
-            if (pressed) {
-                pressed = false;
-                marker.setDraggable(false);
-                markerContent.style.transform = '';
-                markerContent.style.boxShadow = '';
-            }
-        };
-        marker.on('mousedown', onDown);
-        marker.on('touchstart', onDown);
-        marker.on('mouseup', onUp);
-        marker.on('touchend', onUp);
-        marker.on('mouseleave', onUp);
-
-        // dragend: 把 marker 拖到目标位置后, 按坐标找最近的邻居 marker 插队
-        // (保留起终点位置不变)
-        marker.on('dragend', () => {
-            const newPos = marker.getPosition();
-            const newLng = newPos.lng;
-            const newLat = newPos.lat;
-            const oldIdx = parseInt(marker.getExtData().index);
-            // 复位 marker 的 draggable 状态与样式
-            marker.setDraggable(false);
-            markerContent.style.transform = '';
-            markerContent.style.boxShadow = '';
-            pressed = false;
-
-            if (isNaN(oldIdx) || oldIdx < 1 || oldIdx >= state.waypoints.length - 1) {
-                renderPoints(); // 起终点 / 异常 → 闪回原位
-                return;
-            }
-            const moved = state.waypoints.splice(oldIdx, 1)[0];
-            moved.lng = newLng;
-            moved.lat = newLat;
-            // 找最近邻的下标, 插入到它后面 (保持视觉相邻), 但不越过终点
-            let bestIdx = Math.max(1, state.waypoints.length - 1);
-            let bestDist = Infinity;
-            for (let j = 1; j < state.waypoints.length - 1; j++) {
-                const w = state.waypoints[j];
-                const d = Math.hypot(w.lng - newLng, w.lat - newLat);
-                if (d < bestDist) { bestDist = d; bestIdx = j + 1; }
-            }
-            bestIdx = Math.min(Math.max(1, bestIdx), state.waypoints.length - 1);
-            state.waypoints.splice(bestIdx, 0, moved);
-            commitRouteChange();
-            showToast(`✓ 途经点 #${oldIdx + 1} 已挪到第 ${bestIdx + 1} 位`, 'success');
-        });
-
         state.map.add(marker);
-        state.map.add(nameLabel);   // V16: 把名称 Label 一并挂到地图
-        // 拖动中实时同步 Label 位置
-        marker.on('dragging', () => {
-            const pos = marker.getPosition();
-            nameLabel.setPosition(pos);
-        });
-        // 缩放时: zoom <= 9 显示名称, > 9 仅显示编号 (避免挤)
-        const applyZoom = () => {
-            const z = state.map.getZoom();
-            nameLabel.setContent(z <= 9 ? labelContent : '');
-        };
-        state.map.on('zoomend', applyZoom);
-        // 初始根据当前 zoom 应用
-        applyZoom();
-
         state.markers.push(marker);
-        state.markers.push(nameLabel);  // 清理时一起清掉
     });
 }
 
@@ -2679,6 +2410,9 @@ function openPoiDetail(i, position) {
                     <a class="d-btn" target="_blank" href="https://baike.baidu.com/search?word=${encodedCleanName}" rel="noopener">🔍 百度百科搜</a>
                     <a class="d-btn" target="_blank" href="https://www.baidu.com/s?wd=${encodeURIComponent(cleanName + ' 攻略 景点介绍')}" rel="noopener">🔍 百度攻略</a>
                     <a class="d-btn" target="_blank" href="https://www.xiaohongshu.com/search_result?keyword=${encodedCleanName}" rel="noopener">📕 小红书</a>
+                    <a class="d-btn" target="_blank" href="https://hotel.qunar.com/?q=${encodeURIComponent(cleanName + ' 酒店 民宿')}" rel="noopener">🏨 去哪儿住宿</a>
+                    <a class="d-btn" target="_blank" href="https://www.ctrip.com/?keyword=${encodeURIComponent(cleanName + ' 酒店 民宿')}" rel="noopener">🏨 携程酒店</a>
+                    <a class="d-btn" target="_blank" href="https://www.mafengwo.cn/search/q.php?q=${encodedCleanName}" rel="noopener">🧳 马蜂窝攻略</a>
                     <a class="d-btn" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent(cleanName + ' 旅游 攻略')}&tbm=isch" rel="noopener">🖼 Google 图片</a>
                 </div>
 
@@ -3874,32 +3608,16 @@ function _fitToRouteOrMarkers() {
     }
 }
 
-// ====== 中间途经点搜索加入 (V15 重写) ======
-// 根据 #viaRole 选择, 可以把地点设为「起点（替换）」/「途经点（追加在终点前）」/「终点（替换）」
-async function addViaSearch() {
+function applyViaCandidate(lng, lat, name) {
     const input = document.getElementById('viaInput');
     const roleSel = document.getElementById('viaRole');
     const hint = document.getElementById('viaHint');
     if (!input || !roleSel || !hint) return;
 
-    const keyword = (input.value || '').trim();
     const role = roleSel.value || 'via';
-    if (!keyword) { input.focus(); return; }
-
-    hint.textContent = '正在解析 "' + keyword + '"…';
-    hint.style.color = '#f59e0b';
-
-    const r = await geocodeKeyword(keyword);
-    if (!r || r.lng == null) {
-        hint.textContent = '❌ 找不到 "' + keyword + '"，试试其它关键词';
-        hint.style.color = '#dc2626';
-        showToast('找不到该地点：高德未识别', 'error');
-        return;
-    }
-
-    const cleanName = keyword.length > 30 ? keyword.slice(0, 30) + '…' : keyword;
+    const cleanName = cleanWaypointName(name).slice(0, 30);
     const tagForRole = role === 'via' ? 'via' : (role === 'start' ? 'city' : 'city');
-    const newWp = { name: cleanName, lng: r.lng, lat: r.lat, tag: tagForRole };
+    const newWp = { name: cleanName, lng: Number(lng), lat: Number(lat), tag: tagForRole };
 
     if (role === 'start') {
         if (state.waypoints.length === 0) state.waypoints.push(newWp);
@@ -3935,10 +3653,30 @@ async function addViaSearch() {
     hint.style.color = '#10b981';
     setTimeout(() => {
         if (hint.textContent.indexOf('已添加') >= 0) {
-            hint.textContent = '输入地名后回车，高德解析后按所选角色加入。起终点会被替换。';
+            hint.textContent = '输入至少 2 个字可查看匹配地点；选择后按当前角色加入。起终点会被替换。';
             hint.style.color = '#64748b';
         }
     }, 2500);
+}
+
+async function addViaSearch() {
+    const input = document.getElementById('viaInput');
+    const hint = document.getElementById('viaHint');
+    if (!input || !hint) return;
+
+    const keyword = (input.value || '').trim();
+    if (!keyword) { input.focus(); return; }
+
+    hint.textContent = '正在解析 "' + keyword + '"…';
+    hint.style.color = '#f59e0b';
+    const result = await geocodeKeyword(keyword);
+    if (!result || result.lng == null || result.lat == null) {
+        hint.textContent = '未找到匹配地点，请从下拉候选中选择';
+        hint.style.color = '#dc2626';
+        showToast('找不到该地点：请检查名称或选择候选项', 'error');
+        return;
+    }
+    applyViaCandidate(result.lng, result.lat, keyword);
 }
 
 // ====== 点击地图选点 ======
@@ -6465,9 +6203,12 @@ window.addEventListener('load', () => {
         }
         commitRouteChange();
     });
+    setupAutocomplete('viaInput', (lng, lat, name) => {
+        applyViaCandidate(lng, lat, name);
+    }, addViaSearch);
 });
 
-function setupAutocomplete(inputId, callback) {
+function setupAutocomplete(inputId, callback, fallback = null) {
     const input = document.getElementById(inputId);
     if (!input) return;
 
@@ -6518,6 +6259,7 @@ function setupAutocomplete(inputId, callback) {
             e.preventDefault();
             const first = dropdown.querySelector('[data-idx="0"]');
             if (first) first.click();
+            else if (typeof fallback === 'function') fallback();
         }
         if (e.key === 'Escape') {
             dropdown.style.display = 'none';
