@@ -2638,7 +2638,7 @@ function openPoiDetail(i, position) {
                     </div>
                     <textarea id="itineraryText${i}" placeholder="在此输入该地点的详细行程安排、游玩策略、注意事项等..."
                         style="width:100%;min-height:120px;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.6;resize:vertical;box-sizing:border-box;"
-                        onblur="saveItinerary(${i})">${dayInfo && dayInfo.wiki ? escapeHtml(dayInfo.wiki) : (p.itinerary || '')}</textarea>
+                        onblur="saveItinerary(${i})">${escapeHtml(p.itinerary || (dayInfo && dayInfo.wiki) || '')}</textarea>
                     <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-size:11px;color:#94a3b8;">可编辑 · 自动保存</span>
                         <button class="d-btn" onclick="copyItinerary(${i})" style="font-size:11px;">📋 复制</button>
@@ -2756,17 +2756,75 @@ function extractJsonText(content) {
     return match ? match[0] : text;
 }
 
+function cleanAiGeneratedText(value) {
+    return String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/```[a-z0-9_-]*\s*/gi, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/__(.*?)__/g, '$1')
+        .replace(/^\s*#{1,6}\s*/gm, '')
+        .replace(/^\s*[【〔]([^】〕\n]{1,28})[】〕]\s*/gm, '$1：')
+        .replace(/^\s*(?:[\u{1F000}-\u{1FAFF}\u2600-\u27BF]\uFE0F?\s*)+/gmu, '')
+        .replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF]\uFE0F?/gmu, '')
+        .replace(/^\s*[-=_]{3,}\s*$/gm, '')
+        .replace(/^\s*[-*•]\s+/gm, '• ')
+        .replace(/([：:])\s+/g, '$1')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function cleanAiSectionTitle(value, fallback) {
+    return cleanAiGeneratedText(value).replace(/\n/g, ' ').replace(/[：:]+$/, '').slice(0, 40) || fallback;
+}
+
+function cleanAiResult(value) {
+    if (Array.isArray(value)) return value.map(cleanAiResult);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cleanAiResult(item)]));
+    }
+    return typeof value === 'string' ? cleanAiGeneratedText(value) : value;
+}
+
+function limitAiStoredText(value, limit) {
+    const text = String(value || '');
+    return text.length > limit ? text.slice(0, limit) + '…' : text;
+}
+
+function compactAiParsedResult(parsed) {
+    if (parsed == null) return null;
+    try {
+        const text = JSON.stringify(parsed);
+        return text.length <= 6000 ? JSON.parse(text) : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+const AI_HISTORY_LIMIT = 20;
+
 function getAiHistory() {
     try {
         const arr = JSON.parse(localStorage.getItem(AI_HISTORY_KEY) || '[]');
-        return Array.isArray(arr) ? arr : [];
+        return Array.isArray(arr) ? arr.slice(0, AI_HISTORY_LIMIT) : [];
     } catch (e) { return []; }
 }
 
 function setAiHistory(arr) {
+    const compact = (arr || []).slice(0, AI_HISTORY_LIMIT).map(item => ({
+        ...item,
+        content: limitAiStoredText(item.content, 9000),
+        raw: limitAiStoredText(item.raw, 1600),
+        prompt: limitAiStoredText(item.prompt, 2400),
+        parsed: compactAiParsedResult(item.parsed),
+    }));
     try {
-        localStorage.setItem(AI_HISTORY_KEY, JSON.stringify((arr || []).slice(0, 60)));
-    } catch (e) {}
+        localStorage.setItem(AI_HISTORY_KEY, JSON.stringify(compact));
+        return true;
+    } catch (error) {
+        console.warn('[ai history save]', error.message);
+        return false;
+    }
 }
 
 function getRouteSnapshot() {
@@ -2802,24 +2860,28 @@ function recordAiArtifact({ type, title, content, raw = '', parsed = null, metad
         id: 'ai_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
         type,
         title,
-        content: String(content || ''),
-        raw: typeof raw === 'string' ? raw : JSON.stringify(raw || ''),
-        parsed,
-        prompt,
+        content: limitAiStoredText(cleanAiGeneratedText(content), 9000),
+        raw: limitAiStoredText(typeof raw === 'string' ? raw : JSON.stringify(raw || ''), 1600),
+        parsed: compactAiParsedResult(parsed),
+        prompt: limitAiStoredText(prompt, 2400),
         metadata,
         routeSnapshot: getRouteSnapshot(),
         createdAt: Date.now(),
     };
     const history = getAiHistory();
     history.unshift(item);
-    setAiHistory(history);
     state.lastAiSave = {
         id: item.id,
         type: item.type,
         title: item.title,
         createdAt: item.createdAt,
     };
-    saveToLocal();
+    const historySaved = setAiHistory(history);
+    const localSave = saveToLocal({ sync: false });
+    persistAiToActiveSavedRoute();
+    if (!localSave?.ok || !historySaved) {
+        console.warn('[ai save] Some history data could not be persisted, but the current route remains available in memory.');
+    }
     triggerAiCloudSaveNow();
     return item;
 }
@@ -3052,8 +3114,8 @@ function renderAiAnswer(text, grounding, meta = {}) {
     document.getElementById('aiContent').innerHTML = `
         <div class="ai-answer-meta">数据依据：路线计算 · ${escapeHtml(poiText)} · ${escapeHtml(weatherText)}${meta.model ? ` · 模型 ${escapeHtml(meta.model)}` : ''}</div>
         <div class="ai-result">
-            <h4>🤖 AI 路线回答</h4>
-            <p style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(text)}</p>
+            <h4>AI 路线回答</h4>
+            <p style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(cleanAiGeneratedText(text))}</p>
         </div>
     `;
 }
@@ -3082,11 +3144,12 @@ async function askTravelAI(presetQuestion = '') {
 
 请用中文回答，并严格遵守：
 1. 先给“结论先行”，再给可执行清单。
-2. 明确标注【路线数据】【高德 POI】【AI 推断】【需实时核验】四类依据。
+2. 使用“路线数据：”“高德 POI：”“AI 推断：”“需实时核验：”这四类短标题，不使用方括号。
 3. 不得编造实时封路、营业时间、价格、油品或充电桩可用状态；没有依据就明确说未知。
 4. 对高原路线优先检查海拔爬升、连续驾驶、补给薄弱段、夜间行车和天气风险。
 5. 推荐地点时优先引用提供的高德 POI 名称和相对锚点；没有 POI 时只给筛选方法。
-6. 答案控制在 900 字以内，避免泛泛而谈。`;
+6. 答案控制在 900 字以内，避免泛泛而谈。
+7. 不使用 Markdown、表情、星号、分隔线或装饰性符号；每段不超过 3 行。`;
         const result = await deepSeekChat({
             messages: [
                 { role: 'system', content: '你是谨慎、可核验的川西自驾旅行研究助手。事实与推断必须分开，优先使用用户路线和高德数据。' },
@@ -3096,11 +3159,12 @@ async function askTravelAI(presetQuestion = '') {
             max_tokens: 2600,
         });
         hideLoading();
-        renderAiAnswer(result.content, grounding, { model: result.model });
+        const answer = cleanAiGeneratedText(result.content);
+        renderAiAnswer(answer, grounding, { model: result.model });
         recordAiArtifact({
             type: 'travel_search_answer',
             title: question.slice(0, 40),
-            content: result.content,
+            content: answer,
             raw: result.data,
             prompt,
             metadata: {
@@ -3198,20 +3262,15 @@ ${nextPoint ? `- 下一站：${nextPoint.name}` : '- 终点站'}
 - 途经点序号：第 ${i + 1} 站，共 ${state.waypoints.length} 站
 ${weatherInfo ? `\n${weatherInfo}` : ''}
 
-请生成以下内容（用纯文本格式，不要JSON）：
-1. 【时间规划】根据整体路线安排，建议几点到达该地、游玩多久、几点离开前往下一站
-2. 最佳游玩时间（季节、时段）
-3. 推荐游玩时长
-4. 主要景点和游览顺序（含具体时间安排）
-5. 拍照打卡点推荐
-6. 高原反应注意事项
-7. 餐饮和住宿建议
-8. 交通出行建议（自驾/包车）
-9. 门票和费用信息
-10. 周边可串联的景点
-11. 实用小贴士
+请用简洁纯文本生成攻略，控制在 650 字以内，只保留以下六个分节：
+到达与离开：建议到达时间、游玩时长、出发时间。
+游玩顺序：2 至 4 个主要点位和推荐顺序。
+餐饮与住宿：补给、住宿位置或选择原则。
+高原与天气：海拔适应、穿衣和天气风险。
+交通与费用：道路、停车、门票等无法确定的项目明确写“出发前核验”。
+实用提醒：最多 3 条。
 
-⚠️ 重要：请结合上述天气信息，在行程安排中给出穿衣建议和天气注意事项。如果有雨雪天气预警，请特别提醒。`;
+不要使用 Markdown、表情、星号、方括号、装饰性分隔线或重复项目符号。每个分节用“标题：内容”的单行格式；天气信息仅作为参考，不得编造实时预警。`;
 
     try {
         const { content, data, model } = await deepSeekChat({
@@ -3224,16 +3283,22 @@ ${weatherInfo ? `\n${weatherInfo}` : ''}
         });
 
         if (content) {
-            ta.value = content;
-            p.itinerary = content;
+            const itinerary = cleanAiGeneratedText(content);
+            ta.value = itinerary;
+            p.itinerary = itinerary;
             recordAiArtifact({
                 type: 'itinerary',
                 title: `${placeName} 游玩攻略`,
-                content,
+                content: itinerary,
                 raw: data,
                 prompt,
                 metadata: { waypointIndex: i, model, placeName },
             });
+            const cloudEnabled = localStorage.getItem(CLOUD_KEY_ENABLED) === '1';
+            updateRouteSaveStatus(
+                cloudEnabled ? 'AI 行程已保存，正在同步到云端。' : 'AI 行程已自动保存到本机。',
+                cloudEnabled ? 'pending' : 'synced'
+            );
             showToast('✓ AI 生成完成，已自动保存', 'success');
         } else {
             throw new Error('未获取到有效内容');
@@ -4845,7 +4910,7 @@ ${new Date().toLocaleDateString('zh-CN')}
   "bestSeason": "最佳出行月份 + 应避开时段（如冰雪/雨季）+ 节庆提示",
   "tips": ["6 条贴士：含装备/驾驶/通讯/现金/语言/文化禁忌"],
   "gear": {
-    "title": "🎒 自驾必带物品清单",
+    "title": "自驾必带物品",
     "must": ["证件类（驾照/行驶证/身份证/边防证（如需））", "高反药物（红景天/葡萄糖/头痛药）", "..."],
     "vehicle": ["车辆类：防滑链/拖车绳/应急启动电源/全尺寸备胎/胎压表"],
     "camping": ["露营（如适用）：-20℃ 睡袋/防潮垫/头灯"],
@@ -4855,19 +4920,19 @@ ${new Date().toLocaleDateString('zh-CN')}
     "medical": ["医疗：创可贴/碘伏/抗高反药/感冒药/肠胃药/云南白药喷雾"]
   },
   "charging": {
-    "title": "🔋 沿线充电 / 加油 攻略",
+    "title": "沿线充电与加油",
     "stations": ["主要加油站/充电桩位置（如：新都桥/理塘/稻城/亚丁有 92#，高原充电桩主要在县城酒店）"],
     "range": "电动 SUV 实测续航下降 30-50%（高海拔低温），建议混动/油车为主",
     "tip": "低油量焦虑线段提示：如理塘→稻城 150km 无 95#、格聂之眼下山 80km 无人区"
   },
   "road": {
-    "title": "🛣 路况 / 危险路段 提醒",
+    "title": "路况与危险路段",
     "warning": ["危险路段：如折多山 4298m 冬季暗冰、觉巴山/东达山落石、格聂南线 60km 砂石路、雅砻江峡谷临崖"],
     "season": "季节性路况：6-8 月雨季塌方、11-4 月垭口冰雪（链子必备）",
     "tip": "驾驶技巧：避免夜间行车（无灯+落石+动物）、S 弯鸣笛、保持车距"
   },
   "accommodation": {
-    "title": "🏨 住宿攻略",
+    "title": "住宿攻略",
     "strategy": "高原住宿策略：分段适应（第 1 晚 <3000m，第 2 晚 3000-3500m，第 3 晚再上 4000m）",
     "options": "住宿形式选择：县城酒店（标间/氧气）vs 藏家民宿（体验+海拔低）vs 自驾露营（需备案）",
     "booking": "预订节奏：旺季（5月/10月）提前 2 周；稻城/亚丁/新都桥 7-8 月几乎订满",
@@ -4888,7 +4953,7 @@ ${new Date().toLocaleDateString('zh-CN')}
 
         const rawContent = content;
         try {
-            state.aiResult = JSON.parse(extractJsonText(rawContent));
+            state.aiResult = cleanAiResult(JSON.parse(extractJsonText(rawContent)));
             renderAiResult(state.aiResult);
             recordAiArtifact({
                 type: 'route_optimization',
@@ -4932,23 +4997,23 @@ function renderAiResult(r) {
 
     // 辅助函数: 数组 → ul 列表
     const ul = (arr) => Array.isArray(arr) && arr.length
-        ? `<ul>${arr.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : '';
+        ? `<ul>${arr.map(s => `<li>${escapeHtml(cleanAiGeneratedText(s))}</li>`).join('')}</ul>` : '';
 
     // 辅助函数: 章节卡片
     const section = (title, html) => html
-        ? `<div class="ai-result"><h4>${title}</h4>${html}</div>` : '';
+        ? `<div class="ai-result"><h4>${escapeHtml(cleanAiSectionTitle(title, '路线建议'))}</h4>${html}</div>` : '';
 
     // gear 章节的特殊渲染（分组）
     let gearHtml = '';
     if (r.gear && typeof r.gear === 'object') {
         const groups = [
-            { k: 'must',        label: '🔴 必带 (证件/药品)' },
-            { k: 'vehicle',     label: '🚙 车辆装备' },
-            { k: 'electronics', label: '🔌 电子设备' },
-            { k: 'clothing',    label: '🧥 衣物类' },
-            { k: 'food',        label: '🍞 食品补给' },
-            { k: 'medical',     label: '💊 医疗用品' },
-            { k: 'camping',     label: '⛺ 露营 (可选)' },
+            { k: 'must',        label: '必带物品' },
+            { k: 'vehicle',     label: '车辆装备' },
+            { k: 'electronics', label: '电子设备' },
+            { k: 'clothing',    label: '衣物' },
+            { k: 'food',        label: '食品补给' },
+            { k: 'medical',     label: '医疗用品' },
+            { k: 'camping',     label: '露营用品' },
         ];
         const inner = groups
             .filter(g => Array.isArray(r.gear[g.k]) && r.gear[g.k].length)
@@ -4961,9 +5026,9 @@ function renderAiResult(r) {
     let chargingHtml = '';
     if (r.charging && typeof r.charging === 'object') {
         chargingHtml =
-            (r.charging.range ? `<p><strong>⚡ 续航实测:</strong> ${escapeHtml(r.charging.range)}</p>` : '') +
-            (r.charging.stations ? `<p><strong>🛢 加油/充电点:</strong></p>${ul(r.charging.stations)}` : '') +
-            (r.charging.tip ? `<p><strong>⚠️ 低油量焦虑线段:</strong> ${escapeHtml(r.charging.tip)}</p>` : '');
+            (r.charging.range ? `<p><strong>续航：</strong> ${escapeHtml(cleanAiGeneratedText(r.charging.range))}</p>` : '') +
+            (r.charging.stations ? `<p><strong>加油与充电：</strong></p>${ul(r.charging.stations)}` : '') +
+            (r.charging.tip ? `<p><strong>补给提醒：</strong> ${escapeHtml(cleanAiGeneratedText(r.charging.tip))}</p>` : '');
     }
 
     // 路况
@@ -4971,41 +5036,41 @@ function renderAiResult(r) {
     if (r.road && typeof r.road === 'object') {
         roadHtml =
             ul(r.road.warning) +
-            (r.road.season ? `<p><strong>🌧 季节性:</strong> ${escapeHtml(r.road.season)}</p>` : '') +
-            (r.road.tip ? `<p><strong>🚗 驾驶技巧:</strong> ${escapeHtml(r.road.tip)}</p>` : '');
+            (r.road.season ? `<p><strong>季节性：</strong> ${escapeHtml(cleanAiGeneratedText(r.road.season))}</p>` : '') +
+            (r.road.tip ? `<p><strong>驾驶建议：</strong> ${escapeHtml(cleanAiGeneratedText(r.road.tip))}</p>` : '');
     }
 
     // 住宿
     let accomHtml = '';
     if (r.accommodation && typeof r.accommodation === 'object') {
         accomHtml =
-            (r.accommodation.strategy ? `<p><strong>📊 策略:</strong> ${escapeHtml(r.accommodation.strategy)}</p>` : '') +
-            (r.accommodation.options ? `<p><strong>🏨 形式选择:</strong> ${escapeHtml(r.accommodation.options)}</p>` : '') +
-            (r.accommodation.booking ? `<p><strong>📅 预订:</strong> ${escapeHtml(r.accommodation.booking)}</p>` : '') +
-            (r.accommodation.altitudes ? `<p><strong>⛰ 海拔注意:</strong> ${escapeHtml(r.accommodation.altitudes)}</p>` : '');
+            (r.accommodation.strategy ? `<p><strong>策略：</strong> ${escapeHtml(cleanAiGeneratedText(r.accommodation.strategy))}</p>` : '') +
+            (r.accommodation.options ? `<p><strong>住宿选择：</strong> ${escapeHtml(cleanAiGeneratedText(r.accommodation.options))}</p>` : '') +
+            (r.accommodation.booking ? `<p><strong>预订：</strong> ${escapeHtml(cleanAiGeneratedText(r.accommodation.booking))}</p>` : '') +
+            (r.accommodation.altitudes ? `<p><strong>海拔提醒：</strong> ${escapeHtml(cleanAiGeneratedText(r.accommodation.altitudes))}</p>` : '');
     }
 
     c.innerHTML = `
         <div class="ai-result">
-            <h4>📊 路线整体评价</h4>
-            <p>${escapeHtml(r.summary || '')}</p>
+            <h4>路线整体评价</h4>
+            <p>${escapeHtml(cleanAiGeneratedText(r.summary || ''))}</p>
         </div>
-        ${section('💡 优化建议 (按优先级)', ul(r.suggestions))}
-        ${section('⚠️ 高反预防', `<p>${escapeHtml(r.highAltitudeWarning || '')}</p>`)}
-        ${section('🌸 最佳出行季节', `<p>${escapeHtml(r.bestSeason || '')}</p>`)}
-        ${section('🎒 实用贴士', ul(r.tips))}
-        ${section(r.gear?.title || '🎒 自驾必带物品清单', gearHtml)}
-        ${section(r.charging?.title || '🔋 充电/加油攻略', chargingHtml)}
-        ${section(r.road?.title || '🛣 路况/危险路段提醒', roadHtml)}
-        ${section(r.accommodation?.title || '🏨 住宿攻略', accomHtml)}
+        ${section('优化建议', ul(r.suggestions))}
+        ${section('高反预防', `<p>${escapeHtml(cleanAiGeneratedText(r.highAltitudeWarning || ''))}</p>`)}
+        ${section('最佳出行季节', `<p>${escapeHtml(cleanAiGeneratedText(r.bestSeason || ''))}</p>`)}
+        ${section('实用贴士', ul(r.tips))}
+        ${section(r.gear?.title || '自驾必带物品', gearHtml)}
+        ${section(r.charging?.title || '充电与加油', chargingHtml)}
+        ${section(r.road?.title || '路况与危险路段', roadHtml)}
+        ${section(r.accommodation?.title || '住宿攻略', accomHtml)}
     `;
 }
 
 function renderAiText(text) {
     document.getElementById('aiContent').innerHTML = `
         <div class="ai-result">
-            <h4>🤖 AI 建议</h4>
-            <p style="white-space:pre-wrap;">${escapeHtml(text)}</p>
+            <h4>AI 建议</h4>
+            <p style="white-space:pre-wrap;">${escapeHtml(cleanAiGeneratedText(text))}</p>
         </div>
     `;
 }
@@ -5170,7 +5235,11 @@ function saveToLocal(options = {}) {
         localStorage.setItem('travelmind_route', JSON.stringify(payload));
         if (changed && options.markDirty !== false) markCloudDirty(payload.timestamp);
         if (changed && options.sync !== false) _triggerAutoSync();
-    } catch (e) {}
+        return { ok: true, changed, timestamp: payload.timestamp };
+    } catch (error) {
+        console.warn('[route local save]', error.message);
+        return { ok: false, error };
+    }
 }
 
 function loadFromLocal() {
@@ -5228,6 +5297,8 @@ function saveCurrentRoute() {
         totalTripDays: state.dayStats?.totalTripDays || state.waypoints.length,
         startName: state.waypoints[0]?.name || '',
         endName: state.waypoints[state.waypoints.length - 1]?.name || '',
+        aiResult: state.aiResult ? JSON.parse(JSON.stringify(state.aiResult)) : null,
+        lastAiSave: state.lastAiSave ? { ...state.lastAiSave } : null,
     };
     routes.unshift(route);
     if (routes.length > 20) routes.length = 20;  // 最多保留 20 条
@@ -5248,8 +5319,11 @@ function loadSavedRoute(id) {
     if (!confirm(`加载【${r.name}】？\n当前路线会被覆盖（${state.waypoints.length} 个点）。`)) return;
 
     state.waypoints = JSON.parse(JSON.stringify(r.waypoints));
+    state.aiResult = r.aiResult ? JSON.parse(JSON.stringify(r.aiResult)) : null;
+    state.lastAiSave = r.lastAiSave ? { ...r.lastAiSave } : null;
     state.activeSavedRouteId = r.id;
     commitRouteChange({ markDirty: false });
+    if (state.aiResult) renderAiResult(state.aiResult);
     // 飞到第一个点
     if (state.waypoints[0]) {
         state.map.setZoomAndCenter(7, [state.waypoints[0].lng, state.waypoints[0].lat]);
@@ -5268,6 +5342,8 @@ function updateSavedRoute(id) {
     routes[index] = {
         ...route,
         waypoints: JSON.parse(JSON.stringify(state.waypoints)),
+        aiResult: state.aiResult ? JSON.parse(JSON.stringify(state.aiResult)) : null,
+        lastAiSave: state.lastAiSave ? { ...state.lastAiSave } : null,
         timestamp: route.timestamp || Date.now(),
         updatedAt: Date.now(),
         pointCount: state.waypoints.length,
@@ -5281,6 +5357,25 @@ function updateSavedRoute(id) {
     updateRouteFlow();
     updateRouteSaveStatus(`✓ 已覆盖【${route.name}】并保存到本机，正在等待云端同步。`, 'pending');
     showToast(`✓ 已更新【${route.name}】`, 'success');
+}
+
+function persistAiToActiveSavedRoute() {
+    const id = state.activeSavedRouteId;
+    if (!id) return false;
+    const routes = getSavedRoutes();
+    const index = routes.findIndex(route => route.id === id);
+    if (index < 0) return false;
+
+    routes[index] = {
+        ...routes[index],
+        waypoints: JSON.parse(JSON.stringify(state.waypoints)),
+        aiResult: state.aiResult ? JSON.parse(JSON.stringify(state.aiResult)) : null,
+        lastAiSave: state.lastAiSave ? { ...state.lastAiSave } : null,
+        updatedAt: Date.now(),
+    };
+    setSavedRoutes(routes);
+    renderSavedRoutes();
+    return true;
 }
 
 function deleteSavedRoute(id, name) {
