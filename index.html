@@ -212,6 +212,85 @@
             border: 1px solid var(--border);
         }
 
+        .document-route-import {
+            margin-bottom: 14px;
+            padding: 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            background: #f8fbff;
+        }
+        .document-import-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            margin-bottom: 10px;
+        }
+        .document-import-icon {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            border-radius: 7px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 16px;
+        }
+        .document-import-title { color: #1e3a8a; font-size: 13px; font-weight: 700; line-height: 1.35; }
+        .document-import-note { margin-top: 2px; color: #64748b; font-size: 10px; line-height: 1.45; }
+        .document-dropzone {
+            min-height: 94px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px;
+            border: 1.5px dashed #60a5fa;
+            border-radius: 7px;
+            background: white;
+            color: #475569;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.18s, background 0.18s, transform 0.18s;
+            outline: none;
+        }
+        .document-dropzone:hover, .document-dropzone:focus, .document-dropzone.dragover {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+        .document-dropzone.dragover { transform: translateY(-1px); }
+        .document-dropzone strong { color: #1e40af; font-size: 12px; }
+        .document-dropzone span { color: #64748b; font-size: 10px; }
+        .document-import-status {
+            display: none;
+            margin-top: 8px;
+            padding: 7px 8px;
+            border-radius: 6px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+        .document-import-status.show { display: block; }
+        .document-import-status.error { background: #fef2f2; color: #b91c1c; }
+        .document-import-status.success { background: #ecfdf5; color: #047857; }
+        .document-import-preview {
+            display: none;
+            margin-top: 9px;
+            padding-top: 9px;
+            border-top: 1px solid #dbeafe;
+        }
+        .document-import-preview.show { display: block; }
+        .document-import-preview-title { color: #334155; font-size: 11px; font-weight: 700; }
+        .document-import-preview-meta { margin-top: 3px; color: #64748b; font-size: 10px; line-height: 1.45; }
+        .document-route-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 8px 0; }
+        .document-route-chip { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 6px; border: 1px solid #bfdbfe; border-radius: 5px; background: white; color: #1e40af; font-size: 10px; }
+        .document-route-arrow { color: #94a3b8; font-size: 12px; }
+        .document-import-actions { display: grid; grid-template-columns: minmax(0, 1fr) 74px; gap: 6px; }
+        .document-import-actions .btn { justify-content: center; min-height: 34px; padding: 7px 8px; font-size: 11px; }
+
         .input-label {
             font-size: 12px;
             color: var(--text-light);
@@ -1027,14 +1106,30 @@
         <!-- 路线规划 Tab -->
         <div class="tab-content">
             <div class="tab-panel active" id="panel-route">
-                <!-- 一键导入线路方案 -->
-                <div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #fbbf24;">
-                    <div style="font-weight:600;color:#92400e;margin-bottom:8px;font-size:13px;">📥 一键导入 单线方案</div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="btn btn-primary" style="flex:1;font-size:12px;padding:10px;background:linear-gradient(135deg,#dc2626,#ef4444);" onclick="importRoute('planV3')">🚗 单线方案（木里大寺+泸沽湖+亚丁+格聂+新都桥 21 天）</button>
+                <section class="document-route-import" aria-labelledby="documentImportTitle">
+                    <div class="document-import-head">
+                        <div class="document-import-icon" aria-hidden="true">↥</div>
+                        <div>
+                            <div class="document-import-title" id="documentImportTitle">从行程文档导入路线</div>
+                            <div class="document-import-note">拖入 Word（.docx）、PDF、TXT 或 Markdown，识别出发地、途经点和终点后再确认导入。</div>
+                        </div>
                     </div>
-                    <div style="font-size:11px;color:#78350f;margin-top:8px;line-height:1.4;">路线亮点：西昌→木里大寺→<b>泸沽湖连住 1 晚</b>→<b>香格里拉镇入亚丁</b>→稻城→理塘→<b>格聂之眼</b>→白玉→德格→<b>新都桥连住 2 晚</b>→康定→雅西高速→西昌。导入后地图自动跳到 D5（泸沽湖）。</div>
-                </div>
+                    <input id="routeDocumentInput" type="file" accept=".docx,.pdf,.txt,.md,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+                    <div class="document-dropzone" id="routeDocumentDropzone" role="button" tabindex="0" aria-describedby="documentImportStatus">
+                        <strong>拖拽行程文件到这里</strong>
+                        <span>或点击选择文件，最大 10 MB</span>
+                    </div>
+                    <div class="document-import-status" id="documentImportStatus" aria-live="polite"></div>
+                    <div class="document-import-preview" id="documentImportPreview">
+                        <div class="document-import-preview-title">识别到的路线</div>
+                        <div class="document-import-preview-meta" id="documentImportMeta"></div>
+                        <div class="document-route-chips" id="documentRouteChips"></div>
+                        <div class="document-import-actions">
+                            <button class="btn btn-primary" id="documentImportApply" type="button" disabled>导入为新路线</button>
+                            <button class="btn btn-secondary" id="documentImportClear" type="button" disabled>清除</button>
+                        </div>
+                    </div>
+                </section>
 
                 <div class="route-flow" id="routeFlow" aria-label="路线规划步骤">
                     <div class="route-flow-step active" data-step="1">1 设置起终点</div>
@@ -2644,25 +2739,15 @@ function saveItinerary(i) {
 }
 
 const AI_HISTORY_KEY = 'travelmind_ai_history';
-const DEEPSEEK_DEFAULT_ENDPOINT = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_PROXY_ENDPOINT = 'https://hbdvkuoqmgycwjcamwtr.supabase.co/functions/v1/deepseek-chat';
 const DEEPSEEK_DEFAULT_MODEL = 'deepseek-v4-flash';
 
-function getDeepSeekApiKey() {
-    return (window.TRAVELMIND_DEEPSEEK_API_KEY ||
-        localStorage.getItem('travelmind_deepseek_key') ||
-        '').trim();
-}
-
 function getDeepSeekEndpoint() {
-    return (window.TRAVELMIND_AI_PROXY_URL ||
-        localStorage.getItem('travelmind_ai_proxy_url') ||
-        DEEPSEEK_DEFAULT_ENDPOINT).trim();
+    return DEEPSEEK_PROXY_ENDPOINT;
 }
 
 function getDeepSeekModel() {
-    return (window.TRAVELMIND_DEEPSEEK_MODEL ||
-        localStorage.getItem('travelmind_deepseek_model') ||
-        DEEPSEEK_DEFAULT_MODEL).trim();
+    return DEEPSEEK_DEFAULT_MODEL;
 }
 
 function extractJsonText(content) {
@@ -2743,19 +2828,16 @@ function formatDeepSeekFetchError(err) {
     if (err && err.name === 'AbortError') return '请求超时，请稍后重试或缩短路线点数量';
     const msg = err && err.message ? err.message : String(err);
     if (/Failed to fetch|NetworkError|Load failed|fetch/i.test(msg)) {
-        return '浏览器直连 DeepSeek 失败，常见原因是 CORS、网络拦截或本机代理异常。可配置 window.TRAVELMIND_AI_PROXY_URL 或 localStorage.travelmind_ai_proxy_url 走后端代理';
+        return 'AI 服务暂时无法连接，请检查网络后重试';
     }
     return msg;
 }
 
 async function deepSeekChat({ messages, temperature = 0.7, max_tokens = 2000, json = false }) {
     const endpoint = getDeepSeekEndpoint();
-    const apiKey = getDeepSeekApiKey();
     const model = getDeepSeekModel();
     if (!endpoint) throw new Error('未配置 DeepSeek 接口地址');
-    if (endpoint.includes('api.deepseek.com') && !apiKey) {
-        throw new Error('未配置 DeepSeek API Key，可写入 localStorage.travelmind_deepseek_key');
-    }
+    if (!SUPABASE_ANON_KEY) throw new Error('AI 服务鉴权配置缺失');
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 60000);
@@ -2768,8 +2850,11 @@ async function deepSeekChat({ messages, temperature = 0.7, max_tokens = 2000, js
     if (json) body.response_format = { type: 'json_object' };
     if (/^deepseek-v4/i.test(model)) body.thinking = { type: 'disabled' };
 
-    const headers = { 'Content-Type': 'application/json' };
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const headers = {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    };
 
     let response;
     let text = '';
@@ -2796,6 +2881,9 @@ async function deepSeekChat({ messages, temperature = 0.7, max_tokens = 2000, js
     }
 
     if (!response.ok || data?.error) {
+        if (response.status === 402) {
+            throw new Error('AI 服务额度不足，请联系管理员充值后重试');
+        }
         const apiMsg = data?.error?.message || data?.message || text.slice(0, 240) || response.statusText;
         throw new Error(`HTTP ${response.status}: ${apiMsg}`);
     }
@@ -3799,6 +3887,356 @@ function importRoute(planId) {
 
     // V18: 导入后自动搜索沿途加油站/充电桩
     setTimeout(() => searchFuelStations(), 800);
+}
+
+const routeDocumentImportState = {
+    stops: [],
+    fileName: '',
+    source: '',
+    libraries: {},
+};
+
+function setRouteDocumentStatus(message, type = '') {
+    const status = document.getElementById('documentImportStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.className = 'document-import-status' + (message ? ' show' : '') + (type ? ' ' + type : '');
+}
+
+function setRouteDocumentBusy(busy) {
+    const dropzone = document.getElementById('routeDocumentDropzone');
+    const applyButton = document.getElementById('documentImportApply');
+    const clearButton = document.getElementById('documentImportClear');
+    if (dropzone) {
+        dropzone.classList.toggle('busy', busy);
+        dropzone.setAttribute('aria-busy', busy ? 'true' : 'false');
+    }
+    if (applyButton) applyButton.disabled = busy || routeDocumentImportState.stops.length < 2;
+    if (clearButton) clearButton.disabled = busy || !routeDocumentImportState.fileName;
+}
+
+function renderRouteDocumentPreview() {
+    const preview = document.getElementById('documentImportPreview');
+    const meta = document.getElementById('documentImportMeta');
+    const chips = document.getElementById('documentRouteChips');
+    if (!preview || !meta || !chips) return;
+
+    const stops = routeDocumentImportState.stops;
+    preview.classList.toggle('show', stops.length > 0);
+    chips.replaceChildren();
+
+    if (stops.length > 0) {
+        meta.textContent = routeDocumentImportState.fileName + ' · ' +
+            routeDocumentImportState.source + ' · ' + stops.length + ' 个地点';
+        stops.forEach((stop, index) => {
+            const chip = document.createElement('span');
+            chip.className = 'document-route-chip';
+            chip.textContent = stop;
+            chip.title = stop;
+            chips.appendChild(chip);
+            if (index < stops.length - 1) {
+                const arrow = document.createElement('span');
+                arrow.className = 'document-route-arrow';
+                arrow.textContent = '→';
+                chips.appendChild(arrow);
+            }
+        });
+    }
+    setRouteDocumentBusy(false);
+}
+
+function initRouteDocumentImport() {
+    const input = document.getElementById('routeDocumentInput');
+    const dropzone = document.getElementById('routeDocumentDropzone');
+    const applyButton = document.getElementById('documentImportApply');
+    const clearButton = document.getElementById('documentImportClear');
+    if (!input || !dropzone || !applyButton || !clearButton) return;
+
+    const chooseFile = () => {
+        if (!dropzone.classList.contains('busy')) input.click();
+    };
+
+    dropzone.addEventListener('click', chooseFile);
+    dropzone.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            chooseFile();
+        }
+    });
+    input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (file) handleRouteDocumentSelection(file);
+        input.value = '';
+    });
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, event => {
+            event.preventDefault();
+            if (!dropzone.classList.contains('busy')) dropzone.classList.add('dragover');
+        });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, event => {
+            event.preventDefault();
+            dropzone.classList.remove('dragover');
+        });
+    });
+    dropzone.addEventListener('drop', event => {
+        const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+        if (file && !dropzone.classList.contains('busy')) handleRouteDocumentSelection(file);
+    });
+    applyButton.addEventListener('click', applyRouteDocumentImport);
+    clearButton.addEventListener('click', clearRouteDocumentImport);
+}
+
+function getRouteDocumentExtension(file) {
+    const match = String(file && file.name || '').toLowerCase().match(/\.[a-z0-9]+$/);
+    return match ? match[0] : '';
+}
+
+async function loadRouteDocumentLibrary(globalName, source) {
+    if (window[globalName]) return window[globalName];
+    if (!routeDocumentImportState.libraries[globalName]) {
+        routeDocumentImportState.libraries[globalName] = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = source;
+            script.async = true;
+            script.onload = () => window[globalName]
+                ? resolve(window[globalName])
+                : reject(new Error('文档解析组件加载失败'));
+            script.onerror = () => reject(new Error('文档解析组件下载失败，请检查网络后重试'));
+            document.head.appendChild(script);
+        });
+    }
+    try {
+        return await routeDocumentImportState.libraries[globalName];
+    } catch (error) {
+        delete routeDocumentImportState.libraries[globalName];
+        throw error;
+    }
+}
+
+async function readRouteDocumentText(file) {
+    const extension = getRouteDocumentExtension(file);
+    if (file.size > 10 * 1024 * 1024) throw new Error('文件超过 10 MB，请拆分后再导入');
+    if (extension === '.doc') throw new Error('暂不支持旧版 .doc，请先用 Word 另存为 .docx 后导入');
+
+    if (extension === '.docx') {
+        const mammoth = await loadRouteDocumentLibrary(
+            'mammoth',
+            'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js'
+        );
+        const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+        return result.value || '';
+    }
+
+    if (extension === '.pdf') {
+        const pdfjs = await loadRouteDocumentLibrary(
+            'pdfjsLib',
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+        );
+        pdfjs.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+        const pageTexts = [];
+        const pageCount = Math.min(pdf.numPages, 30);
+        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
+            const page = await pdf.getPage(pageNumber);
+            const content = await page.getTextContent();
+            pageTexts.push(content.items.map(item => item.str).join(' '));
+        }
+        return pageTexts.join('\n');
+    }
+
+    if (extension === '.txt' || extension === '.md') return file.text();
+    throw new Error('仅支持 .docx、.pdf、.txt 和 .md 格式');
+}
+
+function cleanImportedRouteStop(value) {
+    const name = String(value || '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/[（(][^（）()]{0,80}[）)]/g, '')
+        .replace(/^\s*(?:[-*•●]|\d+[.、])\s*/, '')
+        .replace(/^\s*(?:出发|抵达|到达|前往|返回|途经|经过|入住|住在|住)\s*/, '')
+        .replace(/\s*(?:住宿|住店|早餐|午餐|晚餐|加油|休息|游览|拍照).*$/i, '')
+        .replace(/\s*(?:\d+(?:\.\d+)?\s*(?:km|公里|小时|h|m|米)|约\s*\d+).*$/i, '')
+        .replace(/[：:，,；;。].*$/, '')
+        .replace(/^[\s\-—–>|]+|[\s\-—–>|]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (name.length < 2 || name.length > 36 || !/[A-Za-z\u3400-\u9fff]/.test(name)) return '';
+    if (/^(?:d(?:ay)?\s*\d+|第?\s*\d+\s*(?:天|日)?|路线|行程|自驾|全天|自由活动|未命名)$/i.test(name)) return '';
+    return name;
+}
+
+function normalizeImportedRouteStops(stops) {
+    const result = [];
+    stops.forEach(stop => {
+        const name = cleanImportedRouteStop(stop);
+        if (name && name !== result[result.length - 1]) result.push(name);
+    });
+    return result.slice(0, 30);
+}
+
+function extractRouteStopsFromDocument(text) {
+    const stops = [];
+    String(text || '').replace(/\r/g, '').split('\n').forEach(rawLine => {
+        const line = rawLine.replace(/\s+/g, ' ').trim();
+        if (!line) return;
+        const hasDayLabel = /^(?:第\s*)?(?:d(?:ay)?\s*)?\d+(?:[~-]\d+)?\s*(?:天|日)?\s*[:：|、.\-]/i.test(line);
+        const hasRouteLabel = /(?:行程|路线|线路|自驾|途经|去程|返程|出发|抵达|到达)/.test(line);
+        const hasArrow = /(?:→|➡|⟶|➜|➔|--?>|—>|—|–|\s-\s)/.test(line);
+        const hasChineseConnector = /(?:从|由).{1,40}(?:到|至).{1,40}/.test(line);
+        if (!hasDayLabel && !hasRouteLabel && !hasArrow && !hasChineseConnector) return;
+
+        let routeText = line
+            .replace(/^\s*(?:[-*•●]|\d+[.、])\s*/, '')
+            .replace(/^(?:第\s*)?(?:d(?:ay)?\s*)?\d+(?:[~-]\d+)?\s*(?:天|日)?\s*[:：|、.\-]?\s*/i, '')
+            .replace(/^(?:行程|路线|线路|自驾路线|今日路线|今日行程|途经)\s*[:：]\s*/i, '');
+
+        if (hasChineseConnector) {
+            routeText = routeText.replace(/^(?:从|由)\s*/, '').replace(/\s*(?:到|至)\s*/g, '→');
+        }
+        routeText = routeText.replace(/\s*(?:→|➡|⟶|➜|➔|--?>|—>|—|–|\s-\s)\s*/g, '→');
+        if (routeText.includes('→')) {
+            stops.push(...routeText.split('→'));
+        } else if ((hasDayLabel || hasRouteLabel) && /[、，,]/.test(routeText)) {
+            stops.push(...routeText.split(/[、，,]/));
+        }
+    });
+    return normalizeImportedRouteStops(stops);
+}
+
+async function extractRouteStopsWithAi(text) {
+    const response = await deepSeekChat({
+        messages: [
+            {
+                role: 'system',
+                content: '你是自驾路线文档解析器。只提取按驾驶顺序出现的地理地点，忽略日期、酒店、餐食、距离、活动和说明。只返回 JSON 对象：{"stops":["地点1","地点2"]}。',
+            },
+            {
+                role: 'user',
+                content: String(text || '').slice(0, 14000),
+            },
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+        json: true,
+    });
+    const payload = JSON.parse(extractJsonText(response.content));
+    return normalizeImportedRouteStops(Array.isArray(payload.stops) ? payload.stops : []);
+}
+
+async function handleRouteDocumentSelection(file) {
+    if (!file) return;
+    routeDocumentImportState.stops = [];
+    routeDocumentImportState.fileName = String(file.name || '未命名文件');
+    routeDocumentImportState.source = '';
+    renderRouteDocumentPreview();
+    setRouteDocumentBusy(true);
+    setRouteDocumentStatus('正在读取 ' + routeDocumentImportState.fileName + '…');
+
+    try {
+        const text = await readRouteDocumentText(file);
+        if (!String(text).trim()) throw new Error('没有读取到可识别文字；扫描件 PDF 请先进行 OCR');
+
+        const fallbackStops = extractRouteStopsFromDocument(text);
+        let stops = [];
+        let source = '';
+        setRouteDocumentStatus('正在使用 AI 智能识别路线…');
+        try {
+            const aiStops = await extractRouteStopsWithAi(text);
+            if (aiStops.length >= 2) {
+                stops = aiStops;
+                source = 'AI 智能识别';
+            }
+        } catch (error) {
+            console.warn('[document import ai]', error.message);
+        }
+        if (stops.length < 2 && fallbackStops.length >= 2) {
+            stops = fallbackStops;
+            source = '规则识别（AI 服务暂不可用）';
+        }
+
+        if (stops.length < 2) {
+            throw new Error('未识别出完整路线。请确保文档含有“成都 → 康定 → 新都桥”或 D1 行程格式');
+        }
+        routeDocumentImportState.stops = stops;
+        routeDocumentImportState.source = source;
+        renderRouteDocumentPreview();
+        setRouteDocumentStatus('已识别 ' + stops.length + ' 个地点，请确认后导入到路线栏。', 'success');
+    } catch (error) {
+        routeDocumentImportState.stops = [];
+        routeDocumentImportState.source = '';
+        renderRouteDocumentPreview();
+        setRouteDocumentStatus(error && error.message ? error.message : '文档解析失败，请更换文件重试', 'error');
+    } finally {
+        setRouteDocumentBusy(false);
+    }
+}
+
+function clearRouteDocumentImport() {
+    routeDocumentImportState.stops = [];
+    routeDocumentImportState.fileName = '';
+    routeDocumentImportState.source = '';
+    const input = document.getElementById('routeDocumentInput');
+    if (input) input.value = '';
+    renderRouteDocumentPreview();
+    setRouteDocumentStatus('');
+}
+
+async function applyRouteDocumentImport() {
+    const stops = routeDocumentImportState.stops.slice();
+    if (stops.length < 2) return;
+    if (state.waypoints.length > 0 &&
+        !confirm('导入后将替换当前 ' + state.waypoints.length + ' 个路线点，确定继续吗？')) {
+        return;
+    }
+
+    setRouteDocumentBusy(true);
+    setRouteDocumentStatus('正在通过高德定位路线地点…');
+    const located = [];
+    const unresolved = [];
+
+    try {
+        for (let index = 0; index < stops.length; index++) {
+            setRouteDocumentStatus('正在定位 ' + (index + 1) + '/' + stops.length + '：' + stops[index]);
+            const result = await geocodeKeyword(stops[index]);
+            if (result && Number.isFinite(Number(result.lng)) && Number.isFinite(Number(result.lat))) {
+                located.push({
+                    name: stops[index],
+                    lng: Number(result.lng),
+                    lat: Number(result.lat),
+                    tag: index === 0 || index === stops.length - 1 ? 'city' : 'via',
+                    stayDays: 0,
+                });
+            } else {
+                unresolved.push(stops[index]);
+            }
+        }
+
+        if (located.length < 2) {
+            setRouteDocumentStatus('高德未能定位至少两个地点，当前路线未改动。请调整文档中的地名后重试。', 'error');
+            return;
+        }
+
+        state.waypoints = located;
+        clearFuelMarkers();
+        commitRouteChange({
+            message: '已导入 ' + located.length + ' 个路线点' + (unresolved.length ? '，跳过 ' + unresolved.length + ' 个未定位地点' : ''),
+        });
+        setRouteDocumentStatus(
+            '已导入 ' + located.length + ' 个路线点' + (unresolved.length ? '；未定位：' + unresolved.join('、') : ''),
+            'success'
+        );
+        setTimeout(() => {
+            _fitToRouteOrMarkers();
+            searchFuelStations();
+        }, 900);
+    } catch (error) {
+        setRouteDocumentStatus(error && error.message ? error.message : '路线导入失败，当前路线未改动', 'error');
+    } finally {
+        setRouteDocumentBusy(false);
+    }
 }
 
 // ====== POI 搜索 ======
@@ -5829,6 +6267,7 @@ window.addEventListener('resize', () => {
 window.addEventListener('load', () => {
     warnIfFileProtocol();
     initMap();
+    initRouteDocumentImport();
     loadFromLocal();
     initSavedRoutes();
     initGear();
