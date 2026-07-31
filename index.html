@@ -773,6 +773,39 @@
         }
         .point-action-btn:hover { background: var(--bg); color: var(--danger); }
 
+        .leg-info {
+            margin-top: 7px;
+            padding: 7px 8px;
+            border-left: 3px solid #2563eb;
+            border-radius: 4px;
+            background: #eff6ff;
+            color: #1e40af;
+        }
+        .leg-info.fallback { border-left-color: #94a3b8; background: #f8fafc; color: #64748b; }
+        .leg-info-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; }
+        .leg-info-head strong { color: #1e3a8a; white-space: nowrap; }
+        .leg-route-list { display: grid; gap: 4px; margin-top: 6px; }
+        .leg-route-option {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 6px;
+            min-height: 30px;
+            padding: 5px 6px;
+            border: 1px solid #bfdbfe;
+            border-radius: 5px;
+            background: #fff;
+            color: #334155;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .leg-route-option:hover { border-color: #60a5fa; background: #f8fbff; }
+        .leg-route-badge { padding: 2px 5px; border-radius: 4px; background: #dbeafe; color: #1d4ed8; font-size: 10px; white-space: nowrap; }
+        .leg-route-roads { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; }
+        .leg-route-meta { color: #64748b; font-size: 10px; white-space: nowrap; text-align: right; }
+        .leg-route-loading { padding: 3px 1px; color: #64748b; font-size: 10px; }
+        .leg-route-unavailable { color: #64748b; font-size: 10px; line-height: 1.45; }
+
         /* V20: 停留天数微调控件 */
         .point-info { flex: 1; min-width: 0; }
 
@@ -1709,7 +1742,7 @@
 const state = {
     map: null,
     markers: [],          // 所有Marker
-    routePath: null,      // 路径Polyline
+    routePath: null,      // 路径 Polyline 数组
     driving: null,        // 驾车规划实例
     clickMode: false,     // 是否处于地图选点模式
     waypoints: [],        // [{name, lat, lng}]
@@ -2526,9 +2559,9 @@ function renderPoints() {
                         <span class="day-chip${dayRangeCls}">${escapeHtml(p.dayLabel || `D${i + 1}`)}</span>
                         <span class="point-role-chip">${label}</span>
                         <span class="point-alt-chip${altHigh}">${altText}</span>
+                        ${stayControl}
                     </div>
                 </div>
-                ${stayControl}
                 <div class="point-actions">
                     <button class="point-action-btn" onclick="event.stopPropagation(); openAndFlyTo(${i});" title="在地图上查看 + 搜周边">📍</button>
                     <button class="point-action-btn" onclick="event.stopPropagation(); removeWaypoint(${i});" title="删除">✕</button>
@@ -3586,116 +3619,202 @@ function _formatDistance(km) {
 
 // ====== 路径规划 ======
 // 注意: 高德 Driving API 每次 search 最多支持 ~16 个途经点, 超过会失败
-// 对预设线路 22-23 个点, 必须用「分段策略」: 把途经点按 10 个一组, 分别 search, 把路径拼起来
-// 每个 leg 的距离/时间通过把 search 返回的 steps 按 waypoint 拆分还原
+// 预设线路可能有 22-23 个点，按 10 个点分组并在组内逐段请求，避免高德途经点数量限制。
+// 每个 leg 直接使用高德返回的公路 path、距离、时间和道路名。
 const DRIVING_SEGMENT_SIZE = 10;
+const DRIVING_SEARCH_CONCURRENCY = 3;
+const LEG_ALTERNATIVE_POLICIES = [
+    { key: 'short', label: '距离较短', policyName: 'LEAST_DISTANCE', fallbackPolicy: 2 },
+    { key: 'fee', label: '少收费', policyName: 'LEAST_FEE', fallbackPolicy: 1 },
+];
 let _routeDrawRequestId = 0;
+let _legAlternativeObserver = null;
+const _legRouteCache = new Map();
 
-// 单段 search: 把传入的 n 个 waypoints 切分成 n-1 个 leg, 每个 leg 的 km / sec 按 step.path 长度比例分发
-function _drawRouteSingleSegment(pts, onDone) {
-    const path = pts.map(p => new AMap.LngLat(p.lng, p.lat));
-    state.driving.search(path, (status, result) => {
-        if (status === 'complete' && result.routes && result.routes.length > 0) {
-            const route = result.routes[0];
-            const steps = route.steps || [];
-            // 如果 step 数对不上 (pts.length-1)，则降级到"按比例切分总距离/总时间"
-            const expectSteps = pts.length - 1;
-            const useStepByStep = (steps.length === expectSteps);
+function _drivingPolicy(name, fallback) {
+    return window.AMap?.DrivingPolicy?.[name] ?? fallback;
+}
 
-            if (!useStepByStep) {
-                console.warn(`[route] 高德返回 step ${steps.length} ≠ 期望 ${expectSteps}, 改用比例切分`);
-            }
+function _routeCacheKey(from, to, policy) {
+    return [
+        Number(from.lng).toFixed(5),
+        Number(from.lat).toFixed(5),
+        Number(to.lng).toFixed(5),
+        Number(to.lat).toFixed(5),
+        policy,
+    ].join('|');
+}
 
-            // 对每个 leg 计算几何长度（直线 km）, leg 之间的距离/时间有以下来源:
-            // (a) step.distM/step.timeS 如可用
-            // (b) 否则按比例切分 route.totalDistance / route.totalTime
-            const totalDistM = route.distance || 0;
-            const totalTimeS = route.time || 0;
+function _routePathFromSteps(route) {
+    const path = [];
+    (route?.steps || []).forEach(step => {
+        (step.path || []).forEach(point => {
+            const previous = path[path.length - 1];
+            const lng = typeof point.lng === 'function' ? point.lng() : point.lng;
+            const lat = typeof point.lat === 'function' ? point.lat() : point.lat;
+            const prevLng = previous && (typeof previous.lng === 'function' ? previous.lng() : previous.lng);
+            const prevLat = previous && (typeof previous.lat === 'function' ? previous.lat() : previous.lat);
+            if (!previous || lng !== prevLng || lat !== prevLat) path.push(point);
+        });
+    });
+    return path;
+}
 
-            // 计算每 leg 的几何长度, 用于等比例切分总距/总时
-            const legGeos = [];
-            for (let i = 0; i < expectSteps; i++) {
-                const a = path[i], b = path[i+1];
-                legGeos.push(_lngLatPairKm(a, b));
-            }
-            const totalGeo = legGeos.reduce((s,v)=>s+v,0);
+function _routeRoadNames(route) {
+    const totals = new Map();
+    (route?.steps || []).forEach(step => {
+        const road = String(step.road || '').replace(/^(无名道路|内部道路)$/u, '').trim();
+        if (!road) return;
+        totals.set(road, (totals.get(road) || 0) + Number(step.distance || 0));
+    });
+    return Array.from(totals.entries())
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 5)
+        .map(([road]) => road);
+}
 
-            const segPaths = [];
-            const legs = [];
-            for (let i = 0; i < expectSteps; i++) {
-                const step = steps[i];
-                let stepPath = null;
-                let distM = 0, timeS = 0;
+function buildAmapLegNavigationUrl(from, to, policy) {
+    const params = new URLSearchParams({
+        from: `${Number(from.lng).toFixed(6)},${Number(from.lat).toFixed(6)},${from.name || '起点'}`,
+        to: `${Number(to.lng).toFixed(6)},${Number(to.lat).toFixed(6)},${to.name || '终点'}`,
+        mode: 'car',
+        policy: String(policy),
+        src: 'TravelMind',
+        coordinate: 'gaode',
+        callnative: '1',
+    });
+    return `https://uri.amap.com/navigation?${params.toString()}`;
+}
 
-                if (step && step.path && step.path.length > 0) {
-                    stepPath = step.path;
-                    const apiDistM = parseInt(step.distance) || 0;
-                    const apiTimeS = parseInt(step.time) || 0;
-                    if (apiDistM > 0) {
-                        distM = apiDistM;
-                        timeS = apiTimeS || Math.round(distM / 1000 * 60 * 1.4); // 60km/h default if time missing
-                    }
-                }
+function _normalizeAmapRoute(route, from, to, label, policy) {
+    const path = _routePathFromSteps(route);
+    if (path.length < 2) return null;
+    const geometricKm = _pathLenKm(path);
+    const distM = Number(route.distance || 0) || Math.round(geometricKm * 1000);
+    const timeS = Number(route.time || 0) || Math.round(distM / 1000 / 45 * 3600);
+    return {
+        label,
+        policy,
+        path,
+        distM,
+        timeS,
+        tolls: Number(route.tolls || 0),
+        trafficLights: Number(route.traffic_lights || 0),
+        roads: _routeRoadNames(route),
+        navigationUrl: buildAmapLegNavigationUrl(from, to, policy),
+    };
+}
 
-                if (!stepPath) {
-                    stepPath = [path[i], path[i+1]];
-                }
+function _searchAmapRoutePolicy(from, to, policy, label) {
+    const cacheKey = _routeCacheKey(from, to, policy);
+    if (_legRouteCache.has(cacheKey)) return _legRouteCache.get(cacheKey);
+    if (_legRouteCache.size > 160) _legRouteCache.clear();
 
-                // (b) 比例切分
-                if (distM === 0 && totalDistM > 0 && totalGeo > 0) {
-                    const share = legGeos[i] / totalGeo;
-                    distM = Math.round(totalDistM * share);
-                    timeS = Math.round(totalTimeS * share);
-                }
-                // (c) 终极兜底: haversine × 1.4
-                if (distM === 0) {
-                    distM = Math.round(legGeos[i] * 1000 * 1.4);
-                    timeS = Math.round(distM / 1000 * 60 * 1.4);
-                }
+    const request = new Promise(resolve => {
+        const driving = new AMap.Driving({
+            map: null,
+            hideMarkers: true,
+            extensions: 'all',
+            policy,
+        });
+        const origin = new AMap.LngLat(Number(from.lng), Number(from.lat));
+        const destination = new AMap.LngLat(Number(to.lng), Number(to.lat));
+        let settled = false;
+        const finish = result => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(result);
+        };
+        const timer = setTimeout(() => finish({ ok: false, info: '高德路线请求超时' }), 18000);
+        driving.search(origin, destination, (status, result) => {
+            const route = result?.routes?.[0];
+            const option = status === 'complete' ? _normalizeAmapRoute(route, from, to, label, policy) : null;
+            if (option) finish({ ok: true, option });
+            else finish({ ok: false, info: result?.info || status || '高德未返回路线' });
+        });
+    });
+    _legRouteCache.set(cacheKey, request);
+    return request;
+}
 
-                legs.push({
-                    from: i,
-                    to: i + 1,
-                    path: stepPath,
-                    geoKm: legGeos[i],
-                    distM: distM,
-                    timeS: timeS,
-                });
-                segPaths.push(...stepPath);
-            }
+function _fallbackDrivingLeg(from, to, index, info) {
+    const origin = new AMap.LngLat(Number(from.lng), Number(from.lat));
+    const destination = new AMap.LngLat(Number(to.lng), Number(to.lat));
+    const geoKm = _haversine(Number(from.lng), Number(from.lat), Number(to.lng), Number(to.lat));
+    const distM = Math.round(geoKm * 1000 * 1.4);
+    return {
+        from: index,
+        to: index + 1,
+        path: [origin, destination],
+        geoKm,
+        distM,
+        timeS: Math.round(distM / 1000 / 45 * 3600),
+        alternatives: [],
+        alternativesLoaded: true,
+        fallback: true,
+        info,
+    };
+}
 
-            const realTotalDist = legs.reduce((s,l)=>s+l.distM,0)/1000;
-            const realTotalTime = legs.reduce((s,l)=>s+l.timeS,0);
+async function _buildDrivingLeg(from, to, index) {
+    const policy = _drivingPolicy('REAL_TRAFFIC', 4);
+    const result = await _searchAmapRoutePolicy(from, to, policy, '实时推荐');
+    if (!result.ok) return _fallbackDrivingLeg(from, to, index, result.info);
+    const primary = result.option;
+    return {
+        from: index,
+        to: index + 1,
+        path: primary.path,
+        geoKm: _haversine(Number(from.lng), Number(from.lat), Number(to.lng), Number(to.lat)),
+        distM: primary.distM,
+        timeS: primary.timeS,
+        alternatives: [primary],
+        alternativesLoaded: false,
+        fallback: false,
+        info: '',
+    };
+}
 
-            onDone({
-                ok: true,
-                paths: segPaths,
-                legs: legs,
-                distance: realTotalDist,
-                time: realTotalTime,
-            });
-        } else {
-            // 全段 fallback: haversine × 1.4
-            const legs = [];
-            const straight = [];
-            let totalDist = 0, totalTime = 0;
-            for (let i = 0; i < pts.length - 1; i++) {
-                const a = pts[i], b = pts[i+1];
-                const lngA = typeof a.lng === 'function' ? a.lng() : a.lng;
-                const latA = typeof a.lat === 'function' ? a.lat() : a.lat;
-                const lngB = typeof b.lng === 'function' ? b.lng() : b.lng;
-                const latB = typeof b.lat === 'function' ? b.lat() : b.lat;
-                const c = new AMap.LngLat(lngA, latA);
-                const d = new AMap.LngLat(lngB, latB);
-                const distKm = _haversine(lngA, latA, lngB, latB) * 1.4;
-                const timeS = distKm / 60 * 3600;
-                legs.push({ from: i, to: i + 1, path: [c,d], geoKm: _haversine(lngA, latA, lngB, latB), distM: Math.round(distKm*1000), timeS: Math.round(timeS) });
-                straight.push(c, d);
-                totalDist += distKm;
-                totalTime += timeS;
-            }
-            onDone({ ok: false, paths: straight, legs: legs, distance: totalDist, time: totalTime, info: result && result.info });
+async function _buildDrivingLegs(pts) {
+    const legs = new Array(Math.max(0, pts.length - 1));
+    let cursor = 0;
+    const worker = async () => {
+        while (cursor < legs.length) {
+            const index = cursor++;
+            legs[index] = await _buildDrivingLeg(pts[index], pts[index + 1], index);
         }
+    };
+    const workers = Math.min(DRIVING_SEARCH_CONCURRENCY, legs.length);
+    await Promise.all(Array.from({ length: workers }, worker));
+    return legs;
+}
+
+// 每两个站点单独调用高德，确保拿到真实公路轨迹和准确的分段距离/时间。
+function _drawRouteSingleSegment(pts, onDone) {
+    _buildDrivingLegs(pts).then(legs => {
+        const paths = legs.flatMap(leg => leg.path || []);
+        const failed = legs.filter(leg => leg.fallback);
+        onDone({
+            ok: failed.length === 0,
+            paths,
+            legs,
+            distance: legs.reduce((sum, leg) => sum + Number(leg.distM || 0), 0),
+            time: legs.reduce((sum, leg) => sum + Number(leg.timeS || 0), 0),
+            info: failed.map(leg => leg.info).filter(Boolean).join('；'),
+        });
+    }).catch(error => {
+        const legs = pts.slice(0, -1).map((point, index) =>
+            _fallbackDrivingLeg(point, pts[index + 1], index, error.message)
+        );
+        onDone({
+            ok: false,
+            paths: legs.flatMap(leg => leg.path),
+            legs,
+            distance: legs.reduce((sum, leg) => sum + leg.distM, 0),
+            time: legs.reduce((sum, leg) => sum + leg.timeS, 0),
+            info: error.message,
+        });
     });
 }
 
@@ -3733,14 +3852,6 @@ function drawRoute() {
         return;
     }
 
-    // 懒初始化驾车规划
-    if (!state.driving) {
-        state.driving = new AMap.Driving({
-            map: null,
-            hideMarkers: true,
-        });
-    }
-
     // 清除旧路径 + 旧文本标签
     if (state.routePath) { try { state.map.remove(state.routePath); } catch(e){} state.routePath = null; }
     if (state._legLabels) { state._legLabels.forEach(t => state.map.remove(t)); state._legLabels = []; }
@@ -3768,7 +3879,6 @@ function drawRoute() {
         const allPaths = [];
         let totalDistance = 0, totalTime = 0;
         let allLegs = []; // 每段内部的 leg 加上全局偏移
-        let allOk = true;
         let failedAny = false;
         let failedInfo = '';
         let runIdx = 0;
@@ -3785,41 +3895,18 @@ function drawRoute() {
             }
             _drawRouteSingleSegment(segments[runIdx], (res) => {
                 if (drawRequestId !== _routeDrawRequestId) return;
-                if (res.ok) {
-                    allPaths.push(...res.paths);
-                    totalDistance += res.distance;
-                    totalTime += res.time;
-                    if (res.legs) {
-                        const offset = runIdx * DRIVING_SEGMENT_SIZE;
-                        res.legs.forEach(l => {
-                            allLegs.push({
-                                from: l.from + offset,
-                                to: l.to + offset,
-                                path: l.path,
-                                geoKm: l.geoKm,
-                                distM: l.distM,
-                                timeS: l.timeS,
-                            });
-                        });
-                    }
-                } else {
+                allPaths.push(...(res.paths || []));
+                totalDistance += Number(res.distance || 0);
+                totalTime += Number(res.time || 0);
+                if (!res.ok) {
                     failedAny = true;
-                    failedInfo = res.info || '';
-                    const segPath = segments[runIdx].map(p => new AMap.LngLat(p.lng, p.lat));
-                    allPaths.push(...segPath);
-                    if (res.legs) {
-                        const offset = runIdx * DRIVING_SEGMENT_SIZE;
-                        res.legs.forEach(l => {
-                            allLegs.push({
-                                from: l.from + offset,
-                                to: l.to + offset,
-                                path: l.path,
-                                geoKm: l.geoKm,
-                                distM: l.distM,
-                                timeS: l.timeS,
-                            });
-                        });
-                    }
+                    failedInfo = [failedInfo, res.info].filter(Boolean).join('；');
+                }
+                if (res.legs) {
+                    const offset = runIdx * DRIVING_SEGMENT_SIZE;
+                    res.legs.forEach(leg => {
+                        allLegs.push({ ...leg, from: leg.from + offset, to: leg.to + offset });
+                    });
                 }
                 runIdx++;
                 setTimeout(nextSegment, 200);
@@ -3869,33 +3956,113 @@ function _renderLegLabels() {
     });
 }
 
-// 在侧边栏每个途经点下方插入"下一段 → X km / X h"小字
+// 侧边栏分段道路方案与导航入口
+function _formatLegTime(timeS) {
+    const totalMinutes = Math.max(1, Math.round(Number(timeS || 0) / 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours ? `${hours}小时${minutes ? `${minutes}分` : ''}` : `${minutes}分钟`;
+}
+
+function _legOptionSignature(option) {
+    return [
+        Math.round(Number(option.distM || 0) / 1000),
+        Math.round(Number(option.timeS || 0) / 60),
+        (option.roads || []).slice(0, 3).join('|'),
+    ].join(':');
+}
+
+async function _loadLegAlternatives(index, requestId) {
+    const leg = state._legs?.find(item => item.from === index);
+    const from = state.waypoints[index];
+    const to = state.waypoints[index + 1];
+    if (!leg || !from || !to || leg.fallback || leg.alternativesLoading || leg.alternativesLoaded) return;
+
+    leg.alternativesLoading = true;
+    const results = await Promise.all(LEG_ALTERNATIVE_POLICIES.map(policy =>
+        _searchAmapRoutePolicy(
+            from,
+            to,
+            _drivingPolicy(policy.policyName, policy.fallbackPolicy),
+            policy.label
+        )
+    ));
+    if (requestId !== _routeDrawRequestId || state._legs?.find(item => item.from === index) !== leg) return;
+
+    const seen = new Set((leg.alternatives || []).map(_legOptionSignature));
+    results.forEach(result => {
+        if (!result.ok) return;
+        const signature = _legOptionSignature(result.option);
+        if (seen.has(signature)) return;
+        seen.add(signature);
+        leg.alternatives.push(result.option);
+    });
+    leg.alternativesLoaded = true;
+    leg.alternativesLoading = false;
+    _renderPointLegs();
+}
+
+function _observeLegAlternativeLoads() {
+    if (_legAlternativeObserver) _legAlternativeObserver.disconnect();
+    const targets = Array.from(document.querySelectorAll('.leg-info[data-leg-index]'));
+    if (!targets.length) return;
+    const requestId = _routeDrawRequestId;
+    if (!('IntersectionObserver' in window)) {
+        targets.slice(0, 4).forEach(target => _loadLegAlternatives(Number(target.dataset.legIndex), requestId));
+        return;
+    }
+    _legAlternativeObserver = new IntersectionObserver(entries => {
+        entries.filter(entry => entry.isIntersecting).forEach(entry => {
+            _legAlternativeObserver.unobserve(entry.target);
+            _loadLegAlternatives(Number(entry.target.dataset.legIndex), requestId);
+        });
+    }, { root: document.querySelector('.tab-content'), rootMargin: '180px 0px' });
+    targets.forEach(target => _legAlternativeObserver.observe(target));
+}
+
+// 在侧边栏每个途经点下方显示实际公路和高德导航方案
 function _renderPointLegs() {
-    // 注入到 .point-item 里
-    document.querySelectorAll('.point-item').forEach((el, i) => {
-        // 清理老的
-        const old = el.querySelector('.leg-info');
-        if (old) old.remove();
+    document.querySelectorAll('.leg-info').forEach(element => element.remove());
+    document.querySelectorAll('.point-item').forEach((element, index) => {
+        const leg = state._legs?.find(item => item.from === index);
+        const destination = state.waypoints[index + 1];
+        if (!leg || !destination || index >= state.waypoints.length - 1) return;
 
-        const next = state._legs && state._legs.find(l => l.from === i);
-        if (!next || i >= state.waypoints.length - 1) return;
-
-        const distKm = (next.distM / 1000).toFixed(next.distM < 10000 ? 1 : 0);
-        const timeH = next.timeS / 3600;
-        const timeStr = timeH >= 1 ? timeH.toFixed(1) + 'h' : Math.round(timeH * 60) + 'min';
+        const options = leg.alternatives || [];
+        const optionMarkup = options.map((option, optionIndex) => {
+            const roads = option.roads?.length ? option.roads.join(' · ') : '高德推荐道路';
+            const tollText = option.tolls > 0 ? ` · 收费约${option.tolls}元` : '';
+            return `<a class="leg-route-option" href="${escapeHtml(option.navigationUrl)}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()" title="在高德地图打开${escapeHtml(option.label)}导航详情">
+                <span class="leg-route-badge">${escapeHtml(option.label || `方案${optionIndex + 1}`)}</span>
+                <span class="leg-route-roads">${escapeHtml(roads)}</span>
+                <span class="leg-route-meta">${escapeHtml(_formatDistance(option.distM / 1000))} · ${escapeHtml(_formatLegTime(option.timeS))}${tollText}</span>
+            </a>`;
+        }).join('');
+        const loadingMarkup = !leg.fallback && !leg.alternativesLoaded
+            ? '<div class="leg-route-loading">正在获取其他高德道路方案…</div>'
+            : '';
+        const unavailableMarkup = leg.fallback
+            ? `<div class="leg-route-unavailable">高德暂未返回公路路线，当前仅显示直线兜底（${escapeHtml(leg.info || '请稍后重试')}）</div>`
+            : '';
 
         const info = document.createElement('div');
-        info.className = 'leg-info';
-        info.style.cssText = 'margin-top:6px;padding:5px 8px;background:#eff6ff;border-left:3px solid #2563eb;border-radius:4px;font-size:11px;color:#1e40af;font-weight:600;';
-        info.innerHTML = `→ 下一段: <b>${distKm} km</b> · 开车 <b>${timeStr}</b>`;
-        el.querySelector('.point-info').appendChild(info);
+        info.className = `leg-info${leg.fallback ? ' fallback' : ''}`;
+        info.dataset.legIndex = String(index);
+        info.innerHTML = `
+            <div class="leg-info-head">
+                <span>到 ${escapeHtml(destination.name)} · 实际公路</span>
+                <strong>${escapeHtml(_formatDistance(leg.distM / 1000))} · ${escapeHtml(_formatLegTime(leg.timeS))}</strong>
+            </div>
+            <div class="leg-route-list">${optionMarkup}${loadingMarkup}${unavailableMarkup}</div>
+        `;
+        element.querySelector('.point-info')?.appendChild(info);
     });
+    _observeLegAlternativeLoads();
 }
 
 
 function _renderRouteResult(res) {
     hideLoading();
-    const color = res.ok ? '#2563eb' : '#94a3b8'; // 灰=部分段走直线, 蓝=全程驾车可达
     const pathArr = res.paths || [];
     document.getElementById('statDistance').textContent = (res.distance / 1000).toFixed(1);
     const driveH = (res.time / 3600);
@@ -3916,14 +4083,16 @@ function _renderRouteResult(res) {
     if (state.routePath) {
         try { state.map.remove(state.routePath); } catch(e){}
     }
-    state.routePath = new AMap.Polyline({
-        path: pathArr,
-        strokeColor: color,
-        strokeWeight: 6,
-        strokeOpacity: res.ok ? 0.85 : 0.6,
-        strokeStyle: res.ok ? 'solid' : 'dashed',
-        showDir: true,
-    });
+    const routeLegs = state._legs?.length ? state._legs : [{ path: pathArr, fallback: !res.ok }];
+    state.routePath = routeLegs.filter(leg => leg.path?.length > 1).map(leg => new AMap.Polyline({
+        path: leg.path,
+        strokeColor: leg.fallback ? '#94a3b8' : '#2563eb',
+        strokeWeight: leg.fallback ? 5 : 6,
+        strokeOpacity: leg.fallback ? 0.65 : 0.88,
+        strokeStyle: leg.fallback ? 'dashed' : 'solid',
+        showDir: !leg.fallback,
+        zIndex: leg.fallback ? 40 : 50,
+    }));
     state.map.add(state.routePath);
     drawMarkers();
 
@@ -3936,7 +4105,8 @@ function _renderRouteResult(res) {
 
 function _fitToRouteOrMarkers() {
     const fitArr = [];
-    if (state.routePath) fitArr.push(state.routePath);
+    if (Array.isArray(state.routePath)) fitArr.push(...state.routePath);
+    else if (state.routePath) fitArr.push(state.routePath);
     fitArr.push(...state.markers);
     if (fitArr.length > 0) {
         try { state.map.setFitView(fitArr); } catch(e){}
