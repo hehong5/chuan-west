@@ -614,13 +614,13 @@
         .point-reorder-control {
             display: flex;
             align-items: stretch;
-            flex: 0 0 48px;
-            gap: 2px;
+            flex: 0 0 62px;
+            gap: 4px;
         }
         .point-order-input {
-            width: 30px;
-            height: 24px;
-            flex: 0 0 30px;
+            width: 36px;
+            height: 28px;
+            flex: 0 0 36px;
             padding: 0;
             border: 1px solid #93c5fd;
             border-radius: 6px;
@@ -630,18 +630,20 @@
             font-weight: 700;
             text-align: center;
             outline: none;
+            appearance: textfield;
+            -moz-appearance: textfield;
         }
         .point-order-input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.16); }
         .point-order-input::-webkit-inner-spin-button,
-        .point-order-input::-webkit-outer-spin-button { margin: 0; }
+        .point-order-input::-webkit-outer-spin-button { appearance: none; margin: 0; }
         .point-reorder-buttons {
             display: grid;
-            grid-template-rows: repeat(2, 11px);
+            grid-template-rows: repeat(2, 13px);
             gap: 2px;
         }
         .point-reorder-btn {
-            width: 16px;
-            height: 11px;
+            width: 22px;
+            height: 13px;
             padding: 0;
             border: 1px solid #bfdbfe;
             border-radius: 3px;
@@ -2319,7 +2321,13 @@ function setWaypointOrder(index, requestedOrder) {
         return;
     }
 
-    const targetIndex = Math.min(Math.max(parsedOrder - 1, 1), lastIndex - 1);
+    if (parsedOrder < 2 || parsedOrder > lastIndex) {
+        renderPoints();
+        showToast(`途经点序号只能填写 2 到 ${lastIndex}，起点和终点保持固定`, 'warning');
+        return;
+    }
+
+    const targetIndex = parsedOrder - 1;
     if (targetIndex === index) {
         renderPoints();
         return;
@@ -2328,6 +2336,15 @@ function setWaypointOrder(index, requestedOrder) {
     const [moved] = state.waypoints.splice(index, 1);
     state.waypoints.splice(targetIndex, 0, moved);
     commitRouteChange({ message: `✓ 已将【${moved.name}】排到第 ${targetIndex + 1} 位` });
+}
+
+function setWaypointOrderById(waypointId, requestedOrder) {
+    const currentIndex = state.waypoints.findIndex(point => point.stayPointId === waypointId);
+    if (currentIndex < 0) {
+        renderPoints();
+        return;
+    }
+    setWaypointOrder(currentIndex, requestedOrder);
 }
 
 function moveWaypoint(index, direction) {
@@ -2460,6 +2477,7 @@ function renderPoints() {
         return;
     }
 
+    ensureAccommodationWaypointIds();
     refreshDayPlan();
     syncEndpointInputs();
     updateRouteFlow();
@@ -2479,7 +2497,7 @@ function renderPoints() {
         const canReorder = i > 0 && i < state.waypoints.length - 1;
         const orderControl = canReorder
             ? `<div class="point-reorder-control" onclick="event.stopPropagation()">
-                <input class="point-order-input" type="number" min="2" max="${state.waypoints.length - 1}" value="${i + 1}" title="输入序号后回车或离开输入框即可排序" aria-label="${escapeHtml(p.name)} 的路线序号" onchange="setWaypointOrder(${i}, this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();setWaypointOrder(${i}, this.value);}">
+                <input class="point-order-input" type="number" inputmode="numeric" min="2" max="${state.waypoints.length - 1}" value="${i + 1}" data-waypoint-id="${escapeHtml(p.stayPointId)}" title="输入序号后回车或离开输入框即可排序" aria-label="${escapeHtml(p.name)} 的路线序号" onchange="setWaypointOrderById(this.dataset.waypointId, this.value)" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}else if(event.key==='Escape'){event.preventDefault();renderPoints();}">
                 <div class="point-reorder-buttons">
                     <button class="point-reorder-btn" type="button" ${i === 1 ? 'disabled' : ''} onclick="moveWaypoint(${i}, -1)" title="上移一位" aria-label="上移 ${escapeHtml(p.name)}">&#9650;</button>
                     <button class="point-reorder-btn" type="button" ${i === state.waypoints.length - 2 ? 'disabled' : ''} onclick="moveWaypoint(${i}, 1)" title="下移一位" aria-label="下移 ${escapeHtml(p.name)}">&#9660;</button>
@@ -3571,6 +3589,7 @@ function _formatDistance(km) {
 // 对预设线路 22-23 个点, 必须用「分段策略」: 把途经点按 10 个一组, 分别 search, 把路径拼起来
 // 每个 leg 的距离/时间通过把 search 返回的 steps 按 waypoint 拆分还原
 const DRIVING_SEGMENT_SIZE = 10;
+let _routeDrawRequestId = 0;
 
 // 单段 search: 把传入的 n 个 waypoints 切分成 n-1 个 leg, 每个 leg 的 km / sec 按 step.path 长度比例分发
 function _drawRouteSingleSegment(pts, onDone) {
@@ -3703,6 +3722,7 @@ function _lngLatPairKm(a, b) {
 }
 
 function drawRoute() {
+    const drawRequestId = ++_routeDrawRequestId;
     if (!state.map || !AMap || !AMap.Driving) {
         console.warn('[drawRoute] 地图或 API 尚未就绪, 跳过');
         return;
@@ -3732,6 +3752,7 @@ function drawRoute() {
     if (pts.length <= DRIVING_SEGMENT_SIZE + 1) {
         showLoading('路径规划中...');
         _drawRouteSingleSegment(pts, (res) => {
+            if (drawRequestId !== _routeDrawRequestId) return;
             state._legs = res.legs || [];
             _renderRouteResult(res);
             _fitToRouteOrMarkers();
@@ -3753,6 +3774,7 @@ function drawRoute() {
         let runIdx = 0;
 
         const nextSegment = () => {
+            if (drawRequestId !== _routeDrawRequestId) return;
             if (runIdx >= segments.length) {
                 hideLoading();
                 state._legs = allLegs;
@@ -3762,6 +3784,7 @@ function drawRoute() {
                 return;
             }
             _drawRouteSingleSegment(segments[runIdx], (res) => {
+                if (drawRequestId !== _routeDrawRequestId) return;
                 if (res.ok) {
                     allPaths.push(...res.paths);
                     totalDistance += res.distance;
